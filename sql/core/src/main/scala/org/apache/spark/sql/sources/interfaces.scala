@@ -244,7 +244,7 @@ abstract class BaseRelation {
    *
    * @since 1.6.0
    */
-  def unhandledFilters(filters: Array[Filter]): Array[Filter] = filters
+  def unhandledFilters(filters: Seq[Filter]): Seq[Filter] = filters
 }
 
 /**
@@ -267,7 +267,7 @@ trait TableScan {
  */
 @DeveloperApi
 trait PrunedScan {
-  def buildScan(requiredColumns: Array[String]): RDD[Row]
+  def buildScan(requiredColumns: Seq[String]): RDD[Row]
 }
 
 /**
@@ -286,7 +286,7 @@ trait PrunedScan {
  */
 @DeveloperApi
 trait PrunedFilteredScan {
-  def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row]
+  def buildScan(requiredColumns: Seq[String], filters: Seq[Filter], aggregates: Aggregate): RDD[Row]
 }
 
 /**
@@ -438,7 +438,7 @@ abstract class HadoopFsRelation private[sql](
   private class FileStatusCache {
     var leafFiles = mutable.LinkedHashMap.empty[Path, FileStatus]
 
-    var leafDirToChildrenFiles = mutable.Map.empty[Path, Array[FileStatus]]
+    var leafDirToChildrenFiles = mutable.Map.empty[Path, Seq[FileStatus]]
 
     private def listLeafFiles(paths: Array[String]): mutable.LinkedHashSet[FileStatus] = {
       if (paths.length >= sqlContext.conf.parallelPartitionDiscoveryThreshold) {
@@ -480,7 +480,7 @@ abstract class HadoopFsRelation private[sql](
       leafDirToChildrenFiles.clear()
 
       leafFiles ++= files.map(f => f.getPath -> f)
-      leafDirToChildrenFiles ++= files.toArray.groupBy(_.getPath.getParent)
+      leafDirToChildrenFiles ++= files.toSeq.groupBy(_.getPath.getParent)
     }
   }
 
@@ -491,7 +491,7 @@ abstract class HadoopFsRelation private[sql](
   }
 
   protected def cachedLeafStatuses(): mutable.LinkedHashSet[FileStatus] = {
-    mutable.LinkedHashSet(fileStatusCache.leafFiles.values.toArray: _*)
+    mutable.LinkedHashSet(fileStatusCache.leafFiles.values.toSeq: _*)
   }
 
   final private[sql] def partitionSpec: PartitionSpec = {
@@ -525,7 +525,7 @@ abstract class HadoopFsRelation private[sql](
           if (sqlContext.conf.partitionDiscoveryEnabled()) {
             discoverPartitions()
           } else {
-            PartitionSpec(StructType(Nil), Array.empty[Partition])
+            PartitionSpec(StructType(Nil), Seq.empty[Partition])
           }
         }
     }
@@ -651,7 +651,7 @@ abstract class HadoopFsRelation private[sql](
       fileStatusCache.leafDirToChildrenFiles.getOrElse(
         path,
         // Otherwise, `input` might be a file path
-        fileStatusCache.leafFiles.get(path).toArray
+        fileStatusCache.leafFiles.get(path).toSeq
       ).filter { status =>
         val name = status.getPath.getName
         !name.startsWith("_") && !name.startsWith(".")
@@ -680,7 +680,7 @@ abstract class HadoopFsRelation private[sql](
    *
    * @since 1.4.0
    */
-  def buildScan(inputFiles: Array[FileStatus]): RDD[Row] = {
+  def buildScan(inputFiles: Seq[FileStatus]): RDD[Row] = {
     throw new UnsupportedOperationException(
       "At least one buildScan() method should be overridden to read the relation.")
   }
@@ -702,7 +702,7 @@ abstract class HadoopFsRelation private[sql](
   // PR #7626 separated `Row` and `InternalRow` completely.  One of the consequences is that we can
   // no longer treat an `InternalRow` containing Catalyst values as a `Row`.  Thus we have to
   // introduce another row value conversion for data sources whose `needConversion` is true.
-  def buildScan(requiredColumns: Array[String], inputFiles: Array[FileStatus]): RDD[Row] = {
+  def buildScan(requiredColumns: Seq[String], inputFiles: Seq[FileStatus]): RDD[Row] = {
     // Yeah, to workaround serialization...
     val dataSchema = this.dataSchema
     val needConversion = this.needConversion
@@ -756,9 +756,9 @@ abstract class HadoopFsRelation private[sql](
    * @since 1.4.0
    */
   def buildScan(
-      requiredColumns: Array[String],
-      filters: Array[Filter],
-      inputFiles: Array[FileStatus]): RDD[Row] = {
+      requiredColumns: Seq[String],
+      filters: Seq[Filter],
+      inputFiles: Seq[FileStatus]): RDD[Row] = {
     buildScan(requiredColumns, inputFiles)
   }
 
@@ -783,9 +783,9 @@ abstract class HadoopFsRelation private[sql](
    * @since 1.4.0
    */
   private[sql] def buildScan(
-      requiredColumns: Array[String],
-      filters: Array[Filter],
-      inputFiles: Array[FileStatus],
+      requiredColumns: Seq[String],
+      filters: Seq[Filter],
+      inputFiles: Seq[FileStatus],
       broadcastedConf: Broadcast[SerializableConfiguration]): RDD[Row] = {
     buildScan(requiredColumns, filters, inputFiles)
   }
@@ -848,11 +848,11 @@ private[sql] object HadoopFsRelation extends Logging {
   // _common_metadata files). "_temporary" directories are explicitly ignored since failed
   // tasks/jobs may leave partial/corrupted data files there.  Files and directories whose name
   // start with "." are also ignored.
-  def listLeafFiles(fs: FileSystem, status: FileStatus): Array[FileStatus] = {
+  def listLeafFiles(fs: FileSystem, status: FileStatus): Seq[FileStatus] = {
     logInfo(s"Listing ${status.getPath}")
     val name = status.getPath.getName.toLowerCase
     if (name == "_temporary" || name.startsWith(".")) {
-      Array.empty
+      Seq.empty
     } else {
       // Dummy jobconf to get to the pathFilter defined in configuration
       val jobConf = new JobConf(fs.getConf, this.getClass())
@@ -881,7 +881,7 @@ private[sql] object HadoopFsRelation extends Logging {
       accessTime: Long)
 
   def listLeafFilesInParallel(
-      paths: Array[String],
+      paths: Seq[String],
       hadoopConf: Configuration,
       sparkContext: SparkContext): mutable.LinkedHashSet[FileStatus] = {
     logInfo(s"Listing leaf files and directories in parallel under: ${paths.mkString(", ")}")
@@ -891,7 +891,7 @@ private[sql] object HadoopFsRelation extends Logging {
       val hdfsPath = new Path(path)
       val fs = hdfsPath.getFileSystem(serializableConfiguration.value)
       val qualified = hdfsPath.makeQualified(fs.getUri, fs.getWorkingDirectory)
-      Try(listLeafFiles(fs, fs.getFileStatus(qualified))).getOrElse(Array.empty)
+      Try(listLeafFiles(fs, fs.getFileStatus(qualified))).getOrElse(Seq.empty)
     }.map { status =>
       FakeFileStatus(
         status.getPath.toString,
