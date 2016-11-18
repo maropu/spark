@@ -21,7 +21,7 @@ import java.io.{DataInput, DataOutput, File, PrintWriter}
 import java.util.{ArrayList, Arrays, Properties}
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.hive.ql.udf.UDAFPercentile
+import org.apache.hadoop.hive.ql.udf.{UDAFPercentile, UDFToDouble}
 import org.apache.hadoop.hive.ql.udf.generic._
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF.DeferredObject
 import org.apache.hadoop.hive.serde2.{AbstractSerDe, SerDeStats}
@@ -29,7 +29,8 @@ import org.apache.hadoop.hive.serde2.objectinspector.{ObjectInspector, ObjectIns
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory
 import org.apache.hadoop.io.Writable
 
-import org.apache.spark.sql.{AnalysisException, QueryTest, Row}
+import org.apache.spark.sql.{AnalysisException, DataFrame, QueryTest, Row}
+import org.apache.spark.sql.execution.WholeStageCodegenExec
 import org.apache.spark.sql.hive.test.TestHiveSingleton
 import org.apache.spark.sql.test.SQLTestUtils
 import org.apache.spark.util.Utils
@@ -486,6 +487,29 @@ class HiveUDFSuite extends QueryTest with TestHiveSingleton with SQLTestUtils {
     val count4 = sql("SELECT input_file_name() as file FROM parquet_tmp").distinct().count
     assert(count4 == 1)
     sql("DROP TABLE parquet_tmp")
+  }
+
+  test("Hive UDFs should be included in WholeStageCodegen") {
+    import org.apache.spark.sql.functions._
+    import spark.implicits._
+
+    def checkCodegenPlan(df: DataFrame): Unit = {
+      df.queryExecution.executedPlan.find(_.isInstanceOf[WholeStageCodegenExec])
+    }
+
+    spark.range(3).createOrReplaceTempView("t")
+
+    sql(s"CREATE TEMPORARY FUNCTION f AS '${classOf[UDFToDouble].getName}'")
+    val df1 = spark.sql("SELECT f(id) FROM t")
+    checkCodegenPlan(df1)
+    assert(df1.collect() === Array(Row(0.0), Row(1.0), Row(2.0)))
+    sql("DROP TEMPORARY FUNCTION IF EXISTS f")
+
+    sql(s"CREATE TEMPORARY FUNCTION f AS '${classOf[GenericUDFAbs].getName}'")
+    val df2 = spark.sql("SELECT f(id) FROM t")
+    checkCodegenPlan(df2)
+    assert(df2.collect() === Array(Row(0L), Row(1L), Row(2L)))
+    sql("DROP TEMPORARY FUNCTION IF EXISTS f")
   }
 }
 
