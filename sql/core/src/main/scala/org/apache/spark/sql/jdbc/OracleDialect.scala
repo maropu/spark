@@ -65,6 +65,8 @@ private case object OracleDialect extends JdbcDialect {
     case ByteType => Some(JdbcType("NUMBER(3)", java.sql.Types.SMALLINT))
     case ShortType => Some(JdbcType("NUMBER(5)", java.sql.Types.SMALLINT))
     case StringType => Some(JdbcType("VARCHAR2(255)", java.sql.Types.VARCHAR))
+    case StringType => Some(JdbcType("TIMESTAMP", java.sql.Types.TIMESTAMP,
+      Map("timestampFormat" -> "dd-mm-yyy hh24:mi:ss")))
     case _ => None
   }
 

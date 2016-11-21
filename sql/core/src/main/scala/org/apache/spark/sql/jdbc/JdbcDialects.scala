@@ -32,7 +32,8 @@ import org.apache.spark.sql.types._
  */
 @DeveloperApi
 @InterfaceStability.Evolving
-case class JdbcType(databaseTypeDefinition : String, jdbcNullType : Int)
+case class JdbcType(databaseTypeDefinition : String, jdbcNullType : Int,
+  metadata: Map[String, String] = Map.empty[String, String])
 
 /**
  * :: DeveloperApi ::
