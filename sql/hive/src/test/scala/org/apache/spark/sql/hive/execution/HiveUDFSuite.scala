@@ -497,18 +497,28 @@ class HiveUDFSuite extends QueryTest with TestHiveSingleton with SQLTestUtils {
       df.queryExecution.executedPlan.find(_.isInstanceOf[WholeStageCodegenExec])
     }
 
-    spark.range(3).createOrReplaceTempView("t")
+    spark.range(3).createOrReplaceTempView("t1")
 
     sql(s"CREATE TEMPORARY FUNCTION f AS '${classOf[UDFToDouble].getName}'")
-    val df1 = spark.sql("SELECT f(id) FROM t")
+    val df1 = spark.sql("SELECT f(id) FROM t1")
     checkCodegenPlan(df1)
     assert(df1.collect() === Array(Row(0.0), Row(1.0), Row(2.0)))
     sql("DROP TEMPORARY FUNCTION IF EXISTS f")
 
     sql(s"CREATE TEMPORARY FUNCTION f AS '${classOf[GenericUDFAbs].getName}'")
-    val df2 = spark.sql("SELECT f(id) FROM t")
+    val df2 = spark.sql("SELECT f(id) FROM t1")
     checkCodegenPlan(df2)
     assert(df2.collect() === Array(Row(0L), Row(1L), Row(2L)))
+    sql("DROP TEMPORARY FUNCTION IF EXISTS f")
+
+    spark.range(2).selectExpr(
+      "id as key", "array(id + 1, id + 2) as values"
+    ).createOrReplaceTempView("t2")
+
+    sql(s"CREATE TEMPORARY FUNCTION f AS '${classOf[GenericUDTFExplode].getName}'")
+    val df3 = spark.sql("SELECT key, f(values) FROM t2")
+    checkCodegenPlan(df3)
+    assert(df3.collect() === Array(Row(0L, 1L), Row(0L, 2L), Row(1L, 2L), Row(1L, 3L)))
     sql("DROP TEMPORARY FUNCTION IF EXISTS f")
   }
 }

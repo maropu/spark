@@ -217,12 +217,12 @@ case class GenerateExec(
    */
   private def codeGenTraversableOnce(
       ctx: CodegenContext,
-      e: Expression,
+      g: Generator,
       input: Seq[ExprCode],
       row: ExprCode): String = {
 
     // Generate the code for the generator
-    val data = e.genCode(ctx)
+    val data = g.genCode(ctx)
 
     // Generate looping variables.
     val iterator = ctx.freshName("iterator")
@@ -231,7 +231,7 @@ case class GenerateExec(
 
     // Add a check if the generate outer flag is true.
     val checks = optionalCode(outer, s"!$hasNext")
-    val values = e.dataType match {
+    val values = g.dataType match {
       case ArrayType(st: StructType, nullable) =>
         st.fields.toSeq.zipWithIndex.map { case (f, i) =>
           codeGenAccessor(ctx, current, f.name, s"$i", f.dataType, f.nullable, checks)
@@ -243,6 +243,26 @@ case class GenerateExec(
     // execution of the first iteration even if there is no input. Evaluation of the iterator is
     // prevented by checks in the next() and accessor code.
     val numOutput = metricTerm(ctx, "numOutputRows")
+
+    // Generate the consumer code for both regular generator processing and its termination
+    val consumeCode = consume(ctx, input ++ values)
+
+    // Generate code for clean up and additional rows to be made in case that
+    // `InputAdapter` has no more rows to process.
+    val inputAdapter = ctx.freshName("inputAdapter")
+    ctx.addMutableState("scala.collection.Iterator", inputAdapter, s"$inputAdapter = inputs[0];")
+    val exprTerminate = g.doGenTerminateCode(ctx)
+    val terminateCode = s"""
+       |if (!$inputAdapter.hasNext()) {
+       |  ${exprTerminate.code}
+       |  while (${exprTerminate.value}.hasNext()) {
+       |    $numOutput.add(1);
+       |    InternalRow $current = (InternalRow)(${exprTerminate.value}.next());
+       |    $consumeCode
+       |  }
+       |}
+    """.stripMargin
+
     if (outer) {
       val outerVal = ctx.freshName("outer")
       s"""
@@ -254,8 +274,10 @@ case class GenerateExec(
          |  boolean $hasNext = $iterator.hasNext();
          |  InternalRow $current = (InternalRow)($hasNext? $iterator.next() : null);
          |  $outerVal = false;
-         |  ${consume(ctx, input ++ values)}
+         |  $consumeCode
          |}
+         |
+         |$terminateCode
       """.stripMargin
     } else {
       s"""
@@ -264,8 +286,10 @@ case class GenerateExec(
          |while ($iterator.hasNext()) {
          |  $numOutput.add(1);
          |  InternalRow $current = (InternalRow)($iterator.next());
-         |  ${consume(ctx, input ++ values)}
+         |  $consumeCode
          |}
+         |
+         |$terminateCode
       """.stripMargin
     }
   }

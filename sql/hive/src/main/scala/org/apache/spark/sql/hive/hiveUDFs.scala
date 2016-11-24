@@ -20,7 +20,7 @@ package org.apache.spark.sql.hive
 import java.nio.ByteBuffer
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable
 
 import org.apache.hadoop.hive.ql.exec._
 import org.apache.hadoop.hive.ql.udf.{UDFType => HiveUDFType}
@@ -96,7 +96,7 @@ private[hive] trait HiveUDFCodegen {
     : String = {
     val resultTerm = ctx.freshName("result")
 
-    // Generate codes used to convert the returned value of `HiveSimpleUDF` to Catalyst type
+    // Generate codes used to convert a returned value to Catalyst type
     val converterClassName = classOf[Any => Any].getName
     val catalystConverterTerm = ctx.freshName("catalystConverter")
     ctx.addMutableState(converterClassName, catalystConverterTerm,
@@ -356,7 +356,7 @@ private[hive] case class HiveGenericUDTF(
     name: String,
     funcWrapper: HiveFunctionWrapper,
     children: Seq[Expression])
-  extends Generator with HiveInspectors with CodegenFallback {
+  extends Generator with HiveInspectors with HiveUDFCodegen {
 
   @transient
   protected lazy val function: GenericUDTF = {
@@ -385,12 +385,6 @@ private[hive] case class HiveGenericUDTF(
   @transient
   private lazy val inputDataTypes: Array[DataType] = children.map(_.dataType).toArray
 
-  @transient
-  private lazy val wrappers = children.map(x => wrapperFor(toInspector(x), x.dataType)).toArray
-
-  @transient
-  private lazy val unwrapper = unwrapperFor(outputInspector)
-
   override def eval(input: InternalRow): TraversableOnce[InternalRow] = {
     outputInspector // Make sure initialized.
 
@@ -401,7 +395,7 @@ private[hive] case class HiveGenericUDTF(
   }
 
   protected class UDTFCollector extends Collector {
-    var collected = new ArrayBuffer[InternalRow]
+    var collected = new mutable.ArrayBuffer[InternalRow]
 
     override def collect(input: java.lang.Object) {
       // We need to clone the input here because implementations of
@@ -412,7 +406,7 @@ private[hive] case class HiveGenericUDTF(
 
     def collectRows(): Seq[InternalRow] = {
       val toCollect = collected
-      collected = new ArrayBuffer[InternalRow]
+      collected = new mutable.ArrayBuffer[InternalRow]
       toCollect
     }
   }
@@ -428,6 +422,88 @@ private[hive] case class HiveGenericUDTF(
   }
 
   override def prettyName: String = name
+
+  def getArgumentInspector(i: Int): ObjectInspector = inputInspectors(i)
+
+  def getReturnInspector(): ObjectInspector = outputInspector
+
+  def callUdtf(args: Array[Object]): Array[InternalRow] = {
+    function.process(args)
+    collector.collectRows().toArray
+  }
+
+  override def genCodeForUnwrapper(ctx: CodegenContext, ev: ExprCode, udtf: String, callFunc: String)
+    : String = {
+    val resultTerm = ctx.freshName("result")
+
+    // Create default output
+    val defaultTerm = ctx.freshName("default")
+    val wrapperClass = classOf[mutable.WrappedArray[_]].getName
+    ctx.addMutableState(
+      s"$wrapperClass<InternalRow>",
+      defaultTerm,
+      s"this.${defaultTerm} = $wrapperClass$$.MODULE$$.empty();")
+
+    s"""
+       Object $resultTerm = null;
+       try {
+         $resultTerm = $callFunc;
+       } catch (Exception e) {
+         throw new org.apache.spark.SparkException($udtf.udfErrorMessage(), e);
+       }
+       boolean ${ev.isNull} = $resultTerm == null;
+       $wrapperClass<InternalRow> ${ev.value} = this.${defaultTerm};
+       if (!${ev.isNull}) {
+         ${ev.value} = ($wrapperClass<InternalRow>)$wrapperClass$$.MODULE$$.make($resultTerm);
+       }
+     """
+  }
+
+  override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+    val hiveUDTF = ctx.addReferenceObj("hiveUDTF", this)
+
+    // Make sure initialized
+    val objectInspectorClassName = classOf[ObjectInspector].getName
+    val objectInspectorTerm = ctx.freshName("objectInspector")
+    ctx.addMutableState(objectInspectorClassName, objectInspectorTerm,
+      s"this.$objectInspectorTerm = ($objectInspectorClassName)$hiveUDTF.getReturnInspector();")
+
+    // codegen for children expressions
+    val evals = children.map(_.genCode(ctx))
+
+    // Generate the codes for expressions and calling `HiveGenericUDTF`.
+    val evalCode = evals.map(_.code).mkString
+
+    val (converters, funcArguments) = genCodeForWrapper(ctx, evals, hiveUDTF)
+
+    val argsTerm = ctx.freshName("args")
+    ctx.addMutableState("Object[]", argsTerm, s"this.$argsTerm = new Object[${children.size}];")
+    val argsCode = funcArguments.zipWithIndex.map { case (arg, index) =>
+      s"this.$argsTerm[$index] = $arg;"
+    }
+
+    val callFunc = s"$hiveUDTF.callUdtf($argsTerm)"
+
+    ev.copy(code = s"""
+      $evalCode
+      ${converters.mkString("\n")}
+      ${argsCode.mkString("\n")}
+      ${genCodeForUnwrapper(ctx, ev, hiveUDTF, callFunc)}
+      """)
+  }
+
+  override def doGenTerminateCode(ctx: CodegenContext): ExprCode = {
+    val hiveUDTF = ctx.addReferenceObj("hiveUDTF", this)
+
+    val rowIteratorTerm = ctx.freshName("rowIterator")
+    val iteratorClassName = classOf[Iterator[InternalRow]].getName
+    ExprCode(
+      s"""
+         |$iteratorClassName<InternalRow> $rowIteratorTerm = $hiveUDTF.terminate().toIterator();
+       """.stripMargin,
+      "false",
+      rowIteratorTerm)
+  }
 }
 
 /**

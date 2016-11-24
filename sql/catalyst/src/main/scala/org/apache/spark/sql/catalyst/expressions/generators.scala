@@ -67,6 +67,20 @@ trait Generator extends Expression {
    * Check if this generator supports code generation.
    */
   def supportCodegen: Boolean = !isInstanceOf[CodegenFallback]
+
+  /**
+   * Returns Java source code that can be compiled for clean up code and additional rows.
+   */
+  def doGenTerminateCode(ctx: CodegenContext): ExprCode = {
+    val rowIteratorTerm = ctx.freshName("rowIterator")
+    val iteratorClassName = classOf[Iterator[InternalRow]].getName
+    ExprCode(
+      s"""
+         |$iteratorClassName<InternalRow> $rowIteratorTerm = $iteratorClassName$$.MODULE$$.empty();
+       """.stripMargin,
+      "false",
+      rowIteratorTerm)
+  }
 }
 
 /**

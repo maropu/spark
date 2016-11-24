@@ -18,7 +18,7 @@
 package org.apache.spark.sql.execution.benchmark
 
 import org.apache.hadoop.hive.ql.udf.UDFToDouble
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs
+import org.apache.hadoop.hive.ql.udf.generic.{GenericUDFAbs, GenericUDTFExplode}
 
 import org.apache.spark.sql.hive.test.TestHiveSingleton
 
@@ -60,6 +60,28 @@ class HiveUDFsBenchmark extends BenchmarkBase with TestHiveSingleton {
      */
     runBenchmark("Call Hive generic UDF", N) {
       sparkSession.sql("SELECT f(id) FROM t")
+    }
+    sparkSession.sql("DROP TEMPORARY FUNCTION IF EXISTS f")
+  }
+
+  ignore("HiveGenericUDTF") {
+    val N = 2L << 26
+    sparkSession.range(N).selectExpr(
+      "id as key", "array(rand(), rand(), rand(), rand(), rand()) as values"
+    ).createOrReplaceTempView("t")
+    sparkSession.sql(s"CREATE TEMPORARY FUNCTION f AS '${classOf[GenericUDTFExplode].getName}'")
+
+    /*
+     Java HotSpot(TM) 64-Bit Server VM 1.8.0_31-b13 on Mac OS X 10.10.2
+     Intel(R) Core(TM) i7-4578U CPU @ 3.00GHz
+
+     Call Hive generic UDTF:                Best/Avg Time(ms)    Rate(M/s)   Per Row(ns)   Relative
+     ----------------------------------------------------------------------------------------------
+     Call Hive generic UDTF wholestage off          7 /    7      19805.6           0.1       1.0X
+     Call Hive generic UDTF wholestage on           2 /    3      58746.0           0.0       3.0X
+     */
+    runBenchmark("Call Hive generic UDTF", N) {
+      sparkSession.sql("SELECT key, f(values) FROM t")
     }
     sparkSession.sql("DROP TEMPORARY FUNCTION IF EXISTS f")
   }
