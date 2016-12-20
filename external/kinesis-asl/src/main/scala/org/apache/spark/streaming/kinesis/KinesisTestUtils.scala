@@ -31,6 +31,7 @@ import com.amazonaws.regions.RegionUtils
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
 import com.amazonaws.services.dynamodbv2.document.DynamoDB
 import com.amazonaws.services.kinesis.AmazonKinesisClient
+import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model._
 
 import org.apache.spark.internal.Logging
@@ -114,6 +115,36 @@ private[kinesis] class KinesisTestUtils extends Logging {
    */
   def pushData(testData: java.util.List[Int]): Unit = {
     pushData(testData.asScala, aggregate = false)
+  }
+
+  def getShardLatestIterators: Seq[String] = {
+    val streamDesc = kinesisClient.describeStream(streamName).getStreamDescription
+    streamDesc.getShards.asScala.map { case shard =>
+      val getShardIteratorRequest = new GetShardIteratorRequest
+      getShardIteratorRequest.setStreamName(streamName)
+      getShardIteratorRequest.setShardId(shard.getShardId)
+      getShardIteratorRequest.setShardIteratorType(ShardIteratorType.LATEST.toString)
+      val getShardIteratorResult = KinesisUtils.retryOrTimeout[GetShardIteratorResult](
+          "getting latest shard iterator") {
+        kinesisClient.getShardIterator(getShardIteratorRequest)
+      }
+      getShardIteratorResult.getShardIterator
+    }
+  }
+
+  def getRecords(iterators: Seq[String]): Seq[String] = {
+    iterators.flatMap { iter =>
+      val getRecordsRequest = new GetRecordsRequest
+      getRecordsRequest.setShardIterator(iter)
+      val getRecordsResult = KinesisUtils.retryOrTimeout[GetRecordsResult](
+          "getting records using shard iterator") {
+        kinesisClient.getRecords(getRecordsRequest)
+      }
+      val recordIterator = UserRecord.deaggregate(getRecordsResult.getRecords)
+      recordIterator.iterator().asScala.map { record =>
+        new String(record.getData.array(), "UTF-8")
+      }
+    }
   }
 
   def deleteStream(): Unit = {

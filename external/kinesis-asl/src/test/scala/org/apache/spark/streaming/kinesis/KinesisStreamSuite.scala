@@ -225,6 +225,22 @@ abstract class KinesisStreamTests(aggregateTestData: Boolean) extends KinesisFun
     ssc.stop(stopSparkContext = false)
   }
 
+  testIfEnabled("write stream data into Kinesis") {
+    import KinesisDStreamFunctions._
+
+    // First, get the latest iterators for the test stream
+    val kinesisIterators = testUtils.getShardLatestIterators
+
+    val input = Seq(Seq("a"), Seq("b"), Seq("c"), Seq("d"))
+    val stream = new TestInputStream[String](ssc, input, 2)
+    val msgHandler = (s: String) => s.getBytes("UTF-8")
+    stream.saveAsKinesisStream(testUtils.streamName, testUtils.endpointUrl, msgHandler)
+    ssc.start()
+    Thread.sleep(2000)
+
+    assert(testUtils.getRecords(kinesisIterators).toSet === Set("a", "b", "c", "d"))
+  }
+
   testIfEnabled("failure recovery") {
     val sparkConf = new SparkConf().setMaster("local[4]").setAppName(this.getClass.getSimpleName)
     val checkpointDir = Utils.createTempDir().getAbsolutePath

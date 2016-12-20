@@ -17,18 +17,21 @@
 package org.apache.spark.streaming.kinesis
 
 import scala.reflect.ClassTag
+import scala.util.control.NonFatal
 
 import com.amazonaws.regions.RegionUtils
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream
-import com.amazonaws.services.kinesis.model.Record
+import com.amazonaws.services.kinesis.model.{ProvisionedThroughputExceededException, Record}
 
+import org.apache.spark.SparkException
 import org.apache.spark.api.java.function.{Function => JFunction}
+import org.apache.spark.internal.Logging
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.{Duration, StreamingContext}
 import org.apache.spark.streaming.api.java.{JavaReceiverInputDStream, JavaStreamingContext}
 import org.apache.spark.streaming.dstream.ReceiverInputDStream
 
-object KinesisUtils {
+object KinesisUtils extends Logging {
   /**
    * Create an input stream that pulls messages from a Kinesis stream.
    * This uses the Kinesis Client Library (KCL) to pull messages from Kinesis.
@@ -420,6 +423,50 @@ object KinesisUtils {
     val byteArray = new Array[Byte](byteBuffer.remaining())
     byteBuffer.get(byteArray)
     byteArray
+  }
+
+  /** Helper method to retry Kinesis API request with exponential backoff and timeouts */
+  private[kinesis] def retryOrTimeout[T](message: String, retryTimeoutMs: Int = 10000)(body: => T)
+    : T = {
+    import KinesisSequenceRangeIterator._
+
+    var startTimeMs = System.currentTimeMillis()
+    var retryCount = 0
+    var waitTimeMs = MIN_RETRY_WAIT_TIME_MS
+    var result: Option[T] = None
+    var lastError: Throwable = null
+
+    def isTimedOut = (System.currentTimeMillis() - startTimeMs) >= retryTimeoutMs
+    def isMaxRetryDone = retryCount >= MAX_RETRIES
+
+    while (result.isEmpty && !isTimedOut && !isMaxRetryDone) {
+      if (retryCount > 0) {  // wait only if this is a retry
+        Thread.sleep(waitTimeMs)
+        waitTimeMs *= 2  // if you have waited, then double wait time for next round
+      }
+      try {
+        result = Some(body)
+      } catch {
+        case NonFatal(t) =>
+          lastError = t
+           t match {
+             case ptee: ProvisionedThroughputExceededException =>
+               logWarning(s"Error while $message [attempt = ${retryCount + 1}]", ptee)
+             case e: Throwable =>
+               throw new SparkException(s"Error while $message", e)
+           }
+      }
+      retryCount += 1
+    }
+    result.getOrElse {
+      if (isTimedOut) {
+        throw new SparkException(
+          s"Timed out after $retryTimeoutMs ms while $message, last exception: ", lastError)
+      } else {
+        throw new SparkException(
+          s"Gave up after $retryCount retries while $message, last exception: ", lastError)
+      }
+    }
   }
 }
 

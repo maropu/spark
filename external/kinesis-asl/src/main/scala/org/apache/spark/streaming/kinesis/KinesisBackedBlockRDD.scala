@@ -19,7 +19,6 @@ package org.apache.spark.streaming.kinesis
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
-import scala.util.control.NonFatal
 
 import com.amazonaws.auth.{AWSCredentials, DefaultAWSCredentialsProviderChain}
 import com.amazonaws.services.kinesis.AmazonKinesisClient
@@ -30,6 +29,7 @@ import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.{BlockRDD, BlockRDDPartition}
 import org.apache.spark.storage.BlockId
+import org.apache.spark.streaming.kinesis.KinesisUtils._
 import org.apache.spark.util.NextIterator
 
 
@@ -209,7 +209,7 @@ class KinesisSequenceRangeIterator(
     getRecordsRequest.setRequestCredentials(credentials)
     getRecordsRequest.setShardIterator(shardIterator)
     val getRecordsResult = retryOrTimeout[GetRecordsResult](
-      s"getting records using shard iterator") {
+      s"getting records using shard iterator", retryTimeoutMs) {
         client.getRecords(getRecordsRequest)
       }
     // De-aggregate records, if KPL was used in producing the records. The KCL automatically
@@ -232,53 +232,10 @@ class KinesisSequenceRangeIterator(
     getShardIteratorRequest.setShardIteratorType(iteratorType.toString)
     getShardIteratorRequest.setStartingSequenceNumber(sequenceNumber)
     val getShardIteratorResult = retryOrTimeout[GetShardIteratorResult](
-        s"getting shard iterator from sequence number $sequenceNumber") {
+        s"getting shard iterator from sequence number $sequenceNumber", retryTimeoutMs) {
           client.getShardIterator(getShardIteratorRequest)
         }
     getShardIteratorResult.getShardIterator
-  }
-
-  /** Helper method to retry Kinesis API request with exponential backoff and timeouts */
-  private def retryOrTimeout[T](message: String)(body: => T): T = {
-    import KinesisSequenceRangeIterator._
-
-    var startTimeMs = System.currentTimeMillis()
-    var retryCount = 0
-    var waitTimeMs = MIN_RETRY_WAIT_TIME_MS
-    var result: Option[T] = None
-    var lastError: Throwable = null
-
-    def isTimedOut = (System.currentTimeMillis() - startTimeMs) >= retryTimeoutMs
-    def isMaxRetryDone = retryCount >= MAX_RETRIES
-
-    while (result.isEmpty && !isTimedOut && !isMaxRetryDone) {
-      if (retryCount > 0) {  // wait only if this is a retry
-        Thread.sleep(waitTimeMs)
-        waitTimeMs *= 2  // if you have waited, then double wait time for next round
-      }
-      try {
-        result = Some(body)
-      } catch {
-        case NonFatal(t) =>
-          lastError = t
-           t match {
-             case ptee: ProvisionedThroughputExceededException =>
-               logWarning(s"Error while $message [attempt = ${retryCount + 1}]", ptee)
-             case e: Throwable =>
-               throw new SparkException(s"Error while $message", e)
-           }
-      }
-      retryCount += 1
-    }
-    result.getOrElse {
-      if (isTimedOut) {
-        throw new SparkException(
-          s"Timed out after $retryTimeoutMs ms while $message, last exception: ", lastError)
-      } else {
-        throw new SparkException(
-          s"Gave up after $retryCount retries while $message, last exception: ", lastError)
-      }
-    }
   }
 }
 
