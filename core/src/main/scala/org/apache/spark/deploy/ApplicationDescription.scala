@@ -22,6 +22,7 @@ import java.net.URI
 private[spark] case class ApplicationDescription(
     name: String,
     maxCores: Option[Int],
+    resourcesPerExecutor: Map[String, Int],
     memoryPerExecutorMB: Int,
     command: Command,
     appUiUrl: String,

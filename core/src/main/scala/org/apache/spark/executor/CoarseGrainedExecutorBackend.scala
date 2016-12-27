@@ -33,6 +33,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rpc._
 import org.apache.spark.scheduler.{ExecutorLossReason, TaskDescription}
 import org.apache.spark.scheduler.cluster.CoarseGrainedClusterMessages._
+import org.apache.spark.scheduler.cluster.ExecutorInfo._
 import org.apache.spark.serializer.SerializerInstance
 import org.apache.spark.util.{ThreadUtils, Utils}
 
@@ -42,6 +43,7 @@ private[spark] class CoarseGrainedExecutorBackend(
     executorId: String,
     hostname: String,
     cores: Int,
+    resources: Map[String, Int],
     userClassPath: Seq[URL],
     env: SparkEnv)
   extends ThreadSafeRpcEndpoint with ExecutorBackend with Logging {
@@ -59,7 +61,8 @@ private[spark] class CoarseGrainedExecutorBackend(
     rpcEnv.asyncSetupEndpointRefByURI(driverUrl).flatMap { ref =>
       // This is a very fast action so we can use "ThreadUtils.sameThread"
       driver = Some(ref)
-      ref.ask[Boolean](RegisterExecutor(executorId, self, hostname, cores, extractLogUrls))
+      ref.ask[Boolean](RegisterExecutor(executorId, self, hostname, cores, resources,
+        extractLogUrls))
     }(ThreadUtils.sameThread).onComplete {
       // This is a very fast action so we can use "ThreadUtils.sameThread"
       case Success(msg) =>
@@ -136,8 +139,9 @@ private[spark] class CoarseGrainedExecutorBackend(
     }
   }
 
-  override def statusUpdate(taskId: Long, state: TaskState, data: ByteBuffer) {
-    val msg = StatusUpdate(executorId, taskId, state, data)
+  override def statusUpdate(
+      taskId: Long, resourceTypes: Seq[String], state: TaskState, data: ByteBuffer) {
+    val msg = StatusUpdate(executorId, taskId, resourceTypes, state, data)
     driver match {
       case Some(driverRef) => driverRef.send(msg)
       case None => logWarning(s"Drop $msg because has not yet connected to driver")
@@ -179,6 +183,7 @@ private[spark] object CoarseGrainedExecutorBackend extends Logging {
       executorId: String,
       hostname: String,
       cores: Int,
+      resources: Map[String, Int],
       appId: String,
       workerUrl: Option[String],
       userClassPath: Seq[URL]) {
@@ -224,7 +229,7 @@ private[spark] object CoarseGrainedExecutorBackend extends Logging {
         driverConf, executorId, hostname, port, cores, cfg.ioEncryptionKey, isLocal = false)
 
       env.rpcEnv.setupEndpoint("Executor", new CoarseGrainedExecutorBackend(
-        env.rpcEnv, driverUrl, executorId, hostname, cores, userClassPath, env))
+        env.rpcEnv, driverUrl, executorId, hostname, cores, resources, userClassPath, env))
       workerUrl.foreach { url =>
         env.rpcEnv.setupEndpoint("WorkerWatcher", new WorkerWatcher(env.rpcEnv, url))
       }
@@ -238,6 +243,7 @@ private[spark] object CoarseGrainedExecutorBackend extends Logging {
     var executorId: String = null
     var hostname: String = null
     var cores: Int = 0
+    var resources: Map[String, Int] = noAdditionalResource
     var appId: String = null
     var workerUrl: Option[String] = None
     val userClassPath = new mutable.ListBuffer[URL]()
@@ -256,6 +262,9 @@ private[spark] object CoarseGrainedExecutorBackend extends Logging {
           argv = tail
         case ("--cores") :: value :: tail =>
           cores = value.toInt
+          argv = tail
+        case ("--resources") :: value :: tail =>
+          resources = ResourceUtils.parseResourcesString(value)
           argv = tail
         case ("--app-id") :: value :: tail =>
           appId = value
@@ -281,7 +290,7 @@ private[spark] object CoarseGrainedExecutorBackend extends Logging {
       printUsageAndExit()
     }
 
-    run(driverUrl, executorId, hostname, cores, appId, workerUrl, userClassPath)
+    run(driverUrl, executorId, hostname, cores, resources, appId, workerUrl, userClassPath)
     System.exit(0)
   }
 

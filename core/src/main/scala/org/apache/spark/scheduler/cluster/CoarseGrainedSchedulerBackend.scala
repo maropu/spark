@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import javax.annotation.concurrent.GuardedBy
 
+import collection.mutable
 import scala.collection.mutable.{ArrayBuffer, HashMap, HashSet}
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
@@ -120,12 +121,18 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
     }
 
     override def receive: PartialFunction[Any, Unit] = {
-      case StatusUpdate(executorId, taskId, state, data) =>
+      case StatusUpdate(executorId, taskId, resourceTypes, state, data) =>
         scheduler.statusUpdate(taskId, state, data.value)
         if (TaskState.isFinished(state)) {
           executorDataMap.get(executorId) match {
             case Some(executorInfo) =>
-              executorInfo.freeCores += scheduler.CPUS_PER_TASK
+              resourceTypes.foreach { resourceType =>
+                if (resourceType == "cpu") {
+                  executorInfo.freeCores += scheduler.CPUS_PER_TASK
+                } else {
+                  executorInfo.freeResources(resourceType) += scheduler.RESOURCES_PER_TASK
+                }
+              }
               makeOffers(executorId)
             case None =>
               // Ignoring the update since we don't know about the executor.
@@ -149,7 +156,7 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
 
     override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
 
-      case RegisterExecutor(executorId, executorRef, hostname, cores, logUrls) =>
+      case RegisterExecutor(executorId, executorRef, hostname, cores, resources, logUrls) =>
         if (executorDataMap.contains(executorId)) {
           executorRef.send(RegisterExecutorFailed("Duplicate executor ID: " + executorId))
           context.reply(true)
@@ -166,7 +173,7 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
           totalCoreCount.addAndGet(cores)
           totalRegisteredExecutors.addAndGet(1)
           val data = new ExecutorData(executorRef, executorRef.address, hostname,
-            cores, cores, logUrls)
+            cores, cores, mutable.HashMap(resources.toSeq: _*), resources, logUrls)
           // This must be synchronized because variables mutated
           // in this block are read when requesting executors
           CoarseGrainedSchedulerBackend.this.synchronized {
@@ -217,7 +224,8 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
       // Filter out executors under killing
       val activeExecutors = executorDataMap.filterKeys(executorIsAlive)
       val workOffers = activeExecutors.map { case (id, executorData) =>
-        new WorkerOffer(id, executorData.executorHost, executorData.freeCores)
+        new WorkerOffer(id, executorData.executorHost, executorData.freeCores,
+          executorData.freeResources.toMap)
       }.toIndexedSeq
       launchTasks(scheduler.resourceOffers(workOffers))
     }
@@ -236,7 +244,8 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
       if (executorIsAlive(executorId)) {
         val executorData = executorDataMap(executorId)
         val workOffers = IndexedSeq(
-          new WorkerOffer(executorId, executorData.executorHost, executorData.freeCores))
+          new WorkerOffer(executorId, executorData.executorHost, executorData.freeCores,
+            executorData.freeResources.toMap))
         launchTasks(scheduler.resourceOffers(workOffers))
       }
     }
@@ -265,8 +274,13 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
         }
         else {
           val executorData = executorDataMap(task.executorId)
-          executorData.freeCores -= scheduler.CPUS_PER_TASK
-
+          task.resourceTypes.foreach { resourceType =>
+            if (resourceType == "cpu") {
+              executorData.freeCores -= scheduler.CPUS_PER_TASK
+            } else {
+              executorData.freeResources(resourceType) -= scheduler.RESOURCES_PER_TASK
+            }
+          }
           logDebug(s"Launching task ${task.taskId} on executor id: ${task.executorId} hostname: " +
             s"${executorData.executorHost}.")
 

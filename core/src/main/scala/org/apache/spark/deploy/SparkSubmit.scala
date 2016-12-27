@@ -456,6 +456,8 @@ object SparkSubmit extends CommandLineUtils {
       // Other options
       OptionAssigner(args.executorCores, STANDALONE | YARN, ALL_DEPLOY_MODES,
         sysProp = "spark.executor.cores"),
+      OptionAssigner(args.executorResources, STANDALONE, ALL_DEPLOY_MODES,
+        sysProp = "spark.executor.resources"),
       OptionAssigner(args.executorMemory, STANDALONE | MESOS | YARN, ALL_DEPLOY_MODES,
         sysProp = "spark.executor.memory"),
       OptionAssigner(args.totalExecutorCores, STANDALONE | MESOS, ALL_DEPLOY_MODES,
@@ -965,8 +967,9 @@ private[spark] object SparkSubmitUtils {
     // We need to specify each component explicitly, otherwise we miss spark-streaming-kafka-0-8 and
     // other spark-streaming utility components. Underscore is there to differentiate between
     // spark-streaming_2.1x and spark-streaming-kafka-0-8-assembly_2.1x
-    val components = Seq("catalyst_", "core_", "graphx_", "hive_", "mllib_", "repl_",
-      "sql_", "streaming_", "yarn_", "network-common_", "network-shuffle_", "network-yarn_")
+    val components = Seq("catalyst_", "core_", "core-executor-resource-*_", "graphx_", "hive_",
+      "mllib_", "repl_", "sql_", "streaming_", "yarn_", "network-common_", "network-shuffle_",
+      "network-yarn_")
 
     components.foreach { comp =>
       md.addExcludeRule(createExclusion(s"org.apache.spark:spark-$comp*:*", ivySettings,

@@ -17,12 +17,13 @@
 
 package org.apache.spark.scheduler
 
-import scala.collection.mutable.HashSet
+import scala.collection.mutable.{HashSet, Stack}
 
 import org.apache.spark._
 import org.apache.spark.executor.TaskMetrics
 import org.apache.spark.internal.Logging
-import org.apache.spark.rdd.RDD
+import org.apache.spark.rdd.{MapPartitionsRDD, RDD}
+import org.apache.spark.scheduler.cluster.ExecutorInfo._
 import org.apache.spark.util.CallSite
 
 /**
@@ -75,6 +76,33 @@ private[scheduler] abstract class Stage(
 
   val name: String = callSite.shortForm
   val details: String = callSite.longForm
+
+  val resourceTypes: Seq[String] = {
+    val mapPartRdds = new HashSet[MapPartitionsRDD[_, _]]
+    val visited = new HashSet[RDD[_]]
+    val waitingForVisit = new Stack[RDD[_]]
+    waitingForVisit.push(rdd)
+    while (waitingForVisit.nonEmpty) {
+      val toVisit = waitingForVisit.pop()
+      if (!visited(toVisit)) {
+        visited += toVisit
+        toVisit match {
+          case m: MapPartitionsRDD[_, _] => mapPartRdds += m
+          case _ =>
+        }
+        toVisit.dependencies.foreach {
+          case shuffleDep: ShuffleDependency[_, _, _] =>
+          case dependency =>
+            waitingForVisit.push(dependency.rdd)
+        }
+      }
+    }
+
+    // Finally, add a default resource for tasks
+    val rTypes = mapPartRdds.flatMap(_.resourceType)
+    rTypes.add(defaultResourceType)
+    rTypes.toSeq
+  }
 
   /**
    * Pointer to the [StageInfo] object for the most recent attempt. This needs to be initialized

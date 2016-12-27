@@ -26,7 +26,8 @@ import org.apache.spark.annotation.DeveloperApi
 class ExecutorInfo(
    val executorHost: String,
    val totalCores: Int,
-   val logUrlMap: Map[String, String]) {
+   val logUrlMap: Map[String, String],
+   val totalResources: Map[String, Int] = ExecutorInfo.noAdditionalResource) {
 
   def canEqual(other: Any): Boolean = other.isInstanceOf[ExecutorInfo]
 
@@ -40,7 +41,13 @@ class ExecutorInfo(
   }
 
   override def hashCode(): Int = {
-    val state = Seq(executorHost, totalCores, logUrlMap)
+    val state = Seq(executorHost, totalCores, logUrlMap, totalResources)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
+}
+
+object ExecutorInfo {
+
+  val defaultResourceType = "cpu"
+  val noAdditionalResource = Map.empty[String, Int]
 }

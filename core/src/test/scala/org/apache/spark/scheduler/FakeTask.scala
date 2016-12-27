@@ -22,6 +22,7 @@ import java.util.Properties
 import org.apache.spark.SparkEnv
 import org.apache.spark.TaskContext
 import org.apache.spark.executor.TaskMetrics
+import org.apache.spark.scheduler.cluster.ExecutorInfo._
 
 class FakeTask(
     stageId: Int,
@@ -29,7 +30,8 @@ class FakeTask(
     prefLocs: Seq[TaskLocation] = Nil,
     serializedTaskMetrics: Array[Byte] =
       SparkEnv.get.closureSerializer.newInstance().serialize(TaskMetrics.registered).array())
-  extends Task[Int](stageId, 0, partitionId, new Properties, serializedTaskMetrics) {
+  extends Task[Int](stageId, 0, partitionId, localProperties = new Properties,
+    serializedTaskMetrics = serializedTaskMetrics) {
 
   override def runTask(context: TaskContext): Int = 0
   override def preferredLocations: Seq[TaskLocation] = prefLocs
@@ -56,6 +58,6 @@ object FakeTask {
     val tasks = Array.tabulate[Task[_]](numTasks) { i =>
       new FakeTask(stageId, i, if (prefLocs.size != 0) prefLocs(i) else Nil)
     }
-    new TaskSet(tasks, stageId, stageAttemptId, priority = 0, null)
+    new TaskSet(tasks, stageId, stageAttemptId, priority = 0, Seq(defaultResourceType), null)
   }
 }

@@ -34,12 +34,13 @@ import org.apache.commons.lang3.SerializationUtils
 
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
-import org.apache.spark.executor.TaskMetrics
+import org.apache.spark.executor.{ResourceUtils, TaskMetrics}
 import org.apache.spark.internal.Logging
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.partial.{ApproximateActionListener, ApproximateEvaluator, PartialResult}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.rpc.RpcTimeout
+import org.apache.spark.scheduler.cluster.ExecutorInfo._
 import org.apache.spark.storage._
 import org.apache.spark.storage.BlockManagerMessages.BlockManagerHeartbeat
 import org.apache.spark.util._
@@ -323,6 +324,13 @@ class DAGScheduler(
     val id = nextStageId.getAndIncrement()
     val stage = new ShuffleMapStage(id, rdd, numTasks, parents, jobId, rdd.creationSite, shuffleDep)
 
+    val implResources = ResourceUtils.getAllResourceNames()
+    val unknownResources = stage.resourceTypes.filter(_ != defaultResourceType)
+      .filterNot(implResources.contains)
+    if (unknownResources.nonEmpty) {
+      throw new SparkException("Unknown executor resources found: " + unknownResources)
+    }
+
     stageIdToStage(id) = stage
     shuffleIdToMapStage(shuffleDep.shuffleId) = stage
     updateJobIdStageIdMaps(jobId, stage)
@@ -360,6 +368,14 @@ class DAGScheduler(
     val parents = getOrCreateParentStages(rdd, jobId)
     val id = nextStageId.getAndIncrement()
     val stage = new ResultStage(id, rdd, func, partitions, parents, jobId, callSite)
+
+    val implResources = ResourceUtils.getAllResourceNames()
+    val unknownResources = stage.resourceTypes.filter(_ != defaultResourceType)
+      .filterNot(implResources.contains)
+    if (unknownResources.nonEmpty) {
+      throw new SparkException("Unknown executor resources found: " + unknownResources)
+    }
+
     stageIdToStage(id) = stage
     updateJobIdStageIdMaps(jobId, stage)
     stage
@@ -1016,8 +1032,8 @@ class DAGScheduler(
             val locs = taskIdToLocations(id)
             val part = stage.rdd.partitions(id)
             new ShuffleMapTask(stage.id, stage.latestInfo.attemptId,
-              taskBinary, part, locs, properties, serializedTaskMetrics, Option(jobId),
-              Option(sc.applicationId), sc.applicationAttemptId)
+              taskBinary, part, stage.resourceTypes, locs, properties, serializedTaskMetrics,
+              Option(jobId), Option(sc.applicationId), sc.applicationAttemptId)
           }
 
         case stage: ResultStage =>
@@ -1026,8 +1042,9 @@ class DAGScheduler(
             val part = stage.rdd.partitions(p)
             val locs = taskIdToLocations(id)
             new ResultTask(stage.id, stage.latestInfo.attemptId,
-              taskBinary, part, locs, id, properties, serializedTaskMetrics,
-              Option(jobId), Option(sc.applicationId), sc.applicationAttemptId)
+              taskBinary, part, stage.resourceTypes, locs, id, properties, serializedTaskMetrics,
+              Option(jobId), Option(sc.applicationId),
+              sc.applicationAttemptId)
           }
       }
     } catch {
@@ -1042,7 +1059,8 @@ class DAGScheduler(
       stage.pendingPartitions ++= tasks.map(_.partitionId)
       logDebug("New pending partitions: " + stage.pendingPartitions)
       taskScheduler.submitTasks(new TaskSet(
-        tasks.toArray, stage.id, stage.latestInfo.attemptId, jobId, properties))
+        tasks.toArray, stage.id, stage.latestInfo.attemptId, jobId, stage.resourceTypes,
+        properties))
       stage.latestInfo.submissionTime = Some(clock.getTimeMillis())
     } else {
       // Because we posted SparkListenerStageSubmitted earlier, we should mark

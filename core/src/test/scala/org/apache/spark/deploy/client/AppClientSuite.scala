@@ -162,7 +162,7 @@ class AppClientSuite
   private def makeWorkers(cores: Int, memory: Int): Seq[Worker] = {
     (0 until numWorkers).map { i =>
       val rpcEnv = workerRpcEnvs(i)
-      val worker = new Worker(rpcEnv, 0, cores, memory, Array(masterRpcEnv.address),
+      val worker = new Worker(rpcEnv, 0, cores, Map.empty, memory, Array(masterRpcEnv.address),
         Worker.ENDPOINT_NAME, null, conf, securityManager)
       rpcEnv.setupEndpoint(Worker.ENDPOINT_NAME, worker)
       worker
@@ -221,7 +221,8 @@ class AppClientSuite
     val rpcEnv = RpcEnv.create("spark", Utils.localHostName(), 0, conf, securityManager)
     private val cmd = new Command(TestExecutor.getClass.getCanonicalName.stripSuffix("$"),
       List(), Map(), Seq(), Seq(), Seq())
-    private val desc = new ApplicationDescription("AppClientSuite", Some(1), 512, cmd, "ignored")
+    private val desc = new ApplicationDescription("AppClientSuite", Some(1), Map.empty, 512, cmd,
+      "ignored")
     val listener = new AppClientCollector
     val client = new StandaloneAppClient(rpcEnv, Array(masterUrl), desc, listener, new SparkConf)
   }

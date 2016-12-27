@@ -22,6 +22,7 @@ import scala.collection.mutable.ArrayBuffer
 import org.apache.spark.SparkConf
 import org.apache.spark.deploy.master.Master
 import org.apache.spark.deploy.worker.Worker
+import org.apache.spark.executor.ResourceUtils
 import org.apache.spark.internal.Logging
 import org.apache.spark.rpc.RpcEnv
 import org.apache.spark.util.Utils
@@ -41,6 +42,7 @@ class LocalSparkCluster(
   extends Logging {
 
   private val localHostname = Utils.localHostName()
+  private val resourcesPerWorker = ResourceUtils.getAllAvailableResources()
   private val masterRpcEnvs = ArrayBuffer[RpcEnv]()
   private val workerRpcEnvs = ArrayBuffer[RpcEnv]()
   // exposed for testing
@@ -64,7 +66,7 @@ class LocalSparkCluster(
     /* Start the Workers */
     for (workerNum <- 1 to numWorkers) {
       val workerEnv = Worker.startRpcEnvAndEndpoint(localHostname, 0, 0, coresPerWorker,
-        memoryPerWorker, masters, null, Some(workerNum), _conf)
+        resourcesPerWorker, memoryPerWorker, masters, null, Some(workerNum), _conf)
       workerRpcEnvs += workerEnv
     }
 

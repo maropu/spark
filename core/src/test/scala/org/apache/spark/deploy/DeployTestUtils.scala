@@ -27,7 +27,7 @@ import org.apache.spark.deploy.worker.{DriverRunner, ExecutorRunner}
 private[deploy] object DeployTestUtils {
   def createAppDesc(): ApplicationDescription = {
     val cmd = new Command("mainClass", List("arg1", "arg2"), Map(), Seq(), Seq(), Seq())
-    new ApplicationDescription("name", Some(4), 1234, cmd, "appUiUrl")
+    new ApplicationDescription("name", Some(4), Map.empty, 1234, cmd, "appUiUrl")
   }
 
   def createAppInfo() : ApplicationInfo = {
@@ -50,7 +50,8 @@ private[deploy] object DeployTestUtils {
     createDriverDesc(), new Date())
 
   def createWorkerInfo(): WorkerInfo = {
-    val workerInfo = new WorkerInfo("id", "host", 8080, 4, 1234, null, "http://publicAddress:80")
+    val workerInfo = new WorkerInfo("id", "host", 8080, 4, Map.empty, 1234, null,
+      "http://publicAddress:80")
     workerInfo.lastHeartbeat = JsonConstants.currTimeInMillis
     workerInfo
   }
@@ -61,6 +62,7 @@ private[deploy] object DeployTestUtils {
       execId,
       createAppDesc(),
       4,
+      Map.empty,
       1234,
       null,
       "workerId",

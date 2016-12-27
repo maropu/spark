@@ -39,6 +39,7 @@ private[spark] class ApplicationInfo(
   @transient var executors: mutable.HashMap[Int, ExecutorDesc] = _
   @transient var removedExecutors: ArrayBuffer[ExecutorDesc] = _
   @transient var coresGranted: Int = _
+  @transient var resourcesGranted: mutable.HashMap[String, Int] = _
   @transient var endTime: Long = _
   @transient var appSource: ApplicationSource = _
 
@@ -60,6 +61,8 @@ private[spark] class ApplicationInfo(
     state = ApplicationState.WAITING
     executors = new mutable.HashMap[Int, ExecutorDesc]
     coresGranted = 0
+    resourcesGranted = mutable.HashMap[String, Int](
+      desc.resourcesPerExecutor.map { case (resourceType, _) => resourceType -> 0 }.toSeq: _*)
     endTime = -1L
     appSource = new ApplicationSource(this)
     nextExecutorId = 0
@@ -82,10 +85,15 @@ private[spark] class ApplicationInfo(
   private[master] def addExecutor(
       worker: WorkerInfo,
       cores: Int,
+      resources: Map[String, Int],
       useID: Option[Int] = None): ExecutorDesc = {
-    val exec = new ExecutorDesc(newExecutorId(useID), this, worker, cores, desc.memoryPerExecutorMB)
+    val exec = new ExecutorDesc(newExecutorId(useID), this, worker, cores, resources,
+      desc.memoryPerExecutorMB)
     executors(exec.id) = exec
     coresGranted += cores
+    resources.foreach { case (resourceType, num) =>
+      resourcesGranted(resourceType) += num
+    }
     exec
   }
 
@@ -94,10 +102,14 @@ private[spark] class ApplicationInfo(
       removedExecutors += executors(exec.id)
       executors -= exec.id
       coresGranted -= exec.cores
+      exec.resources.foreach { case (resourceType, num) =>
+        resourcesGranted(resourceType) += num
+      }
     }
   }
 
   private val requestedCores = desc.maxCores.getOrElse(defaultCores)
+  private val requestedResources = desc.resourcesPerExecutor
 
   private[master] def coresLeft: Int = requestedCores - coresGranted
 

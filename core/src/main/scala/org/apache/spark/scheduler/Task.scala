@@ -29,6 +29,8 @@ import org.apache.spark.executor.TaskMetrics
 import org.apache.spark.internal.config.APP_CALLER_CONTEXT
 import org.apache.spark.memory.{MemoryMode, TaskMemoryManager}
 import org.apache.spark.metrics.MetricsSystem
+import org.apache.spark.rdd.RDD
+import org.apache.spark.scheduler.cluster.ExecutorInfo._
 import org.apache.spark.serializer.SerializerInstance
 import org.apache.spark.util._
 
@@ -60,6 +62,7 @@ private[spark] abstract class Task[T](
     val stageId: Int,
     val stageAttemptId: Int,
     val partitionId: Int,
+    val resourceTypes: Seq[String] = Seq(defaultResourceType),
     @transient var localProperties: Properties = new Properties,
     // The default value is only used in tests.
     serializedTaskMetrics: Array[Byte] =

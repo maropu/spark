@@ -21,9 +21,11 @@ import java.io.File
 import java.net.URL
 import java.nio.ByteBuffer
 
+import scala.collection.mutable
+
 import org.apache.spark.{SparkConf, SparkContext, SparkEnv, TaskState}
 import org.apache.spark.TaskState.TaskState
-import org.apache.spark.executor.{Executor, ExecutorBackend}
+import org.apache.spark.executor.{Executor, ExecutorBackend, ResourceUtils}
 import org.apache.spark.internal.Logging
 import org.apache.spark.launcher.{LauncherBackend, SparkAppHandle}
 import org.apache.spark.rpc.{RpcCallContext, RpcEndpointRef, RpcEnv, ThreadSafeRpcEndpoint}
@@ -32,7 +34,8 @@ import org.apache.spark.scheduler.cluster.ExecutorInfo
 
 private case class ReviveOffers()
 
-private case class StatusUpdate(taskId: Long, state: TaskState, serializedData: ByteBuffer)
+private case class StatusUpdate(taskId: Long, resourceTypes: Seq[String], state: TaskState,
+  serializedData: ByteBuffer)
 
 private case class KillTask(taskId: Long, interruptThread: Boolean)
 
@@ -52,6 +55,8 @@ private[spark] class LocalEndpoint(
   extends ThreadSafeRpcEndpoint with Logging {
 
   private var freeCores = totalCores
+  private val freeOtherResources = mutable.HashMap[String, Int](
+    ResourceUtils.getAllAvailableResources().toSeq: _*)
 
   val localExecutorId = SparkContext.DRIVER_IDENTIFIER
   val localExecutorHostname = "localhost"
@@ -63,10 +68,16 @@ private[spark] class LocalEndpoint(
     case ReviveOffers =>
       reviveOffers()
 
-    case StatusUpdate(taskId, state, serializedData) =>
+    case StatusUpdate(taskId, resourceTypes, state, serializedData) =>
       scheduler.statusUpdate(taskId, state, serializedData)
       if (TaskState.isFinished(state)) {
-        freeCores += scheduler.CPUS_PER_TASK
+        resourceTypes.foreach { resourceType =>
+          if (resourceType == "cpu") {
+            freeCores += scheduler.CPUS_PER_TASK
+          } else {
+            freeOtherResources(resourceType) += scheduler.RESOURCES_PER_TASK
+          }
+        }
         reviveOffers()
       }
 
@@ -81,9 +92,16 @@ private[spark] class LocalEndpoint(
   }
 
   def reviveOffers() {
-    val offers = IndexedSeq(new WorkerOffer(localExecutorId, localExecutorHostname, freeCores))
+    val offers = IndexedSeq(new WorkerOffer(localExecutorId, localExecutorHostname, freeCores,
+      freeOtherResources.toMap))
     for (task <- scheduler.resourceOffers(offers).flatten) {
-      freeCores -= scheduler.CPUS_PER_TASK
+      task.resourceTypes.foreach { resourceType =>
+        if (resourceType == "cpu") {
+          freeCores -= scheduler.CPUS_PER_TASK
+        } else {
+          freeOtherResources(resourceType) -= scheduler.RESOURCES_PER_TASK
+        }
+      }
       executor.launchTask(executorBackend, taskId = task.taskId, attemptNumber = task.attemptNumber,
         task.name, task.serializedTask)
     }
@@ -148,8 +166,9 @@ private[spark] class LocalSchedulerBackend(
     localEndpoint.send(KillTask(taskId, interruptThread))
   }
 
-  override def statusUpdate(taskId: Long, state: TaskState, serializedData: ByteBuffer) {
-    localEndpoint.send(StatusUpdate(taskId, state, serializedData))
+  override def statusUpdate(taskId: Long, resourceTypes: Seq[String], state: TaskState,
+      serializedData: ByteBuffer) {
+    localEndpoint.send(StatusUpdate(taskId, resourceTypes, state, serializedData))
   }
 
   override def applicationId(): String = appId

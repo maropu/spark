@@ -20,6 +20,8 @@ package org.apache.spark.deploy.worker
 import java.io._
 import java.nio.charset.StandardCharsets
 
+import org.apache.spark.executor.ResourceUtils
+
 import scala.collection.JavaConverters._
 
 import com.google.common.io.Files
@@ -41,6 +43,7 @@ private[deploy] class ExecutorRunner(
     val execId: Int,
     val appDesc: ApplicationDescription,
     val cores: Int,
+    val resources: Map[String, Int],
     val memory: Int,
     val worker: RpcEndpointRef,
     val workerId: String,
@@ -132,6 +135,7 @@ private[deploy] class ExecutorRunner(
     case "{{EXECUTOR_ID}}" => execId.toString
     case "{{HOSTNAME}}" => host
     case "{{CORES}}" => cores.toString
+    case "{{RESOURCES}}" => ResourceUtils.resourcesToString(resources)
     case "{{APP_ID}}" => appId
     case other => other
   }

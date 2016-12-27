@@ -43,6 +43,7 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
   var executorMemory: String = null
   var executorCores: String = null
   var totalExecutorCores: String = null
+  var executorResources: String = null
   var propertiesFile: String = null
   var driverMemory: String = null
   var driverExtraClassPath: String = null
@@ -171,6 +172,10 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
     totalExecutorCores = Option(totalExecutorCores)
       .orElse(sparkProperties.get("spark.cores.max"))
       .orNull
+    executorResources = Option(executorResources)
+      .orElse(sparkProperties.get("spark.executor.resources"))
+      .orElse(env.get("SPARK_EXECUTOR_RESOURCES"))
+      .orNull
     name = Option(name).orElse(sparkProperties.get("spark.app.name")).orNull
     jars = Option(jars).orElse(sparkProperties.get("spark.jars")).orNull
     files = Option(files).orElse(sparkProperties.get("spark.files")).orNull
@@ -294,6 +299,7 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
     |  executorMemory          $executorMemory
     |  executorCores           $executorCores
     |  totalExecutorCores      $totalExecutorCores
+    |  executorResources       $executorResources
     |  propertiesFile          $propertiesFile
     |  driverMemory            $driverMemory
     |  driverCores             $driverCores

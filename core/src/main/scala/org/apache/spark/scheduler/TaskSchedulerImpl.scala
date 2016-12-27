@@ -22,6 +22,7 @@ import java.util.{Timer, TimerTask}
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 
+import collection.mutable
 import scala.collection.Set
 import scala.collection.mutable.{ArrayBuffer, HashMap, HashSet}
 import scala.util.Random
@@ -32,6 +33,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config
 import org.apache.spark.scheduler.SchedulingMode.SchedulingMode
 import org.apache.spark.scheduler.TaskLocality.TaskLocality
+import org.apache.spark.scheduler.cluster.ExecutorInfo._
 import org.apache.spark.scheduler.local.LocalSchedulerBackend
 import org.apache.spark.storage.BlockManagerId
 import org.apache.spark.util.{AccumulatorV2, ThreadUtils, Utils}
@@ -92,6 +94,7 @@ private[spark] class TaskSchedulerImpl private[scheduler](
 
   // CPUs to request per task
   val CPUS_PER_TASK = conf.getInt("spark.task.cpus", 1)
+  val RESOURCES_PER_TASK = conf.getInt("spark.task.resources", 1)
 
   // TaskSetManagers are not thread safe, so any access to one should be synchronized
   // on this class.
@@ -264,11 +267,15 @@ private[spark] class TaskSchedulerImpl private[scheduler](
       s" ${manager.parent.name}")
   }
 
+  private def resourcesPerTask(resourceType: String): Int = {
+    if (resourceType == defaultResourceType) CPUS_PER_TASK else RESOURCES_PER_TASK
+  }
+
   private def resourceOfferSingleTaskSet(
       taskSet: TaskSetManager,
       maxLocality: TaskLocality,
       shuffledOffers: Seq[WorkerOffer],
-      availableCpus: Array[Int],
+      availableResources: Array[mutable.HashMap[String, Int]],
       tasks: IndexedSeq[ArrayBuffer[TaskDescription]]) : Boolean = {
     var launchedTask = false
     // nodes and executors that are blacklisted for the entire application have already been
@@ -276,7 +283,10 @@ private[spark] class TaskSchedulerImpl private[scheduler](
     for (i <- 0 until shuffledOffers.size) {
       val execId = shuffledOffers(i).executorId
       val host = shuffledOffers(i).host
-      if (availableCpus(i) >= CPUS_PER_TASK) {
+      val canOfferOnResources = taskSet.resourceTypes.forall { resourceType =>
+        availableResources(i).get(resourceType).exists(_ >= resourcesPerTask(resourceType))
+      }
+      if (canOfferOnResources) {
         try {
           for (task <- taskSet.resourceOffer(execId, host, maxLocality)) {
             tasks(i) += task
@@ -284,8 +294,10 @@ private[spark] class TaskSchedulerImpl private[scheduler](
             taskIdToTaskSetManager(tid) = taskSet
             taskIdToExecutorId(tid) = execId
             executorIdToRunningTaskIds(execId).add(tid)
-            availableCpus(i) -= CPUS_PER_TASK
-            assert(availableCpus(i) >= 0)
+            taskSet.resourceTypes.foreach { resourceType =>
+              availableResources(i)(resourceType) -= resourcesPerTask(resourceType)
+            }
+            assert(availableResources(i).forall(_._2 >= 0))
             launchedTask = true
           }
         } catch {
@@ -341,7 +353,15 @@ private[spark] class TaskSchedulerImpl private[scheduler](
     val shuffledOffers = Random.shuffle(filteredOffers)
     // Build a list of tasks to assign to each worker.
     val tasks = shuffledOffers.map(o => new ArrayBuffer[TaskDescription](o.cores))
-    val availableCpus = shuffledOffers.map(o => o.cores).toArray
+
+    val availableCpus = shuffledOffers.map("cpu" -> _.cores)
+    val availableOtherResources = shuffledOffers.map(o => o.resources.toSeq)
+    val availableResources  = availableCpus.zip(availableOtherResources).map { case (cpu, others) =>
+      mutable.HashMap((others :+ cpu).toSeq: _*)
+    }.toArray
+
+    // val availableCpus = shuffledOffers.map(o => o.cores).toArray
+    // val availableResources = shuffledOffers.map(o => HashMap(o.resources.toSeq: _*)).toArray
     val sortedTaskSets = rootPool.getSortedTaskSetQueue
     for (taskSet <- sortedTaskSets) {
       logDebug("parentName: %s, name: %s, runningTasks: %s".format(
@@ -360,7 +380,7 @@ private[spark] class TaskSchedulerImpl private[scheduler](
       for (currentMaxLocality <- taskSet.myLocalityLevels) {
         do {
           launchedTaskAtCurrentMaxLocality = resourceOfferSingleTaskSet(
-            taskSet, currentMaxLocality, shuffledOffers, availableCpus, tasks)
+            taskSet, currentMaxLocality, shuffledOffers, availableResources, tasks)
           launchedAnyTask |= launchedTaskAtCurrentMaxLocality
         } while (launchedTaskAtCurrentMaxLocality)
       }

@@ -27,6 +27,7 @@ private[spark] class WorkerInfo(
     val host: String,
     val port: Int,
     val cores: Int,
+    val resources: Map[String, Int],
     val memory: Int,
     val endpoint: RpcEndpointRef,
     val webUiAddress: String)
@@ -39,6 +40,7 @@ private[spark] class WorkerInfo(
   @transient var drivers: mutable.HashMap[String, DriverInfo] = _ // driverId => info
   @transient var state: WorkerState.Value = _
   @transient var coresUsed: Int = _
+  @transient var resourcesUsed: mutable.HashMap[String, Int] = _
   @transient var memoryUsed: Int = _
 
   @transient var lastHeartbeat: Long = _
@@ -46,6 +48,9 @@ private[spark] class WorkerInfo(
   init()
 
   def coresFree: Int = cores - coresUsed
+  def resourcesFree: Map[String, Int] = resources.map { case (resourceType, num) =>
+    resourceType -> (num - resourcesUsed(resourceType))
+  }.toMap
   def memoryFree: Int = memory - memoryUsed
 
   private def readObject(in: java.io.ObjectInputStream): Unit = Utils.tryOrIOException {
@@ -58,6 +63,7 @@ private[spark] class WorkerInfo(
     drivers = new mutable.HashMap
     state = WorkerState.ALIVE
     coresUsed = 0
+    resourcesUsed = mutable.HashMap[String, Int](resources.keySet.map(_ -> 0).toSeq: _*)
     memoryUsed = 0
     lastHeartbeat = System.currentTimeMillis()
   }
@@ -70,6 +76,9 @@ private[spark] class WorkerInfo(
   def addExecutor(exec: ExecutorDesc) {
     executors(exec.fullId) = exec
     coresUsed += exec.cores
+    exec.resources.foreach { case (resourceType, numUsed) =>
+      resourcesUsed(resourceType) += numUsed
+    }
     memoryUsed += exec.memory
   }
 
@@ -77,6 +86,9 @@ private[spark] class WorkerInfo(
     if (executors.contains(exec.fullId)) {
       executors -= exec.fullId
       coresUsed -= exec.cores
+      exec.resources.foreach { case (resourceType, numUsed) =>
+        resourcesUsed(resourceType) -= numUsed
+      }
       memoryUsed -= exec.memory
     }
   }

@@ -40,6 +40,7 @@ private[deploy] object DeployMessages {
       port: Int,
       worker: RpcEndpointRef,
       cores: Int,
+      resources: Map[String, Int],
       memory: Int,
       workerWebUiUrl: String)
     extends DeployMessage {
@@ -97,6 +98,7 @@ private[deploy] object DeployMessages {
       execId: Int,
       appDesc: ApplicationDescription,
       cores: Int,
+      resources: Map[String, Int],
       memory: Int)
     extends DeployMessage
 
@@ -130,7 +132,8 @@ private[deploy] object DeployMessages {
   case class RegisteredApplication(appId: String, master: RpcEndpointRef) extends DeployMessage
 
   // TODO(matei): replace hostPort with host
-  case class ExecutorAdded(id: Int, workerId: String, hostPort: String, cores: Int, memory: Int) {
+  case class ExecutorAdded(id: Int, workerId: String, hostPort: String, cores: Int,
+      resources: Map[String, Int], memory: Int) {
     Utils.checkHostPort(hostPort, "Required hostport")
   }
 
@@ -199,7 +202,8 @@ private[deploy] object DeployMessages {
   case class WorkerStateResponse(host: String, port: Int, workerId: String,
     executors: List[ExecutorRunner], finishedExecutors: List[ExecutorRunner],
     drivers: List[DriverRunner], finishedDrivers: List[DriverRunner], masterUrl: String,
-    cores: Int, memory: Int, coresUsed: Int, memoryUsed: Int, masterWebUiUrl: String) {
+    cores: Int, resources: Map[String, Int], memory: Int, coresUsed: Int,
+    resourcesUsed: Map[String, Int], memoryUsed: Int, masterWebUiUrl: String) {
 
     Utils.checkHost(host, "Required hostname")
     assert (port > 0)

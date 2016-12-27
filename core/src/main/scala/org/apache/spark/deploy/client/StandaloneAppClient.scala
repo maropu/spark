@@ -168,11 +168,12 @@ private[spark] class StandaloneAppClient(
         markDead("Master removed our application: %s".format(message))
         stop()
 
-      case ExecutorAdded(id: Int, workerId: String, hostPort: String, cores: Int, memory: Int) =>
+      case ExecutorAdded(id: Int, workerId: String, hostPort: String, cores: Int,
+          resources: Map[String, Int], memory: Int) =>
         val fullId = appId + "/" + id
         logInfo("Executor added: %s on %s (%s) with %d cores".format(fullId, workerId, hostPort,
           cores))
-        listener.executorAdded(fullId, workerId, hostPort, cores, memory)
+        listener.executorAdded(fullId, workerId, hostPort, cores, resources, memory)
 
       case ExecutorUpdated(id, state, message, exitStatus, workerLost) =>
         val fullId = appId + "/" + id

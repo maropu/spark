@@ -17,8 +17,13 @@
 
 package org.apache.spark.scheduler
 
+import org.apache.spark.scheduler.cluster.ExecutorInfo._
+
 /**
  * Represents free resources available on an executor.
  */
 private[spark]
-case class WorkerOffer(executorId: String, host: String, cores: Int)
+case class WorkerOffer(executorId: String, host: String, cores: Int,
+  // If executors have additional available resources (e.g., GPUs and FPGAs) for tasks,
+  // this variable can have resource type names and the number of their available resources.
+  resources: Map[String, Int] = noAdditionalResource)

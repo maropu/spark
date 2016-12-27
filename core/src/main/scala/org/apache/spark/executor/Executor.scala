@@ -280,8 +280,6 @@ private[spark] class Executor(
       } else 0L
       Thread.currentThread.setContextClassLoader(replClassLoader)
       val ser = env.closureSerializer.newInstance()
-      logInfo(s"Running $taskName (TID $taskId)")
-      execBackend.statusUpdate(taskId, TaskState.RUNNING, EMPTY_BYTE_BUFFER)
       var taskStart: Long = 0
       var taskStartCpu: Long = 0
       startGCTime = computeTotalGcTime()
@@ -298,6 +296,9 @@ private[spark] class Executor(
         task = ser.deserialize[Task[Any]](taskBytes, Thread.currentThread.getContextClassLoader)
         task.localProperties = taskProps
         task.setTaskMemoryManager(taskMemoryManager)
+
+        logInfo(s"Running $taskName (TID $taskId)")
+        execBackend.statusUpdate(taskId, task.resourceTypes, TaskState.RUNNING, EMPTY_BYTE_BUFFER)
 
         // If this task has been killed before we deserialized it, let's quit now. Otherwise,
         // continue executing the task.
@@ -406,28 +407,32 @@ private[spark] class Executor(
           }
         }
 
-        execBackend.statusUpdate(taskId, TaskState.FINISHED, serializedResult)
+        execBackend.statusUpdate(taskId, task.resourceTypes, TaskState.FINISHED, serializedResult)
 
       } catch {
         case ffe: FetchFailedException =>
           val reason = ffe.toTaskFailedReason
           setTaskFinishedAndClearInterruptStatus()
-          execBackend.statusUpdate(taskId, TaskState.FAILED, ser.serialize(reason))
+          execBackend.statusUpdate(taskId, task.resourceTypes, TaskState.FAILED,
+            ser.serialize(reason))
 
         case _: TaskKilledException =>
           logInfo(s"Executor killed $taskName (TID $taskId)")
           setTaskFinishedAndClearInterruptStatus()
-          execBackend.statusUpdate(taskId, TaskState.KILLED, ser.serialize(TaskKilled))
+          execBackend.statusUpdate(taskId, task.resourceTypes, TaskState.KILLED,
+            ser.serialize(TaskKilled))
 
         case _: InterruptedException if task.killed =>
           logInfo(s"Executor interrupted and killed $taskName (TID $taskId)")
           setTaskFinishedAndClearInterruptStatus()
-          execBackend.statusUpdate(taskId, TaskState.KILLED, ser.serialize(TaskKilled))
+          execBackend.statusUpdate(taskId, task.resourceTypes, TaskState.KILLED,
+            ser.serialize(TaskKilled))
 
         case CausedBy(cDE: CommitDeniedException) =>
           val reason = cDE.toTaskFailedReason
           setTaskFinishedAndClearInterruptStatus()
-          execBackend.statusUpdate(taskId, TaskState.FAILED, ser.serialize(reason))
+          execBackend.statusUpdate(taskId, task.resourceTypes, TaskState.FAILED,
+            ser.serialize(reason))
 
         case t: Throwable =>
           // Attempt to exit cleanly by informing the driver of our failure.
@@ -457,7 +462,8 @@ private[spark] class Executor(
             }
           }
           setTaskFinishedAndClearInterruptStatus()
-          execBackend.statusUpdate(taskId, TaskState.FAILED, serializedTaskEndReason)
+          execBackend.statusUpdate(taskId, task.resourceTypes, TaskState.FAILED,
+            serializedTaskEndReason)
 
           // Don't forcibly exit unless the exception was inherently fatal, to avoid
           // stopping other tasks unnecessarily.

@@ -23,6 +23,8 @@ import scala.annotation.tailrec
 
 import org.apache.spark.util.{IntParam, MemoryParam, Utils}
 import org.apache.spark.SparkConf
+import org.apache.spark.executor.ResourceUtils
+import org.apache.spark.scheduler.cluster.ExecutorInfo._
 
 /**
  * Command-line parser for the worker.
@@ -32,6 +34,7 @@ private[worker] class WorkerArguments(args: Array[String], conf: SparkConf) {
   var port = 0
   var webUiPort = 8081
   var cores = inferDefaultCores()
+  var resources = ResourceUtils.getAllAvailableResources()
   var memory = inferDefaultMemory()
   var masters: Array[String] = null
   var workDir: String = null
@@ -85,9 +88,19 @@ private[worker] class WorkerArguments(args: Array[String], conf: SparkConf) {
       cores = value
       parse(tail)
 
+    case ("--resources" | "-r") :: value :: tail =>
+      val parsedResources = ResourceUtils.parseResourcesString(value)
+      val unknownResources = parsedResources.keySet.filterNot(resources.contains)
+      if (unknownResources.nonEmpty) {
+        throw new IllegalArgumentException("Unknown resources found: " + unknownResources)
+      }
+      resources = parsedResources
+      parse(tail)
+
     case ("--memory" | "-m") :: MemoryParam(value) :: tail =>
       memory = value
       parse(tail)
+
 
     case ("--work-dir" | "-d") :: value :: tail =>
       workDir = value

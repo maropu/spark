@@ -81,7 +81,7 @@ class ExecutorSuite extends SparkFunSuite {
     val executorSuiteHelper = new ExecutorSuiteHelper
 
     val mockExecutorBackend = mock(classOf[ExecutorBackend])
-    when(mockExecutorBackend.statusUpdate(any(), any(), any()))
+    when(mockExecutorBackend.statusUpdate(any(), any(), any(), any()))
       .thenAnswer(new Answer[Unit] {
         var firstTime = true
         override def answer(invocationOnMock: InvocationOnMock): Unit = {

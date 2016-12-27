@@ -17,6 +17,8 @@
 
 package org.apache.spark.scheduler.cluster
 
+import scala.collection.mutable
+
 import org.apache.spark.rpc.{RpcAddress, RpcEndpointRef}
 
 /**
@@ -34,5 +36,7 @@ private[cluster] class ExecutorData(
    override val executorHost: String,
    var freeCores: Int,
    override val totalCores: Int,
+   var freeResources: mutable.HashMap[String, Int],
+   override val totalResources: Map[String, Int],
    override val logUrlMap: Map[String, String]
 ) extends ExecutorInfo(executorHost, totalCores, logUrlMap)

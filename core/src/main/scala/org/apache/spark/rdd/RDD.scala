@@ -368,7 +368,7 @@ abstract class RDD[T: ClassTag](
    */
   def map[U: ClassTag](f: T => U): RDD[U] = withScope {
     val cleanF = sc.clean(f)
-    new MapPartitionsRDD[U, T](this, (context, pid, iter) => iter.map(cleanF))
+    new MapPartitionsRDD[U, T](this, (pid, iter) => iter.map(cleanF))
   }
 
   /**
@@ -377,7 +377,7 @@ abstract class RDD[T: ClassTag](
    */
   def flatMap[U: ClassTag](f: T => TraversableOnce[U]): RDD[U] = withScope {
     val cleanF = sc.clean(f)
-    new MapPartitionsRDD[U, T](this, (context, pid, iter) => iter.flatMap(cleanF))
+    new MapPartitionsRDD[U, T](this, (pid, iter) => iter.flatMap(cleanF))
   }
 
   /**
@@ -387,7 +387,7 @@ abstract class RDD[T: ClassTag](
     val cleanF = sc.clean(f)
     new MapPartitionsRDD[T, T](
       this,
-      (context, pid, iter) => iter.filter(cleanF),
+      (pid, iter) => iter.filter(cleanF),
       preservesPartitioning = true)
   }
 
@@ -663,7 +663,7 @@ abstract class RDD[T: ClassTag](
    * Return an RDD created by coalescing all elements within each partition into an array.
    */
   def glom(): RDD[Array[T]] = withScope {
-    new MapPartitionsRDD[Array[T], T](this, (context, pid, iter) => Iterator(iter.toArray))
+    new MapPartitionsRDD[Array[T], T](this, (pid, iter) => Iterator(iter.toArray))
   }
 
   /**
@@ -793,8 +793,20 @@ abstract class RDD[T: ClassTag](
     val cleanedF = sc.clean(f)
     new MapPartitionsRDD(
       this,
-      (context: TaskContext, index: Int, iter: Iterator[T]) => cleanedF(iter),
-      preservesPartitioning)
+      (index: Int, iter: Iterator[T]) => cleanedF(iter),
+      preservesPartitioning = preservesPartitioning)
+  }
+
+  def mapPartitionsWithResource[U: ClassTag](
+      f: Iterator[T] => Iterator[U],
+      resourceType: String,
+      preservesPartitioning: Boolean = false): RDD[U] = withScope {
+    val cleanedF = sc.clean(f)
+    new MapPartitionsRDD(
+      this,
+      (index: Int, iter: Iterator[T]) => cleanedF(iter),
+      resourceType = Some(resourceType),
+      preservesPartitioning = preservesPartitioning)
   }
 
   /**
@@ -811,8 +823,8 @@ abstract class RDD[T: ClassTag](
       preservesPartitioning: Boolean = false): RDD[U] = withScope {
     new MapPartitionsRDD(
       this,
-      (context: TaskContext, index: Int, iter: Iterator[T]) => f(index, iter),
-      preservesPartitioning)
+      (index: Int, iter: Iterator[T]) => f(index, iter),
+      preservesPartitioning = preservesPartitioning)
   }
 
   /**
@@ -823,8 +835,8 @@ abstract class RDD[T: ClassTag](
       preservesPartitioning: Boolean = false): RDD[U] = withScope {
     new MapPartitionsRDD(
       this,
-      (context: TaskContext, index: Int, iter: Iterator[T]) => f(iter),
-      preservesPartitioning)
+      (index: Int, iter: Iterator[T]) => f(iter),
+      preservesPartitioning = preservesPartitioning)
   }
 
   /**
@@ -840,8 +852,8 @@ abstract class RDD[T: ClassTag](
     val cleanedF = sc.clean(f)
     new MapPartitionsRDD(
       this,
-      (context: TaskContext, index: Int, iter: Iterator[T]) => cleanedF(index, iter),
-      preservesPartitioning)
+      (index: Int, iter: Iterator[T]) => cleanedF(index, iter),
+      preservesPartitioning = preservesPartitioning)
   }
 
   /**

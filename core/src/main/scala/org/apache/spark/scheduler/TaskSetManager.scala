@@ -69,6 +69,7 @@ private[spark] class TaskSetManager(
 
   val tasks = taskSet.tasks
   val numTasks = tasks.length
+  val resourceTypes = taskSet.resourceTypes
   val copiesRunning = new Array[Int](numTasks)
   val successful = new Array[Boolean](numTasks)
   private val numFailures = new Array[Int](numTasks)
@@ -476,7 +477,7 @@ private[spark] class TaskSetManager(
 
         sched.dagScheduler.taskStarted(task, info)
         new TaskDescription(taskId = taskId, attemptNumber = attemptNum, execId,
-          taskName, index, serializedTask)
+          taskName, index, task.resourceTypes, serializedTask)
       }
     } else {
       None

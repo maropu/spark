@@ -86,6 +86,7 @@ class PersistenceEngineSuite extends SparkFunSuite {
           host = "127.0.0.1",
           port = 10000,
           cores = 0,
+          resources = Map.empty,
           memory = 0,
           endpoint = workerEndpoint,
           webUiAddress = "http://localhost:80")

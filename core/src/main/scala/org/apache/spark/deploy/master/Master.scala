@@ -231,7 +231,8 @@ private[deploy] class Master(
       logError("Leadership has been revoked -- master shutting down.")
       System.exit(0)
 
-    case RegisterWorker(id, workerHost, workerPort, workerRef, cores, memory, workerWebUiUrl) =>
+    case RegisterWorker(id, workerHost, workerPort, workerRef, cores, resources, memory,
+        workerWebUiUrl) =>
       logInfo("Registering worker %s:%d with %d cores, %s RAM".format(
         workerHost, workerPort, cores, Utils.megabytesToString(memory)))
       if (state == RecoveryState.STANDBY) {
@@ -239,7 +240,7 @@ private[deploy] class Master(
       } else if (idToWorker.contains(id)) {
         workerRef.send(RegisterWorkerFailed("Duplicate worker ID"))
       } else {
-        val worker = new WorkerInfo(id, workerHost, workerPort, cores, memory,
+        val worker = new WorkerInfo(id, workerHost, workerPort, cores, resources, memory,
           workerRef, workerWebUiUrl)
         if (registerWorker(worker)) {
           persistenceEngine.addWorker(worker)
@@ -357,7 +358,8 @@ private[deploy] class Master(
           val validExecutors = executors.filter(exec => idToApp.get(exec.appId).isDefined)
           for (exec <- validExecutors) {
             val app = idToApp.get(exec.appId).get
-            val execInfo = app.addExecutor(worker, exec.cores, Some(exec.execId))
+            val execInfo = app.addExecutor(worker, exec.cores, exec.resources,
+              Some(exec.execId))
             worker.addExecutor(execInfo)
             execInfo.copyState(exec)
           }
@@ -666,7 +668,8 @@ private[deploy] class Master(
       // Now that we've decided how many cores to allocate on each worker, let's allocate them
       for (pos <- 0 until usableWorkers.length if assignedCores(pos) > 0) {
         allocateWorkerResourceToExecutors(
-          app, assignedCores(pos), coresPerExecutor, usableWorkers(pos))
+          app, assignedCores(pos), coresPerExecutor, app.desc.resourcesPerExecutor,
+          usableWorkers(pos))
       }
     }
   }
@@ -682,6 +685,7 @@ private[deploy] class Master(
       app: ApplicationInfo,
       assignedCores: Int,
       coresPerExecutor: Option[Int],
+      resourcesPerExecutor: Map[String, Int],
       worker: WorkerInfo): Unit = {
     // If the number of cores per executor is specified, we divide the cores assigned
     // to this worker evenly among the executors with no remainder.
@@ -689,7 +693,7 @@ private[deploy] class Master(
     val numExecutors = coresPerExecutor.map { assignedCores / _ }.getOrElse(1)
     val coresToAssign = coresPerExecutor.getOrElse(assignedCores)
     for (i <- 1 to numExecutors) {
-      val exec = app.addExecutor(worker, coresToAssign)
+      val exec = app.addExecutor(worker, coresToAssign, resourcesPerExecutor)
       launchExecutor(worker, exec)
       app.state = ApplicationState.RUNNING
     }
@@ -731,9 +735,10 @@ private[deploy] class Master(
     logInfo("Launching executor " + exec.fullId + " on worker " + worker.id)
     worker.addExecutor(exec)
     worker.endpoint.send(LaunchExecutor(masterUrl,
-      exec.application.id, exec.id, exec.application.desc, exec.cores, exec.memory))
+      exec.application.id, exec.id, exec.application.desc, exec.cores, exec.resources,
+      exec.memory))
     exec.application.driver.send(
-      ExecutorAdded(exec.id, worker.id, worker.hostPort, exec.cores, exec.memory))
+      ExecutorAdded(exec.id, worker.id, worker.hostPort, exec.cores, exec.resources,exec.memory))
   }
 
   private def registerWorker(worker: WorkerInfo): Boolean = {

@@ -21,9 +21,10 @@ import java.util.concurrent.Semaphore
 
 import scala.concurrent.Future
 
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.{SparkConf, SparkContext, SparkException}
 import org.apache.spark.deploy.{ApplicationDescription, Command}
 import org.apache.spark.deploy.client.{StandaloneAppClient, StandaloneAppClientListener}
+import org.apache.spark.executor.ResourceUtils
 import org.apache.spark.internal.Logging
 import org.apache.spark.launcher.{LauncherBackend, SparkAppHandle}
 import org.apache.spark.rpc.RpcEndpointAddress
@@ -55,6 +56,16 @@ private[spark] class StandaloneSchedulerBackend(
   private val maxCores = conf.getOption("spark.cores.max").map(_.toInt)
   private val totalExpectedCores = maxCores.getOrElse(0)
 
+  private val executorResources = conf.getOption("spark.executor.resources").map { option =>
+    val resources = ResourceUtils.parseResourcesString(option)
+    val implResources = ResourceUtils.getAllResourceNames()
+    val unknownResources = resources.keySet.filterNot(implResources.contains)
+    if (unknownResources.nonEmpty) {
+      throw new SparkException("Unknown resources found: " + unknownResources.toSeq)
+    }
+    resources
+  }.getOrElse(Map.empty[String, Int])
+
   override def start() {
     super.start()
     launcherBackend.connect()
@@ -69,6 +80,7 @@ private[spark] class StandaloneSchedulerBackend(
       "--executor-id", "{{EXECUTOR_ID}}",
       "--hostname", "{{HOSTNAME}}",
       "--cores", "{{CORES}}",
+      "--resources", "{{RESOURCES}}",
       "--app-id", "{{APP_ID}}",
       "--worker-url", "{{WORKER_URL}}")
     val extraJavaOpts = sc.conf.getOption("spark.executor.extraJavaOptions")
@@ -103,8 +115,8 @@ private[spark] class StandaloneSchedulerBackend(
       } else {
         None
       }
-    val appDesc = ApplicationDescription(sc.appName, maxCores, sc.executorMemory, command,
-      webUrl, sc.eventLogDir, sc.eventLogCodec, coresPerExecutor, initialExecutorLimit)
+    val appDesc = ApplicationDescription(sc.appName, maxCores, executorResources, sc.executorMemory,
+      command, webUrl, sc.eventLogDir, sc.eventLogCodec, coresPerExecutor, initialExecutorLimit)
     client = new StandaloneAppClient(sc.env.rpcEnv, masters, appDesc, this, conf)
     client.start()
     launcherBackend.setState(SparkAppHandle.State.SUBMITTED)

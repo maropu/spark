@@ -26,6 +26,7 @@ private[deploy] class ExecutorDescription(
     val appId: String,
     val execId: Int,
     val cores: Int,
+    val resources: Map[String, Int],
     val state: ExecutorState.Value)
   extends Serializable {
 

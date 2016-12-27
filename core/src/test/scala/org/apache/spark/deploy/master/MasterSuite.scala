@@ -73,6 +73,7 @@ class MasterSuite extends SparkFunSuite
       desc = new ApplicationDescription(
         name = "",
         maxCores = None,
+        resourcesPerExecutor = Map.empty,
         memoryPerExecutorMB = 0,
         command = commandToPersist,
         appUiUrl = "",
@@ -102,6 +103,7 @@ class MasterSuite extends SparkFunSuite
       host = "127.0.0.1",
       port = 10000,
       cores = 0,
+      resources = Map.empty,
       memory = 0,
       endpoint = null,
       webUiAddress = "http://localhost:80"
@@ -410,14 +412,14 @@ class MasterSuite extends SparkFunSuite
       coresPerExecutor: Option[Int] = None,
       maxCores: Option[Int] = None): ApplicationInfo = {
     val desc = new ApplicationDescription(
-      "test", maxCores, memoryPerExecutorMb, null, "", None, None, coresPerExecutor)
+      "test", maxCores, Map.empty, memoryPerExecutorMb, null, "", None, None, coresPerExecutor)
     val appId = System.currentTimeMillis.toString
     new ApplicationInfo(0, appId, desc, new Date, null, Int.MaxValue)
   }
 
   private def makeWorkerInfo(memoryMb: Int, cores: Int): WorkerInfo = {
     val workerId = System.currentTimeMillis.toString
-    new WorkerInfo(workerId, "host", 100, cores, memoryMb, null, "http://localhost:80")
+    new WorkerInfo(workerId, "host", 100, cores, Map.empty, memoryMb, null, "http://localhost:80")
   }
 
   private def scheduleExecutorsOnWorkers(
@@ -448,9 +450,10 @@ class MasterSuite extends SparkFunSuite
     })
 
     master.self.send(
-      RegisterWorker("1", "localhost", 9999, fakeWorker, 10, 1024, "http://localhost:8080"))
+      RegisterWorker("1", "localhost", 9999, fakeWorker, 10, Map.empty, 1024,
+        "http://localhost:8080"))
     val executors = (0 until 3).map { i =>
-      new ExecutorDescription(appId = i.toString, execId = i, 2, ExecutorState.RUNNING)
+      new ExecutorDescription(appId = i.toString, execId = i, 2, Map.empty, ExecutorState.RUNNING)
     }
     master.self.send(WorkerLatestState("1", executors, driverIds = Seq("0", "1", "2")))
 

@@ -24,6 +24,7 @@ private[master] class ExecutorDesc(
     val application: ApplicationInfo,
     val worker: WorkerInfo,
     val cores: Int,
+    val resources: Map[String, Int],
     val memory: Int) {
 
   var state = ExecutorState.LAUNCHING
@@ -41,6 +42,7 @@ private[master] class ExecutorDesc(
         fullId == info.fullId &&
         worker.id == info.worker.id &&
         cores == info.cores &&
+        resources == info.resources &&
         memory == info.memory
       case _ => false
     }
