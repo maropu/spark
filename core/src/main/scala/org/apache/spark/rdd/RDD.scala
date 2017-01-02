@@ -797,14 +797,14 @@ abstract class RDD[T: ClassTag](
       preservesPartitioning = preservesPartitioning)
   }
 
-  def mapPartitionsWithResource[U: ClassTag](
-      f: Iterator[T] => Iterator[U],
+  // Is this function internally used only?
+  private[spark] def mapPartitionsWithResource[U: ClassTag](
+      codeForSpecificResource: String,
       resourceType: String,
       preservesPartitioning: Boolean = false): RDD[U] = withScope {
-    val cleanedF = sc.clean(f)
-    new MapPartitionsRDD(
+    new MapPartitionsWithResourceRDD(
       this,
-      (index: Int, iter: Iterator[T]) => cleanedF(iter),
+      codeForSpecificResource,
       resourceType = Some(resourceType),
       preservesPartitioning = preservesPartitioning)
   }

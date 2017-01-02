@@ -35,9 +35,8 @@ import org.apache.spark.util.Utils
 @InterfaceStability.Unstable
 trait ResourceRegister {
 
-  // Converts a vanilla function into a resource-specific one
-  def createIterator[T: ClassTag, U: ClassTag](f: (Int, Iterator[T]) => Iterator[U])
-    : (Int, Iterator[T]) => Iterator[U]
+  // Compile an input `code` and generate an output iterator
+  def createIterator[T: ClassTag, U: ClassTag](code: String, inputIter: Iterator[T]): Iterator[U]
 
   // Returns the number of this available resource
   def getCapacity(): Int

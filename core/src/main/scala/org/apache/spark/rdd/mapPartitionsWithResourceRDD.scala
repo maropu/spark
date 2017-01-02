@@ -20,14 +20,12 @@ package org.apache.spark.rdd
 import scala.reflect.ClassTag
 
 import org.apache.spark.{Partition, TaskContext}
+import org.apache.spark.executor.ResourceUtils
 import org.apache.spark.scheduler.cluster.ExecutorInfo._
 
-/**
- * An RDD that applies the provided function to every partition of the parent RDD.
- */
-private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
+private[spark] class MapPartitionsWithResourceRDD[U: ClassTag, T: ClassTag](
     var prev: RDD[T],
-    var f: (Int, Iterator[T]) => Iterator[U],
+    codeForSpecificResource: String,
     val resourceType: Option[String] = Some(defaultResourceType),
     preservesPartitioning: Boolean = false)
   extends RDD[U](prev) {
@@ -36,8 +34,23 @@ private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
+  private def computeOnResource(resourceType: String, split: Partition, context: TaskContext)
+    : Iterator[U] = try {
+    val func = ResourceUtils.lookupResource(resourceType).createIterator(f)
+    func(split.index, firstParent[T].iterator(split, context))
+  } catch {
+    case t: Throwable =>
+      logWarning(s"Failed to execute RDD#${this.id} on a resource '${resourceType}' and " +
+        s"fell back into a regular path because: ${t.getMessage}")
+      f(split.index, firstParent[T].iterator(split, context))
+  }
+
   override def compute(split: Partition, context: TaskContext): Iterator[U] = {
-    f(split.index, firstParent[T].iterator(split, context))
+    resourceType.find(_ != defaultResourceType).map { rType =>
+      computeOnResource(rType, split, context)
+    }.getOrElse {
+      f(split.index, firstParent[T].iterator(split, context))
+    }
   }
 
   override def clearDependencies() {

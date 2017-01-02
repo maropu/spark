@@ -21,12 +21,14 @@ import reflect.ClassTag
 
 private[spark] class CudaResourceProvider extends ResourceRegister {
 
-  override def createIterator[T: ClassTag, U: ClassTag](f: (Int, Iterator[T]) => Iterator[U])
-    : (Int, Iterator[T]) => Iterator[U] = {
-    // This function needs to convert a given `f` into driver CUDA code here.
-    // We might use the same approach with SPARK-14083; it analyzes JVM bytecode and codegen
-    // a CUDA driver function. However, this implementation seems complicated and
-    // it is difficult to support an arbitrary user-provided function.
+  override def createIterator[T: ClassTag, U: ClassTag](code: String, inputIter: Iterator[T])
+    : Iterator[U] = {
+    // This function needs to compile a given `code` for GPUs by using a CUDA runtime compilation
+    // library (See: http://docs.nvidia.com/cuda/nvrtc/index.html#axzz4UcdlabgP).
+    // In this design, I assume that some parts of operations in DataFrame (e.g., sorting and
+    // aggregates) are implicitly pushed down into GPUs; we prepare CUDA code templates
+    // for these operations, generate specific code for input queries, and pass the code into
+    // `RDD#mapPartitionsWithResource` so as to get the iterator that uses GPUs internally.
     throw new UnsupportedOperationException("Not supported yet")
   }
 
