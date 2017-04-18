@@ -1858,6 +1858,32 @@ class Dataset[T] private[sql](
   }
 
   /**
+   * Returns a new Dataset by adding a column or replacing the existing columns that has
+   * the same names.
+   *
+   * @group untypedrel
+   * @since 2.3.0
+   */
+  def withColumn(colNames: Seq[String], col: Column): DataFrame = {
+    val resolver = sparkSession.sessionState.analyzer.resolver
+    val output = queryExecution.analyzed.output
+    val colAsName = if (colNames.size == 1) col.as(colNames.head) else col.as(colNames)
+    val shouldReplace = output.exists(f => colNames.exists(colName => resolver(f.name, colName)))
+    if (shouldReplace) {
+      val columns = output.map { field =>
+        if (colNames.exists(colName => resolver(field.name, colName))) {
+          colAsName
+        } else {
+          Column(field)
+        }
+      }
+      select(columns : _*)
+    } else {
+      select(Column("*"), colAsName)
+    }
+  }
+
+  /**
    * Returns a new Dataset by adding a column or replacing the existing column that has
    * the same name.
    *
@@ -1865,21 +1891,7 @@ class Dataset[T] private[sql](
    * @since 2.0.0
    */
   def withColumn(colName: String, col: Column): DataFrame = {
-    val resolver = sparkSession.sessionState.analyzer.resolver
-    val output = queryExecution.analyzed.output
-    val shouldReplace = output.exists(f => resolver(f.name, colName))
-    if (shouldReplace) {
-      val columns = output.map { field =>
-        if (resolver(field.name, colName)) {
-          col.as(colName)
-        } else {
-          Column(field)
-        }
-      }
-      select(columns : _*)
-    } else {
-      select(Column("*"), col.as(colName))
-    }
+    withColumn(colName :: Nil, col.as(colName))
   }
 
   /**

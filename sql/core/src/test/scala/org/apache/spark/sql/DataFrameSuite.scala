@@ -563,6 +563,13 @@ class DataFrameSuite extends QueryTest with SharedSQLContext {
       Row(2) :: Row(3) :: Row(4) :: Nil)
   }
 
+  test("SPARK-20174 Support Generator in withColumn") {
+    val df = Seq((Seq(1, 2, 3))).toDF("a")
+    val explodeDf = df.select(posexplode($"a").as("p" :: "b" :: Nil))
+    checkAnswer(explodeDf.select($"p"), Row(0) :: Row(1) :: Row(2) :: Nil)
+    checkAnswer(explodeDf.select($"b"), Row(1) :: Row(2) :: Row(3) :: Nil)
+  }
+
   test("drop column using drop") {
     val df = testData.drop("key")
     checkAnswer(
