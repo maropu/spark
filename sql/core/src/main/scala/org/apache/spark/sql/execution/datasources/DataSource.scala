@@ -40,6 +40,7 @@ import org.apache.spark.sql.execution.streaming._
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.streaming.OutputMode
 import org.apache.spark.sql.types.{CalendarIntervalType, StructType}
+import org.apache.spark.sql.util.SchemaUtils
 import org.apache.spark.util.Utils
 
 /**
@@ -182,6 +183,10 @@ case class DataSource(
       throw new AnalysisException(
         s"Unable to infer schema for $format. It must be specified manually.")
     }
+
+    SchemaUtils.checkSchemaColumnNameDuplication(
+      dataSchema, "the datasource", sparkSession.sessionState.conf.caseSensitiveAnalysis)
+
     (dataSchema, partitionSchema)
   }
 
@@ -327,6 +332,9 @@ case class DataSource(
             s"Unable to infer schema for $format at ${fileCatalog.allFiles().mkString(",")}. " +
                 "It must be specified manually")
         }
+
+        SchemaUtils.checkSchemaColumnNameDuplication(
+          dataSchema, "the datasource", sparkSession.sessionState.conf.caseSensitiveAnalysis)
 
         HadoopFsRelation(
           fileCatalog,

@@ -27,6 +27,7 @@ import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.internal.io.HadoopMapReduceCommitProtocol
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
 import org.apache.spark.util.Utils
@@ -686,5 +687,56 @@ class DataFrameReaderWriterSuite extends QueryTest with SharedSQLContext with Be
     testRead(spark.read.schema(userSchemaString).text(dir), data, userSchema)
     testRead(spark.read.schema(userSchemaString).text(dir, dir), data ++ data, userSchema)
     testRead(spark.read.schema(userSchemaString).text(Seq(dir, dir): _*), data ++ data, userSchema)
+  }
+
+  test("SPARK-20460 Check name duplication in schema") {
+    withTempDir { src =>
+      // Check CSV format
+      Seq("1,1").toDF().coalesce(1).write.mode("overwrite").text(src.toString)
+      Seq((true, "a INT, a INT"), (false, "aA INT, Aa INT"))
+          .foreach { case (caseSensitive, schema) =>
+        withSQLConf(SQLConf.CASE_SENSITIVE.key -> caseSensitive.toString) {
+          val e = intercept[AnalysisException] {
+            spark.read.format("csv").schema(schema).load(src.toString)
+          }
+          assert(e.getMessage.contains("Found duplicate column(s) in the datasource: "))
+        }
+      }
+
+      // If `inferSchema` is true, a CSV format is duplicate-safe (See SPARK-16896)
+      Seq("a,a", "1,1").toDF().coalesce(1).write.mode("overwrite").text(src.toString)
+      val df = spark.read.format("csv").option("inferSchema", true).option("header", true)
+        .load(src.toString)
+      checkAnswer(df, Row(1, 1))
+
+      // Check JSON format
+      Seq((true, ("a", "a")), (false, ("aA", "Aa")))
+          .foreach { case (caseSensitive, (c0, c1)) =>
+        Seq(s"""{"$c0":1, "$c1":1}""").toDF().coalesce(1).write.mode("overwrite").text(src.toString)
+        withSQLConf(SQLConf.CASE_SENSITIVE.key -> caseSensitive.toString) {
+          val e1 = intercept[AnalysisException] {
+            spark.read.format("json").schema(s"$c0 INT, $c1 INT").load(src.toString)
+          }
+          assert(e1.getMessage.contains("Found duplicate column(s) in the datasource: "))
+
+          val e2 = intercept[AnalysisException] {
+            spark.read.format("json").option("inferSchema", true).load(src.toString)
+          }
+          assert(e2.getMessage.contains("Found duplicate column(s) in the datasource: "))
+        }
+      }
+
+      // Check Paruqet format
+      Seq((1, 1)).toDF("c0", "c1").coalesce(1).write.mode("overwrite").parquet(src.toString)
+      Seq((true, "a INT, a INT"), (false, "aA INT, Aa INT"))
+          .foreach { case (caseSensitive, schema) =>
+        withSQLConf(SQLConf.CASE_SENSITIVE.key -> caseSensitive.toString) {
+          val e = intercept[AnalysisException] {
+            spark.read.format("parquet").schema(schema).load(src.toString)
+          }
+          assert(e.getMessage.contains("Found duplicate column(s) in the datasource: "))
+        }
+      }
+    }
   }
 }
