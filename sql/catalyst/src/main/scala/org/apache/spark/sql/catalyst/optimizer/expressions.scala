@@ -18,6 +18,7 @@
 package org.apache.spark.sql.catalyst.optimizer
 
 import scala.collection.immutable.HashSet
+import scala.collection.mutable.{ArrayBuffer, Stack}
 
 import org.apache.spark.sql.catalyst.analysis._
 import org.apache.spark.sql.catalyst.expressions._
@@ -541,5 +542,29 @@ object SimplifyCaseConversionExpressions extends Rule[LogicalPlan] {
       case Lower(Upper(child)) => Lower(child)
       case Lower(Lower(child)) => Lower(child)
     }
+  }
+}
+
+/**
+ * Collapse nested [[Concat]] expressions.
+ */
+object CollapseConcat extends Rule[LogicalPlan] {
+  def apply(plan: LogicalPlan): LogicalPlan = plan.transformExpressionsDown {
+    case concat: Concat if concat.children.exists(_.isInstanceOf[Concat]) =>
+      val flatExprs = ArrayBuffer[Expression]()
+      val waitingForProcess = new Stack[Seq[Expression]]
+      waitingForProcess.push(concat.children)
+      while (waitingForProcess.nonEmpty) {
+        val toProcess = waitingForProcess.pop()
+        val (head, tail) = toProcess.span(!_.isInstanceOf[Concat])
+        flatExprs ++= head
+        tail.headOption.foreach { case concat: Concat =>
+          if (tail.size > 1) {
+            waitingForProcess.push(tail.tail)
+          }
+          waitingForProcess.push(concat.children)
+        }
+      }
+      concat.copy(children = flatExprs.toSeq)
   }
 }

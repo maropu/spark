@@ -111,7 +111,8 @@ abstract class Optimizer(sessionCatalog: SessionCatalog, conf: SQLConf)
       RemoveRedundantProject,
       SimplifyCreateStructOps,
       SimplifyCreateArrayOps,
-      SimplifyCreateMapOps) ++
+      SimplifyCreateMapOps,
+      CollapseConcat) ++
       extendedOperatorOptimizationRules: _*) ::
     Batch("Check Cartesian Products", Once,
       CheckCartesianProducts(conf)) ::
