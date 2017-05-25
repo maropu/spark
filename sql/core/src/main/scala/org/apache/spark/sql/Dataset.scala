@@ -1152,6 +1152,13 @@ class Dataset[T] private[sql](
   def orderBy(sortExprs: Column*): Dataset[T] = sort(sortExprs : _*)
 
   /**
+   * Returns a [[PreparedDatasetHolder]] with an already-optimized plan.
+   */
+  def prepared(): PreparedDatasetHolder[T] = {
+    new PreparedDatasetHolder[T](queryExecution, queryExecution.optimizedPlan, encoder)
+  }
+
+  /**
    * Selects column based on the column name and return it as a [[Column]].
    *
    * @note The column name can also reference to a nested column like `a.b`.

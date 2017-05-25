@@ -95,7 +95,7 @@ class QueryExecution(val sparkSession: SparkSession, val logical: LogicalPlan) {
    * Prepares a planned [[SparkPlan]] for execution by inserting shuffle operations and internal
    * row format conversions as needed.
    */
-  protected def prepareForExecution(plan: SparkPlan): SparkPlan = {
+  private[sql] def prepareForExecution(plan: SparkPlan): SparkPlan = {
     preparations.foldLeft(plan) { case (sp, rule) => rule.apply(sp) }
   }
 

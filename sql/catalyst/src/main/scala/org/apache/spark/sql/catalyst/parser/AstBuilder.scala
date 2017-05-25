@@ -19,6 +19,7 @@ package org.apache.spark.sql.catalyst.parser
 
 import java.sql.{Date, Timestamp}
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicInteger
 import javax.xml.bind.DatatypeConverter
 
 import scala.collection.JavaConverters._
@@ -922,6 +923,10 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
       case SqlBaseParser.GTE =>
         GreaterThanOrEqual(left, right)
     }
+  }
+
+  override def visitParamHolder(ctx: ParamHolderContext): Expression = withOrigin(ctx) {
+    ParameterHolder(name = ctx.identifier.getText)
   }
 
   /**

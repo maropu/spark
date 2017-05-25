@@ -547,6 +547,7 @@ predicate
 
 valueExpression
     : primaryExpression                                                                      #valueExpressionDefault
+    | DOLLAR identifier                                                                      #paramHolder
     | operator=(MINUS | PLUS | TILDE) valueExpression                                        #arithmeticUnary
     | left=valueExpression operator=(ASTERISK | SLASH | PERCENT | DIV) right=valueExpression #arithmeticBinary
     | left=valueExpression operator=(PLUS | MINUS | CONCAT_PIPE) right=valueExpression       #arithmeticBinary
@@ -871,6 +872,7 @@ AMPERSAND: '&';
 PIPE: '|';
 CONCAT_PIPE: '||';
 HAT: '^';
+DOLLAR: '$';
 
 PERCENTLIT: 'PERCENT';
 BUCKET: 'BUCKET';
