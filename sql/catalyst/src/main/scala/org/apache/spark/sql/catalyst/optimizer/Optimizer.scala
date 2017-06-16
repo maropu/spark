@@ -163,6 +163,7 @@ class SimpleTestOptimizer extends Optimizer(
   new SessionCatalog(
     new InMemoryCatalog,
     EmptyFunctionRegistry,
+    EmptyPreparedStatementRegistry,
     new SQLConf().copy(SQLConf.CASE_SENSITIVE -> true)),
   new SQLConf().copy(SQLConf.CASE_SENSITIVE -> true))
 

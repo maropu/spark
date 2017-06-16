@@ -17,6 +17,7 @@
 
 package org.apache.spark.sql.catalyst.optimizer
 
+import org.apache.spark.sql.catalyst.analysis.EmptyPreparedStatementRegistry
 import org.apache.spark.sql.catalyst.analysis.{Analyzer, EmptyFunctionRegistry}
 import org.apache.spark.sql.catalyst.catalog.{InMemoryCatalog, SessionCatalog}
 import org.apache.spark.sql.catalyst.dsl.expressions._
@@ -30,7 +31,8 @@ import org.apache.spark.sql.internal.SQLConf.{CASE_SENSITIVE, ORDER_BY_ORDINAL}
 
 class EliminateSortsSuite extends PlanTest {
   override val conf = new SQLConf().copy(CASE_SENSITIVE -> true, ORDER_BY_ORDINAL -> false)
-  val catalog = new SessionCatalog(new InMemoryCatalog, EmptyFunctionRegistry, conf)
+  val catalog = new SessionCatalog(
+    new InMemoryCatalog, EmptyFunctionRegistry, EmptyPreparedStatementRegistry, conf)
   val analyzer = new Analyzer(catalog, conf)
 
   object Optimize extends RuleExecutor[LogicalPlan] {

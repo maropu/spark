@@ -81,7 +81,7 @@ class ResolveInlineTablesSuite extends AnalysisTest with BeforeAndAfter {
 
   test("convert") {
     val table = UnresolvedInlineTable(Seq("c1"), Seq(Seq(lit(1)), Seq(lit(2L))))
-    val converted = ResolveInlineTables(conf).convert(table)
+    val converted = ResolveInlineTables(conf).convertToLocalRelation(table)
 
     assert(converted.output.map(_.dataType) == Seq(LongType))
     assert(converted.data.size == 2)
@@ -103,11 +103,11 @@ class ResolveInlineTablesSuite extends AnalysisTest with BeforeAndAfter {
 
   test("nullability inference in convert") {
     val table1 = UnresolvedInlineTable(Seq("c1"), Seq(Seq(lit(1)), Seq(lit(2L))))
-    val converted1 = ResolveInlineTables(conf).convert(table1)
+    val converted1 = ResolveInlineTables(conf).convertToLocalRelation(table1)
     assert(!converted1.schema.fields(0).nullable)
 
     val table2 = UnresolvedInlineTable(Seq("c1"), Seq(Seq(lit(1)), Seq(Literal(null, NullType))))
-    val converted2 = ResolveInlineTables(conf).convert(table2)
+    val converted2 = ResolveInlineTables(conf).convertToLocalRelation(table2)
     assert(converted2.schema.fields(0).nullable)
   }
 }

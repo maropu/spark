@@ -30,7 +30,8 @@ import org.apache.spark.sql.types._
 
 
 class DecimalPrecisionSuite extends PlanTest with BeforeAndAfter {
-  private val catalog = new SessionCatalog(new InMemoryCatalog, EmptyFunctionRegistry, conf)
+  private val catalog = new SessionCatalog(
+    new InMemoryCatalog, EmptyFunctionRegistry, EmptyPreparedStatementRegistry, conf)
   private val analyzer = new Analyzer(catalog, conf)
 
   private val relation = LocalRelation(

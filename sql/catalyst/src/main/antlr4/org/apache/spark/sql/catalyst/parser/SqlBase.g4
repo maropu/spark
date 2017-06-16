@@ -66,6 +66,8 @@ singleDataType
 
 statement
     : query                                                            #statementDefault
+    | PREPARE identifier ( '(' dataType (',' dataType)* ')' )? AS queryNoWith  #prepareStatement
+    | EXECUTE identifier ( '(' expression (',' expression)* ')' )?     #executeStatement
     | USE db=identifier                                                #use
     | CREATE DATABASE (IF NOT EXISTS)? identifier
         (COMMENT comment=STRING)? locationSpec?
@@ -547,6 +549,7 @@ predicate
 
 valueExpression
     : primaryExpression                                                                      #valueExpressionDefault
+    | DOLLAR INTEGER_VALUE                                                                   #paramHolder
     | operator=(MINUS | PLUS | TILDE) valueExpression                                        #arithmeticUnary
     | left=valueExpression operator=(ASTERISK | SLASH | PERCENT | DIV) right=valueExpression #arithmeticBinary
     | left=valueExpression operator=(PLUS | MINUS | CONCAT_PIPE) right=valueExpression       #arithmeticBinary
@@ -848,6 +851,8 @@ COMMIT: 'COMMIT';
 ROLLBACK: 'ROLLBACK';
 MACRO: 'MACRO';
 IGNORE: 'IGNORE';
+PREPARE: 'PREPARE';
+EXECUTE: 'EXECUTE';
 
 IF: 'IF';
 
@@ -871,6 +876,7 @@ AMPERSAND: '&';
 PIPE: '|';
 CONCAT_PIPE: '||';
 HAT: '^';
+DOLLAR: '$';
 
 PERCENTLIT: 'PERCENT';
 BUCKET: 'BUCKET';

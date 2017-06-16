@@ -151,7 +151,8 @@ class BooleanSimplificationSuite extends PlanTest with PredicateHelper {
 
   private val caseInsensitiveConf = new SQLConf().copy(SQLConf.CASE_SENSITIVE -> false)
   private val caseInsensitiveAnalyzer = new Analyzer(
-    new SessionCatalog(new InMemoryCatalog, EmptyFunctionRegistry, caseInsensitiveConf),
+    new SessionCatalog(new InMemoryCatalog, EmptyFunctionRegistry, EmptyPreparedStatementRegistry,
+      caseInsensitiveConf),
     caseInsensitiveConf)
 
   test("(a && b) || (a && c) => a && (b || c) when case insensitive") {

@@ -46,6 +46,7 @@ object SimpleAnalyzer extends Analyzer(
   new SessionCatalog(
     new InMemoryCatalog,
     EmptyFunctionRegistry,
+    EmptyPreparedStatementRegistry,
     new SQLConf().copy(SQLConf.CASE_SENSITIVE -> true)) {
     override def createDatabase(dbDefinition: CatalogDatabase, ignoreIfExists: Boolean) {}
   },
@@ -124,6 +125,8 @@ class Analyzer(
       WindowsSubstitution,
       EliminateUnions,
       new SubstituteUnresolvedOrdinals(conf)),
+    Batch("PrepareStatement", fixedPoint,
+      ResolvePreparedStatement(conf, catalog)),
     Batch("Resolution", fixedPoint,
       ResolveTableValuedFunctions ::
       ResolveRelations ::

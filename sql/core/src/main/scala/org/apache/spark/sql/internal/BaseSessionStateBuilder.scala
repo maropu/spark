@@ -19,7 +19,7 @@ package org.apache.spark.sql.internal
 import org.apache.spark.SparkConf
 import org.apache.spark.annotation.{Experimental, InterfaceStability}
 import org.apache.spark.sql.{ExperimentalMethods, SparkSession, UDFRegistration, _}
-import org.apache.spark.sql.catalyst.analysis.{Analyzer, FunctionRegistry}
+import org.apache.spark.sql.catalyst.analysis.{Analyzer, FunctionRegistry, PreparedStatementRegistry}
 import org.apache.spark.sql.catalyst.catalog.SessionCatalog
 import org.apache.spark.sql.catalyst.optimizer.Optimizer
 import org.apache.spark.sql.catalyst.parser.ParserInterface
@@ -99,6 +99,13 @@ abstract class BaseSessionStateBuilder(
   }
 
   /**
+   * Interface to add prepared statements.
+   */
+  protected lazy val preparedStmtRegistry: PreparedStatementRegistry = {
+    parentState.map(_.preparedStmtRegistration).getOrElse(new PreparedStatementRegistry).clone()
+  }
+
+  /**
    * Experimental methods that can be used to define custom optimization rules and custom planning
    * strategies.
    *
@@ -133,6 +140,7 @@ abstract class BaseSessionStateBuilder(
       session.sharedState.externalCatalog,
       session.sharedState.globalTempViewManager,
       functionRegistry,
+      preparedStmtRegistry,
       conf,
       SessionState.newHadoopConf(session.sparkContext.hadoopConfiguration, conf),
       sqlParser,
@@ -286,6 +294,7 @@ abstract class BaseSessionStateBuilder(
       experimentalMethods,
       functionRegistry,
       udfRegistration,
+      preparedStmtRegistry,
       catalog,
       sqlParser,
       analyzer,

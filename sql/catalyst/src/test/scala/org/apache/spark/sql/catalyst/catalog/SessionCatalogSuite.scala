@@ -1398,7 +1398,8 @@ abstract class SessionCatalogSuite extends PlanTest {
 
     Seq(true, false) foreach { caseSensitive =>
       val conf = new SQLConf().copy(SQLConf.CASE_SENSITIVE -> caseSensitive)
-      val catalog = new SessionCatalog(newBasicCatalog(), new SimpleFunctionRegistry, conf)
+      val catalog = new SessionCatalog(
+        newBasicCatalog(), new SimpleFunctionRegistry, new PreparedStatementRegistry, conf)
       try {
         val analyzer = new Analyzer(catalog, conf)
 

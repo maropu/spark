@@ -58,4 +58,16 @@ trait CastSupport {
   def cast(child: Expression, dataType: DataType): Cast = {
     Cast(child, dataType, Option(conf.sessionLocalTimeZone))
   }
+
+  /**
+   * Create a Cast expression with the session local time zone if `e` and `to` types are
+   * different between each other.
+   */
+  def mayCast(e: Expression, to: DataType): Expression = {
+    if (!e.dataType.sameType(to)) {
+      Cast(e, to, Option(conf.sessionLocalTimeZone))
+    } else {
+      e
+    }
+  }
 }

@@ -55,7 +55,9 @@ object SessionCatalog {
 class SessionCatalog(
     val externalCatalog: ExternalCatalog,
     globalTempViewManager: GlobalTempViewManager,
+    // TODO: Add wrapper functions
     functionRegistry: FunctionRegistry,
+    val stmtRegistration: PreparedStatementRegistry,
     conf: SQLConf,
     hadoopConf: Configuration,
     parser: ParserInterface,
@@ -67,11 +69,13 @@ class SessionCatalog(
   def this(
       externalCatalog: ExternalCatalog,
       functionRegistry: FunctionRegistry,
+      stmtRegistration: PreparedStatementRegistry,
       conf: SQLConf) {
     this(
       externalCatalog,
       new GlobalTempViewManager("global_temp"),
       functionRegistry,
+      stmtRegistration,
       conf,
       new Configuration(),
       new CatalystSqlParser(conf),
@@ -83,6 +87,7 @@ class SessionCatalog(
     this(
       externalCatalog,
       new SimpleFunctionRegistry,
+      new PreparedStatementRegistry,
       new SQLConf().copy(SQLConf.CASE_SENSITIVE -> true))
   }
 

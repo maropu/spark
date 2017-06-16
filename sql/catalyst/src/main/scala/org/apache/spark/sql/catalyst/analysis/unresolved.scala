@@ -101,6 +101,24 @@ case class UnresolvedTableValuedFunction(
   override lazy val resolved = false
 }
 
+case class UnresolvedPreparedStatement(
+    identifier: String, params: Seq[Expression]) extends LeafNode {
+
+  override def output: Seq[Attribute] = Nil
+
+  override lazy val resolved = false
+}
+
+case class UnresolvedParameter(name: String) extends LeafExpression with Unevaluable {
+
+  override def dataType: DataType = throw new UnresolvedException(this, "dataType")
+  override def foldable: Boolean = throw new UnresolvedException(this, "foldable")
+  override def nullable: Boolean = throw new UnresolvedException(this, "nullable")
+
+  override def toString: String = s"'$name"
+  override def sql: String = quoteIdentifier(name)
+}
+
 /**
  * Holds the name of an attribute that has yet to be resolved.
  */

@@ -938,6 +938,10 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     }
   }
 
+  override def visitParamHolder(ctx: ParamHolderContext): Expression = withOrigin(ctx) {
+    UnresolvedParameter(name = ctx.INTEGER_VALUE.getText)
+  }
+
   /**
    * Create a predicated expression. A predicated expression is a normal expression with a
    * predicate attached to it, for example:
@@ -1500,7 +1504,7 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
   /**
    * Create a Spark DataType.
    */
-  private def visitSparkDataType(ctx: DataTypeContext): DataType = {
+  protected def visitSparkDataType(ctx: DataTypeContext): DataType = {
     HiveStringType.replaceCharType(typedVisit(ctx))
   }
 

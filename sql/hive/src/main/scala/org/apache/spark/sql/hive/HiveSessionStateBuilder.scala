@@ -55,6 +55,7 @@ class HiveSessionStateBuilder(session: SparkSession, parentState: Option[Session
       session.sharedState.globalTempViewManager,
       new HiveMetastoreCatalog(session),
       functionRegistry,
+      preparedStmtRegistry,
       conf,
       SessionState.newHadoopConf(session.sparkContext.hadoopConfiguration, conf),
       sqlParser,

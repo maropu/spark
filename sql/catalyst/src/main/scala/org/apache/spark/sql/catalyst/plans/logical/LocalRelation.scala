@@ -20,7 +20,9 @@ package org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.analysis
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Literal}
+import org.apache.spark.sql.catalyst.analysis._
+import org.apache.spark.sql.catalyst.analysis.TypeCoercion
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, Literal}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{StructField, StructType}
 
@@ -83,3 +85,6 @@ case class LocalRelation(output: Seq[Attribute], data: Seq[InternalRow] = Nil)
       output.map(_.name).mkString("(", ", ", ")")
   }
 }
+
+case class LocalRelationWithParamPlaceHolder(output: Seq[Attribute], rows: Seq[Seq[Expression]])
+    extends LeafNode

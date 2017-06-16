@@ -26,6 +26,7 @@ import org.antlr.v4.runtime.tree.TerminalNode
 
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
+import org.apache.spark.sql.catalyst.analysis.UnresolvedPreparedStatement
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.parser._
@@ -1037,6 +1038,18 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
         }
       case _ => operationNotAllowed(s"Other types of operation on resources", ctx)
     }
+  }
+
+  override def visitPrepareStatement(ctx: PrepareStatementContext): LogicalPlan = withOrigin(ctx) {
+    val identifier = ctx.identifier.getText
+    val sparkTypes = ctx.dataType.asScala.map(visitSparkDataType)
+    val preparedStmt = plan(ctx.queryNoWith)
+    PrepareCommand(identifier, preparedStmt, sparkTypes)
+  }
+
+  override def visitExecuteStatement(ctx: ExecuteStatementContext): LogicalPlan = withOrigin(ctx) {
+    val params = ctx.expression.asScala.map(expression)
+    UnresolvedPreparedStatement(ctx.identifier.getText, params)
   }
 
   /**

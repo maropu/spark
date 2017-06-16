@@ -25,7 +25,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.spark.SparkContext
 import org.apache.spark.annotation.{Experimental, InterfaceStability}
 import org.apache.spark.sql._
-import org.apache.spark.sql.catalyst.analysis.{Analyzer, FunctionRegistry}
+import org.apache.spark.sql.catalyst.analysis.{Analyzer, FunctionRegistry, PreparedStatementRegistry}
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.optimizer.Optimizer
 import org.apache.spark.sql.catalyst.parser.ParserInterface
@@ -42,6 +42,7 @@ import org.apache.spark.sql.util.{ExecutionListenerManager, QueryExecutionListen
  * @param experimentalMethods Interface to add custom planning strategies and optimizers.
  * @param functionRegistry Internal catalog for managing functions registered by the user.
  * @param udfRegistration Interface exposed to the user for registering user-defined functions.
+ * @param preparedStmtRegistration Interface to add prepared statements.
  * @param catalog Internal catalog for managing table and database states.
  * @param sqlParser Parser that extracts expressions, plans, table identifiers etc. from SQL texts.
  * @param analyzer Logical query plan analyzer for resolving unresolved attributes and relations.
@@ -59,6 +60,7 @@ private[sql] class SessionState(
     val experimentalMethods: ExperimentalMethods,
     val functionRegistry: FunctionRegistry,
     val udfRegistration: UDFRegistration,
+    val preparedStmtRegistration: PreparedStatementRegistry,
     val catalog: SessionCatalog,
     val sqlParser: ParserInterface,
     val analyzer: Analyzer,
