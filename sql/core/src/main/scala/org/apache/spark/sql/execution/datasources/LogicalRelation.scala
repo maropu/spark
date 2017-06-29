@@ -29,7 +29,7 @@ import org.apache.spark.util.Utils
  */
 case class LogicalRelation(
     relation: BaseRelation,
-    output: Seq[AttributeReference],
+    outputAttributes: Seq[AttributeReference],
     catalogTable: Option[CatalogTable],
     override val isStreaming: Boolean)
   extends LeafNode with MultiInstanceRelation {
@@ -47,7 +47,7 @@ case class LogicalRelation(
 
   // Only care about relation when canonicalizing.
   override lazy val canonicalized: LogicalPlan = copy(
-    output = output.map(QueryPlan.normalizeExprId(_, output)),
+    outputAttributes = outputAttributes.map(QueryPlan.normalizeExprId(_, output)),
     catalogTable = None)
 
   override def computeStats(): Statistics = {
@@ -57,7 +57,8 @@ case class LogicalRelation(
   }
 
   /** Used to lookup original attribute capitalization */
-  val attributeMap: AttributeMap[AttributeReference] = AttributeMap(output.map(o => (o, o)))
+  val attributeMap: AttributeMap[AttributeReference] =
+    AttributeMap(outputAttributes.map(o => (o, o)))
 
   /**
    * Returns a new instance of this LogicalRelation. According to the semantics of
@@ -66,7 +67,7 @@ case class LogicalRelation(
    * new instances of attributes in it.
    */
   override def newInstance(): LogicalRelation = {
-    this.copy(output = output.map(_.newInstance()))
+    this.copy(outputAttributes = outputAttributes.map(_.newInstance()))
   }
 
   override def refresh(): Unit = relation match {

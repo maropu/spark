@@ -103,7 +103,7 @@ case class DescribeFunctionCommand(
     functionName: FunctionIdentifier,
     isExtended: Boolean) extends RunnableCommand {
 
-  override val output: Seq[Attribute] = {
+  override val outputAttributes: Seq[Attribute] = {
     val schema = StructType(StructField("function_desc", StringType, nullable = false) :: Nil)
     schema.toAttributes
   }
@@ -210,7 +210,7 @@ case class ShowFunctionsCommand(
     showUserFunctions: Boolean,
     showSystemFunctions: Boolean) extends RunnableCommand {
 
-  override val output: Seq[Attribute] = {
+  override val outputAttributes: Seq[Attribute] = {
     val schema = StructType(StructField("function", StringType, nullable = false) :: Nil)
     schema.toAttributes
   }

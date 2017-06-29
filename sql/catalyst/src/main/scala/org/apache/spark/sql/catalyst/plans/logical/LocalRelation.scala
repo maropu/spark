@@ -43,7 +43,7 @@ object LocalRelation {
   }
 }
 
-case class LocalRelation(output: Seq[Attribute],
+case class LocalRelation(outputAttributes: Seq[Attribute],
                          data: Seq[InternalRow] = Nil,
                          // Indicates whether this relation has data from a streaming source.
                          override val isStreaming: Boolean = false)

@@ -41,7 +41,7 @@ case class EventTimeWatermark(
     child: LogicalPlan) extends LogicalPlan {
 
   // Update the metadata on the eventTime column to include the desired delay.
-  override val output: Seq[Attribute] = child.output.map { a =>
+  val outputAttributes: Seq[Attribute] = child.output.map { a =>
     if (a semanticEquals eventTime) {
       val delayMs = EventTimeWatermark.getDelayMs(delay)
       val updatedMetadata = new MetadataBuilder()

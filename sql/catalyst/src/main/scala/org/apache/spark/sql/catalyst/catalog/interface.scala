@@ -414,7 +414,7 @@ object CatalogTypes {
 case class UnresolvedCatalogRelation(tableMeta: CatalogTable) extends LeafNode {
   assert(tableMeta.identifier.database.isDefined)
   override lazy val resolved: Boolean = false
-  override def output: Seq[Attribute] = Nil
+  def outputAttributes: Seq[Attribute] = Nil
 }
 
 /**
@@ -431,7 +431,7 @@ case class HiveTableRelation(
   assert(tableMeta.dataSchema.sameType(dataCols.toStructType))
 
   // The partition column should always appear after data columns.
-  override def output: Seq[AttributeReference] = dataCols ++ partitionCols
+  def outputAttributes: Seq[AttributeReference] = dataCols ++ partitionCols
 
   def isPartitioned: Boolean = partitionCols.nonEmpty
 

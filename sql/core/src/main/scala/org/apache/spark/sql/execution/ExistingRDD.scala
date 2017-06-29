@@ -122,7 +122,7 @@ case class ExternalRDDScanExec[T](
 
 /** Logical plan node for scanning data from an RDD of InternalRow. */
 case class LogicalRDD(
-    output: Seq[Attribute],
+    outputAttributes: Seq[Attribute],
     rdd: RDD[InternalRow],
     outputPartitioning: Partitioning = UnknownPartitioning(0),
     outputOrdering: Seq[SortOrder] = Nil,

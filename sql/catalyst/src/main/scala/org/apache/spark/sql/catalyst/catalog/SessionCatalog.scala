@@ -678,7 +678,7 @@ class SessionCatalog(
           // 2. Wrap the logical plan in a [[SubqueryAlias]] which tracks the name of the view.
           val child = View(
             desc = metadata,
-            output = metadata.schema.toAttributes,
+            outputAttributes = metadata.schema.toAttributes,
             child = parser.parsePlan(viewText))
           SubqueryAlias(table, child)
         } else {

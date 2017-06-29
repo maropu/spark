@@ -534,7 +534,7 @@ abstract class SessionCatalogSuite extends AnalysisTest {
       catalog.setCurrentDatabase("default")
       // Look up a view.
       assert(metadata.viewText.isDefined)
-      val view = View(desc = metadata, output = metadata.schema.toAttributes,
+      val view = View(desc = metadata, outputAttributes = metadata.schema.toAttributes,
         child = CatalystSqlParser.parsePlan(metadata.viewText.get))
       comparePlans(catalog.lookupRelation(TableIdentifier("view1", Some("db3"))),
         SubqueryAlias("view1", view))

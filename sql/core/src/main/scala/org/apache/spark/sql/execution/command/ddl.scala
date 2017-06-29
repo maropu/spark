@@ -162,7 +162,7 @@ case class DescribeDatabaseCommand(
     }
   }
 
-  override val output: Seq[Attribute] = {
+  override val outputAttributes: Seq[Attribute] = {
     AttributeReference("database_description_item", StringType, nullable = false)() ::
       AttributeReference("database_description_value", StringType, nullable = false)() :: Nil
   }

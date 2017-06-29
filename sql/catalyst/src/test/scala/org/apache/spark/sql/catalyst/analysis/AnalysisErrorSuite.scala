@@ -89,7 +89,7 @@ case class TestFunction(
 
 case class UnresolvedTestPlan() extends LeafNode {
   override lazy val resolved = false
-  override def output: Seq[Attribute] = Nil
+  def outputAttributes: Seq[Attribute] = Nil
 }
 
 class AnalysisErrorSuite extends AnalysisTest {

@@ -49,7 +49,7 @@ case class Dummy(optKey: Option[Expression]) extends Expression with CodegenFall
 
 case class ComplexPlan(exprs: Seq[Seq[Expression]])
   extends org.apache.spark.sql.catalyst.plans.logical.LeafNode {
-  override def output: Seq[Attribute] = Nil
+  def outputAttributes: Seq[Attribute] = Nil
 }
 
 case class ExpressionInMap(map: Map[String, Expression]) extends Unevaluable {
@@ -68,7 +68,7 @@ case class SeqTupleExpression(sons: Seq[(Expression, Expression)],
 }
 
 case class JsonTestTreeNode(arg: Any) extends LeafNode {
-  override def output: Seq[Attribute] = Seq.empty[Attribute]
+  def outputAttributes: Seq[Attribute] = Seq.empty[Attribute]
 }
 
 case class NameValue(name: String, value: Any)

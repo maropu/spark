@@ -160,7 +160,7 @@ private case class DummyLogicalPlan(
     cboStats: Statistics)
   extends LeafNode {
 
-  override def output: Seq[Attribute] = Nil
+  def outputAttributes: Seq[Attribute] = Nil
 
   override def computeStats(): Statistics = if (conf.cboEnabled) cboStats else defaultStats
 }

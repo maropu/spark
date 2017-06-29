@@ -51,6 +51,16 @@ abstract class LogicalPlan
   def isStreaming: Boolean = children.exists(_.isStreaming == true)
 
   /**
+   * Returns the output attributes where any constraint is not considered in this logical node.
+   */
+  def outputAttributes: Seq[Attribute]
+
+  /**
+   * Returns the set of attributes that are output by this logical node.
+   */
+  override def outputSet: AttributeSet = AttributeSet(outputAttributes)
+
+  /**
    * Returns a copy of this node where `rule` has been recursively applied first to all of its
    * children and then itself (post-order). When `rule` does not apply to a given node, it is left
    * unchanged.  This function is similar to `transformUp`, but skips sub-trees that have already

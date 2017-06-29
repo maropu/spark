@@ -38,8 +38,10 @@ object StreamingRelation {
  * It should be used to create [[Source]] and converted to [[StreamingExecutionRelation]] when
  * passing to [[StreamExecution]] to run a query.
  */
-case class StreamingRelation(dataSource: DataSource, sourceName: String, output: Seq[Attribute])
-  extends LeafNode {
+case class StreamingRelation(
+    dataSource: DataSource,
+    sourceName: String,
+    outputAttributes: Seq[Attribute]) extends LeafNode {
   override def isStreaming: Boolean = true
   override def toString: String = sourceName
 }
@@ -48,7 +50,9 @@ case class StreamingRelation(dataSource: DataSource, sourceName: String, output:
  * Used to link a streaming [[Source]] of data into a
  * [[org.apache.spark.sql.catalyst.plans.logical.LogicalPlan]].
  */
-case class StreamingExecutionRelation(source: Source, output: Seq[Attribute]) extends LeafNode {
+case class StreamingExecutionRelation(
+    source: Source,
+    outputAttributes: Seq[Attribute]) extends LeafNode {
   override def isStreaming: Boolean = true
   override def toString: String = source.toString
 }

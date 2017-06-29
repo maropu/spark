@@ -35,7 +35,7 @@ import org.apache.spark.util.random.RandomSampler
  * at the top of the logical query plan.
  */
 case class ReturnAnswer(child: LogicalPlan) extends UnaryNode {
-  override def output: Seq[Attribute] = child.output
+  def outputAttributes: Seq[Attribute] = child.output
 }
 
 /**
@@ -43,11 +43,11 @@ case class ReturnAnswer(child: LogicalPlan) extends UnaryNode {
  * recognize a subquery as such, and it allows us to write subquery aware transformations.
  */
 case class Subquery(child: LogicalPlan) extends UnaryNode {
-  override def output: Seq[Attribute] = child.output
+  def outputAttributes: Seq[Attribute] = child.output
 }
 
 case class Project(projectList: Seq[NamedExpression], child: LogicalPlan) extends UnaryNode {
-  override def output: Seq[Attribute] = projectList.map(_.toAttribute)
+  def outputAttributes: Seq[Attribute] = projectList.map(_.toAttribute)
   override def maxRows: Option[Long] = child.maxRows
 
   override lazy val resolved: Boolean = {
@@ -113,14 +113,14 @@ case class Generate(
     nullableOutput
   }
 
-  def output: Seq[Attribute] = {
+  def outputAttributes: Seq[Attribute] = {
     if (join) child.output ++ qualifiedGeneratorOutput else qualifiedGeneratorOutput
   }
 }
 
 case class Filter(condition: Expression, child: LogicalPlan)
   extends UnaryNode with PredicateHelper {
-  override def output: Seq[Attribute] = child.output
+  def outputAttributes: Seq[Attribute] = child.output
 
   override def maxRows: Option[Long] = child.maxRows
 
@@ -159,10 +159,11 @@ object SetOperation {
 
 case class Intersect(left: LogicalPlan, right: LogicalPlan) extends SetOperation(left, right) {
 
-  override def output: Seq[Attribute] =
+  def outputAttributes: Seq[Attribute] = {
     left.output.zip(right.output).map { case (leftAttr, rightAttr) =>
       leftAttr.withNullability(leftAttr.nullable && rightAttr.nullable)
     }
+  }
 
   override protected def validConstraints: Set[Expression] =
     leftConstraints.union(rightConstraints)
@@ -179,7 +180,7 @@ case class Intersect(left: LogicalPlan, right: LogicalPlan) extends SetOperation
 case class Except(left: LogicalPlan, right: LogicalPlan) extends SetOperation(left, right) {
 
   /** We don't use right.output because those rows get excluded from the set. */
-  override def output: Seq[Attribute] = left.output
+  def outputAttributes: Seq[Attribute] = left.output
 
   override protected def validConstraints: Set[Expression] = leftConstraints
 }
@@ -201,9 +202,9 @@ case class Union(children: Seq[LogicalPlan]) extends LogicalPlan {
   }
 
   // updating nullability to make all the children consistent
-  override def output: Seq[Attribute] =
-    children.map(_.output).transpose.map(attrs =>
-      attrs.head.withNullability(attrs.exists(_.nullable)))
+  def outputAttributes: Seq[Attribute] = children.map(_.output).transpose.map { attrs =>
+    attrs.head.withNullability(attrs.exists(_.nullable))
+  }
 
   override lazy val resolved: Boolean = {
     // allChildrenCompatible needs to be evaluated after childrenResolved
@@ -262,7 +263,7 @@ case class Join(
     condition: Option[Expression])
   extends BinaryNode with PredicateHelper {
 
-  override def output: Seq[Attribute] = {
+  def outputAttributes: Seq[Attribute] = {
     joinType match {
       case j: ExistenceJoin =>
         left.output :+ j.exists
@@ -355,7 +356,7 @@ case class InsertIntoTable(
 
   // We don't want `table` in children as sometimes we don't want to transform it.
   override def children: Seq[LogicalPlan] = query :: Nil
-  override def output: Seq[Attribute] = Seq.empty
+  def outputAttributes: Seq[Attribute] = Seq.empty
   override lazy val resolved: Boolean = false
 }
 
@@ -367,21 +368,22 @@ case class InsertIntoTable(
  *
  * @param desc A view description(CatalogTable) that provides necessary information to resolve the
  *             view.
- * @param output The output of a view operator, this is generated during planning the view, so that
- *               we are able to decouple the output from the underlying structure.
+ * @param outputAttributes The output attributes of a view operator, this is generated
+ *                         during planning the view, so that we are able to decouple the output
+ *                         from the underlying structure.
  * @param child The logical plan of a view operator, it should be a logical plan parsed from the
  *              `CatalogTable.viewText`, should throw an error if the `viewText` is not defined.
  */
 case class View(
     desc: CatalogTable,
-    output: Seq[Attribute],
+    outputAttributes: Seq[Attribute],
     child: LogicalPlan) extends LogicalPlan with MultiInstanceRelation {
 
   override lazy val resolved: Boolean = child.resolved
 
   override def children: Seq[LogicalPlan] = child :: Nil
 
-  override def newInstance(): LogicalPlan = copy(output = output.map(_.newInstance()))
+  override def newInstance(): LogicalPlan = copy(outputAttributes = output.map(_.newInstance()))
 
   override def simpleString: String = {
     s"View (${desc.identifier}, ${output.mkString("[", ",", "]")})"
@@ -397,7 +399,7 @@ case class View(
  *                     Each CTE can see the base tables and the previously defined CTEs only.
  */
 case class With(child: LogicalPlan, cteRelations: Seq[(String, SubqueryAlias)]) extends UnaryNode {
-  override def output: Seq[Attribute] = child.output
+  def outputAttributes: Seq[Attribute] = child.output
 
   override def simpleString: String = {
     val cteAliases = Utils.truncatedString(cteRelations.map(_._1), "[", ", ", "]")
@@ -410,7 +412,7 @@ case class With(child: LogicalPlan, cteRelations: Seq[(String, SubqueryAlias)]) 
 case class WithWindowDefinition(
     windowDefinitions: Map[String, WindowSpecDefinition],
     child: LogicalPlan) extends UnaryNode {
-  override def output: Seq[Attribute] = child.output
+  def outputAttributes: Seq[Attribute] = child.output
 }
 
 /**
@@ -423,7 +425,7 @@ case class Sort(
     order: Seq[SortOrder],
     global: Boolean,
     child: LogicalPlan) extends UnaryNode {
-  override def output: Seq[Attribute] = child.output
+  def outputAttributes: Seq[Attribute] = child.output
   override def maxRows: Option[Long] = child.maxRows
 }
 
@@ -444,7 +446,7 @@ case class Range(
     end: Long,
     step: Long,
     numSlices: Option[Int],
-    output: Seq[Attribute],
+    outputAttributes: Seq[Attribute],
     override val isStreaming: Boolean)
   extends LeafNode with MultiInstanceRelation {
 
@@ -469,7 +471,7 @@ case class Range(
     }
   }
 
-  override def newInstance(): Range = copy(output = output.map(_.newInstance()))
+  override def newInstance(): Range = copy(outputAttributes = output.map(_.newInstance()))
 
   override def simpleString: String = {
     s"Range ($start, $end, step=$step, splits=$numSlices)"
@@ -495,7 +497,7 @@ case class Aggregate(
     !expressions.exists(!_.resolved) && childrenResolved && !hasWindowExpressions
   }
 
-  override def output: Seq[Attribute] = aggregateExpressions.map(_.toAttribute)
+  def outputAttributes: Seq[Attribute] = aggregateExpressions.map(_.toAttribute)
   override def maxRows: Option[Long] = child.maxRows
 
   override def validConstraints: Set[Expression] = {
@@ -510,7 +512,7 @@ case class Window(
     orderSpec: Seq[SortOrder],
     child: LogicalPlan) extends UnaryNode {
 
-  override def output: Seq[Attribute] =
+  def outputAttributes: Seq[Attribute] =
     child.output ++ windowExpressions.map(_.toAttribute)
 
   def windowOutputSet: AttributeSet = AttributeSet(windowExpressions.map(_.toAttribute))
@@ -590,12 +592,12 @@ object Expand {
  * an input row.
  *
  * @param projections to apply
- * @param output of all projections.
+ * @param outputAttributes of all projections.
  * @param child operator.
  */
 case class Expand(
     projections: Seq[Seq[Expression]],
-    output: Seq[Attribute],
+    outputAttributes: Seq[Attribute],
     child: LogicalPlan) extends UnaryNode {
   override def references: AttributeSet =
     AttributeSet(projections.flatten.flatMap(_.references))
@@ -624,7 +626,7 @@ case class GroupingSets(
     child: LogicalPlan,
     aggregations: Seq[NamedExpression]) extends UnaryNode {
 
-  override def output: Seq[Attribute] = aggregations.map(_.toAttribute)
+  def outputAttributes: Seq[Attribute] = aggregations.map(_.toAttribute)
 
   // Needs to be unresolved before its translated to Aggregate + Expand because output attributes
   // will change in analysis.
@@ -637,7 +639,7 @@ case class Pivot(
     pivotValues: Seq[Literal],
     aggregates: Seq[Expression],
     child: LogicalPlan) extends UnaryNode {
-  override def output: Seq[Attribute] = groupByExprs.map(_.toAttribute) ++ aggregates match {
+  def outputAttributes: Seq[Attribute] = groupByExprs.map(_.toAttribute) ++ aggregates match {
     case agg :: Nil => pivotValues.map(value => AttributeReference(value.toString, agg.dataType)())
     case _ => pivotValues.flatMap{ value =>
       aggregates.map(agg => AttributeReference(value + "_" + agg.sql, agg.dataType)())
@@ -659,7 +661,7 @@ object Limit {
 }
 
 case class GlobalLimit(limitExpr: Expression, child: LogicalPlan) extends UnaryNode {
-  override def output: Seq[Attribute] = child.output
+  def outputAttributes: Seq[Attribute] = child.output
   override def maxRows: Option[Long] = {
     limitExpr match {
       case IntegerLiteral(limit) => Some(limit)
@@ -669,7 +671,7 @@ case class GlobalLimit(limitExpr: Expression, child: LogicalPlan) extends UnaryN
 }
 
 case class LocalLimit(limitExpr: Expression, child: LogicalPlan) extends UnaryNode {
-  override def output: Seq[Attribute] = child.output
+  def outputAttributes: Seq[Attribute] = child.output
   override def maxRows: Option[Long] = {
     limitExpr match {
       case IntegerLiteral(limit) => Some(limit)
@@ -691,7 +693,7 @@ case class SubqueryAlias(
 
   override lazy val canonicalized: LogicalPlan = child.canonicalized
 
-  override def output: Seq[Attribute] = child.output.map(_.withQualifier(Some(alias)))
+  def outputAttributes: Seq[Attribute] = child.output.map(_.withQualifier(Some(alias)))
 }
 
 /**
@@ -723,7 +725,7 @@ case class Sample(
       s"Sampling fraction ($fraction) must be on interval [0, 1] without replacement")
   }
 
-  override def output: Seq[Attribute] = child.output
+  def outputAttributes: Seq[Attribute] = child.output
 }
 
 /**
@@ -731,7 +733,7 @@ case class Sample(
  */
 case class Distinct(child: LogicalPlan) extends UnaryNode {
   override def maxRows: Option[Long] = child.maxRows
-  override def output: Seq[Attribute] = child.output
+  def outputAttributes: Seq[Attribute] = child.output
 }
 
 /**
@@ -740,7 +742,7 @@ case class Distinct(child: LogicalPlan) extends UnaryNode {
 abstract class RepartitionOperation extends UnaryNode {
   def shuffle: Boolean
   def numPartitions: Int
-  override def output: Seq[Attribute] = child.output
+  def outputAttributes: Seq[Attribute] = child.output
 }
 
 /**
@@ -775,8 +777,10 @@ case class RepartitionByExpression(
  * A relation with one row. This is used in "SELECT ..." without a from clause.
  */
 case class OneRowRelation() extends LeafNode {
+
+  def outputAttributes: Seq[Attribute] = Nil
+
   override def maxRows: Option[Long] = Some(1)
-  override def output: Seq[Attribute] = Nil
   override def computeStats(): Statistics = Statistics(sizeInBytes = 1)
 
   /** [[org.apache.spark.sql.catalyst.trees.TreeNode.makeCopy()]] does not support 0-arg ctor. */
@@ -788,5 +792,5 @@ case class Deduplicate(
     keys: Seq[Attribute],
     child: LogicalPlan) extends UnaryNode {
 
-  override def output: Seq[Attribute] = child.output
+  def outputAttributes: Seq[Attribute] = child.output
 }

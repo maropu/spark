@@ -1867,11 +1867,6 @@ class DataFrameSuite extends QueryTest with SharedSQLContext {
       expr: String,
       expectedNonNullableColumns: Seq[String]): Unit = {
     val dfWithFilter = df.where(s"isnotnull($expr)").selectExpr(expr)
-    // In the logical plan, all the output columns of input dataframe are nullable
-    dfWithFilter.queryExecution.optimizedPlan.collect {
-      case e: Filter => assert(e.output.forall(_.nullable))
-    }
-
     dfWithFilter.queryExecution.executedPlan.collect {
       // When the child expression in isnotnull is null-intolerant (i.e. any null input will
       // result in null output), the involved columns are converted to not nullable;
@@ -2028,5 +2023,14 @@ class DataFrameSuite extends QueryTest with SharedSQLContext {
     checkAnswer(
       testData2.select(lit(7), 'a, 'b).orderBy(lit(1), lit(2), lit(3)),
       Seq(Row(7, 1, 1), Row(7, 1, 2), Row(7, 2, 1), Row(7, 2, 2), Row(7, 3, 1), Row(7, 3, 2)))
+  }
+
+  test("SPARK-21351 check nullability when inferred constraints applied")  {
+    val testDf= Seq((Some(1), Some(1)), (None, None)).toDF("a", "b").where('a =!= 2)
+    val expectedSchema = new StructType().add("a", "INT", nullable = false)
+    val df1 = testDf.select("a")
+    assert(df1.schema === expectedSchema)
+    val df2 = testDf.groupBy("a").sum("b").select("a")
+    assert(df2.schema === expectedSchema)
   }
 }

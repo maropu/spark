@@ -48,7 +48,7 @@ case class CreateTable(
   }
 
   override def children: Seq[LogicalPlan] = query.toSeq
-  override def output: Seq[Attribute] = Seq.empty
+  def outputAttributes: Seq[Attribute] = Seq.empty
   override lazy val resolved: Boolean = false
 }
 

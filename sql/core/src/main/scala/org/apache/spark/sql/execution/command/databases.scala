@@ -34,7 +34,7 @@ import org.apache.spark.sql.types.StringType
 case class ShowDatabasesCommand(databasePattern: Option[String]) extends RunnableCommand {
 
   // The result of SHOW DATABASES has one column called 'databaseName'
-  override val output: Seq[Attribute] = {
+  override val outputAttributes: Seq[Attribute] = {
     AttributeReference("databaseName", StringType, nullable = false)() :: Nil
   }
 

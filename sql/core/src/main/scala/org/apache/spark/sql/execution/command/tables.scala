@@ -514,7 +514,7 @@ case class DescribeTableCommand(
     isExtended: Boolean)
   extends RunnableCommand {
 
-  override val output: Seq[Attribute] = Seq(
+  override val outputAttributes: Seq[Attribute] = Seq(
     // Column names are based on Hive.
     AttributeReference("col_name", StringType, nullable = false,
       new MetadataBuilder().putString("comment", "name of the column").build())(),
@@ -649,7 +649,7 @@ case class ShowTablesCommand(
 
   // The result of SHOW TABLES/SHOW TABLE has three basic columns: database, tableName and
   // isTemporary. If `isExtended` is true, append column `information` to the output columns.
-  override val output: Seq[Attribute] = {
+  override val outputAttributes: Seq[Attribute] = {
     val tableExtendedInfo = if (isExtended) {
       AttributeReference("information", StringType, nullable = false)() :: Nil
     } else {
@@ -710,7 +710,7 @@ case class ShowTablesCommand(
 case class ShowTablePropertiesCommand(table: TableIdentifier, propertyKey: Option[String])
   extends RunnableCommand {
 
-  override val output: Seq[Attribute] = {
+  override val outputAttributes: Seq[Attribute] = {
     val schema = AttributeReference("value", StringType, nullable = false)() :: Nil
     propertyKey match {
       case None => AttributeReference("key", StringType, nullable = false)() :: schema
@@ -751,7 +751,7 @@ case class ShowTablePropertiesCommand(table: TableIdentifier, propertyKey: Optio
 case class ShowColumnsCommand(
     databaseName: Option[String],
     tableName: TableIdentifier) extends RunnableCommand {
-  override val output: Seq[Attribute] = {
+  override val outputAttributes: Seq[Attribute] = {
     AttributeReference("col_name", StringType, nullable = false)() :: Nil
   }
 
@@ -790,7 +790,7 @@ case class ShowColumnsCommand(
 case class ShowPartitionsCommand(
     tableName: TableIdentifier,
     spec: Option[TablePartitionSpec]) extends RunnableCommand {
-  override val output: Seq[Attribute] = {
+  override val outputAttributes: Seq[Attribute] = {
     AttributeReference("partition", StringType, nullable = false)() :: Nil
   }
 
@@ -836,7 +836,7 @@ case class ShowPartitionsCommand(
 }
 
 case class ShowCreateTableCommand(table: TableIdentifier) extends RunnableCommand {
-  override val output: Seq[Attribute] = Seq(
+  override val outputAttributes: Seq[Attribute] = Seq(
     AttributeReference("createtab_stmt", StringType, nullable = false)()
   )
 

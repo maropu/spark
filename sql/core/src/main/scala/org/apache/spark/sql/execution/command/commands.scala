@@ -121,7 +121,7 @@ case class ExplainCommand(
     cost: Boolean = false)
   extends RunnableCommand {
 
-  override val output: Seq[Attribute] =
+  override val outputAttributes: Seq[Attribute] =
     Seq(AttributeReference("plan", StringType, nullable = true)())
 
   // Run through the optimizer to generate the physical plan.
@@ -157,7 +157,7 @@ case class StreamingExplainCommand(
     queryExecution: IncrementalExecution,
     extended: Boolean) extends RunnableCommand {
 
-  override val output: Seq[Attribute] =
+  override val outputAttributes: Seq[Attribute] =
     Seq(AttributeReference("plan", StringType, nullable = true)())
 
   // Run through the optimizer to generate the physical plan.

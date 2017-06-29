@@ -56,7 +56,7 @@ trait ObjectProducer extends LogicalPlan {
   // The attribute that reference to the single object field this operator outputs.
   def outputObjAttr: Attribute
 
-  override def output: Seq[Attribute] = outputObjAttr :: Nil
+  def outputAttributes: Seq[Attribute] = outputObjAttr :: Nil
 
   override def producedAttributes: AttributeSet = AttributeSet(outputObjAttr)
 }
@@ -90,7 +90,7 @@ case class SerializeFromObject(
     serializer: Seq[NamedExpression],
     child: LogicalPlan) extends ObjectConsumer {
 
-  override def output: Seq[Attribute] = serializer.map(_.toAttribute)
+  def outputAttributes: Seq[Attribute] = serializer.map(_.toAttribute)
 }
 
 object MapPartitions {
@@ -205,7 +205,7 @@ case class TypedFilter(
     deserializer: Expression,
     child: LogicalPlan) extends UnaryNode {
 
-  override def output: Seq[Attribute] = child.output
+  def outputAttributes: Seq[Attribute] = child.output
 
   def withObjectProducerChild(obj: LogicalPlan): Filter = {
     assert(obj.output.length == 1)
@@ -300,7 +300,7 @@ case class AppendColumns(
     serializer: Seq[NamedExpression],
     child: LogicalPlan) extends UnaryNode {
 
-  override def output: Seq[Attribute] = child.output ++ newColumns
+  def outputAttributes: Seq[Attribute] = child.output ++ newColumns
 
   def newColumns: Seq[Attribute] = serializer.map(_.toAttribute)
 }
@@ -314,7 +314,8 @@ case class AppendColumnsWithObject(
     newColumnsSerializer: Seq[NamedExpression],
     child: LogicalPlan) extends ObjectConsumer {
 
-  override def output: Seq[Attribute] = (childSerializer ++ newColumnsSerializer).map(_.toAttribute)
+  def outputAttributes: Seq[Attribute] =
+    (childSerializer ++ newColumnsSerializer).map(_.toAttribute)
 }
 
 /** Factory for constructing new `MapGroups` nodes. */

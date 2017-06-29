@@ -22,6 +22,26 @@ import org.apache.spark.sql.catalyst.expressions._
 
 trait QueryPlanConstraints { self: LogicalPlan =>
 
+  // Holds the set of not-NULL constraints related to this logical plan
+  private lazy val notNullAttributes = constraints.flatMap {
+    case isnotnull @ IsNotNull(a) if isNullIntolerant(a) =>
+      isnotnull.references.map(_.exprId)
+    case _ =>
+      Seq.empty[ExprId]
+  }.toSet
+
+  /**
+   * Checks not-NULL constraints and returns output attributes by taking the constraints
+   * into account.
+   */
+  final lazy val output: Seq[Attribute] = outputAttributes.map { a =>
+    if (a.nullable && notNullAttributes.contains(a.exprId)) {
+      a.withNullability(false)
+    } else {
+      a
+    }
+  }
+
   /**
    * An [[ExpressionSet]] that contains invariants about the rows output by this operator. For
    * example, if this set contains the expression `a = 2` then that expression is guaranteed to
@@ -63,7 +83,7 @@ trait QueryPlanConstraints { self: LogicalPlan =>
 
     // Second, we infer additional constraints from non-nullable attributes that are part of the
     // operator's output
-    val nonNullableAttributes = output.filterNot(_.nullable)
+    val nonNullableAttributes = outputAttributes.filterNot(_.nullable)
     isNotNullConstraints ++= nonNullableAttributes.map(IsNotNull).toSet
 
     isNotNullConstraints -- constraints

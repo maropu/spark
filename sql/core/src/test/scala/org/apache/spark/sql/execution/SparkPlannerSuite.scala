@@ -28,7 +28,7 @@ class SparkPlannerSuite extends SharedSQLContext {
   test("Ensure to go down only the first branch, not any other possible branches") {
 
     case object NeverPlanned extends LeafNode {
-      override def output: Seq[Attribute] = Nil
+      def outputAttributes: Seq[Attribute] = Nil
     }
 
     var planned = 0

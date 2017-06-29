@@ -145,7 +145,7 @@ case class SetCommand(kv: Option[(String, Option[String])]) extends RunnableComm
       (keyValueOutput, runFunc)
   }
 
-  override val output: Seq[Attribute] = _output
+  override val outputAttributes: Seq[Attribute] = _output
 
   override def run(sparkSession: SparkSession): Seq[Row] = runFunc(sparkSession)
 
