@@ -742,9 +742,14 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
    * hooks.
    */
   override def visitAliasedRelation(ctx: AliasedRelationContext): LogicalPlan = withOrigin(ctx) {
-    plan(ctx.relation)
-      .optionalMap(ctx.sample)(withSample)
-      .optionalMap(ctx.strictIdentifier)(aliasPlan)
+    val relation = plan(ctx.relation).optionalMap(ctx.sample)(withSample)
+    if (ctx.tableAlias.strictIdentifier != null) {
+      val subquery = SubqueryAlias(ctx.tableAlias.strictIdentifier.getText, relation)
+      val columnNames = visitIdentifierList(ctx.tableAlias.identifierList)
+      UnresolvedSubqueryColumnAlias(columnNames, subquery)
+    } else {
+      relation
+    }
   }
 
   /**
