@@ -1003,7 +1003,7 @@ class Analyzer(
         groups.exists(_.isInstanceOf[UnresolvedOrdinal]) =>
         val newGroups = groups.map {
           case u @ UnresolvedOrdinal(index) if index > 0 && index <= aggs.size =>
-            aggs(index - 1)
+            ResolvedOrdinal(aggs(index - 1))
           case ordinal @ UnresolvedOrdinal(index) =>
             ordinal.failAnalysis(
               s"GROUP BY position $index is not in select list " +
@@ -2284,7 +2284,7 @@ object CleanupAliases extends Rule[LogicalPlan] {
 
     case Aggregate(grouping, aggs, child) =>
       val cleanedAggs = aggs.map(trimNonTopLevelAliases(_).asInstanceOf[NamedExpression])
-      Aggregate(grouping.map(trimAliases), cleanedAggs, child)
+      Aggregate(grouping.map(trimNonTopLevelAliases), cleanedAggs, child)
 
     case w @ Window(windowExprs, partitionSpec, orderSpec, child) =>
       val cleanedWindowExprs =

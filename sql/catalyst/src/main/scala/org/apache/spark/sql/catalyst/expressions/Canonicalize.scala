@@ -17,6 +17,9 @@
 
 package org.apache.spark.sql.catalyst.expressions
 
+import org.apache.spark.sql.catalyst.analysis.ResolvedOrdinal
+
+
 /**
  * Rewrites an expression using rules that are guaranteed preserve the result while attempting
  * to remove cosmetic variations. Deterministic expressions that are `equal` after canonicalization
@@ -33,13 +36,19 @@ package org.apache.spark.sql.catalyst.expressions
  */
 object Canonicalize extends {
   def execute(e: Expression): Expression = {
-    expressionReorder(ignoreNamesTypes(e))
+    expressionReorder(removeCosmeticExpr(ignoreNamesTypes(e)))
   }
 
   /** Remove names and nullability from types. */
   private[expressions] def ignoreNamesTypes(e: Expression): Expression = e match {
     case a: AttributeReference =>
       AttributeReference("none", a.dataType.asNullable)(exprId = a.exprId)
+    case _ => e
+  }
+
+  /** Remove the expressions that does not change results. */
+  private[expressions] def removeCosmeticExpr(e: Expression): Expression = e match {
+    case ordinal @ ResolvedOrdinal(e) => e
     case _ => e
   }
 

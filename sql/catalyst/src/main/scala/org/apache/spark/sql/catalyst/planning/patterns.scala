@@ -18,6 +18,7 @@
 package org.apache.spark.sql.catalyst.planning
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.analysis.ResolvedOrdinal
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans._
@@ -215,6 +216,9 @@ object PhysicalAggregation {
       }.distinct
 
       val namedGroupingExpressions = groupingExpressions.map {
+        case ordinal @ ResolvedOrdinal(e) => e
+        case other => other
+      }.map {
         case ne: NamedExpression => ne -> ne
         // If the expression is not a NamedExpressions, we add an alias.
         // So, when we generate the result of the operator, the Aggregate Operator

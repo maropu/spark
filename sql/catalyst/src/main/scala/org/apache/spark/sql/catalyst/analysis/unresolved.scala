@@ -489,3 +489,17 @@ case class UnresolvedOrdinal(ordinal: Int)
   override def nullable: Boolean = throw new UnresolvedException(this, "nullable")
   override lazy val resolved = false
 }
+
+/**
+ * Holds an expression resolved by ordinal in group by.
+ *
+ * @param child expression resolved by ordinal
+ */
+case class ResolvedOrdinal(child: Expression) extends UnaryExpression with Unevaluable {
+  override def dataType: DataType = child.dataType
+  override def foldable: Boolean = false
+  override def nullable: Boolean = child.nullable
+  override lazy val resolved = true
+  override def toString: String = child.toString
+  override def sql: String = child.sql
+}

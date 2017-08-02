@@ -167,7 +167,7 @@ SELECT COUNT(b) AS k FROM testData GROUP BY k
 struct<>
 -- !query 17 output
 org.apache.spark.sql.AnalysisException
-aggregate functions are not allowed in GROUP BY, but found count(testdata.`b`);
+aggregate functions are not allowed in GROUP BY, but found count(testdata.`b`) AS `k`;
 
 
 -- !query 18

@@ -1247,7 +1247,10 @@ object ReplaceExceptWithAntiJoin extends Rule[LogicalPlan] {
 object RemoveLiteralFromGroupExpressions extends Rule[LogicalPlan] {
   def apply(plan: LogicalPlan): LogicalPlan = plan transform {
     case a @ Aggregate(grouping, _, _) if grouping.nonEmpty =>
-      val newGrouping = grouping.filter(!_.foldable)
+      val newGrouping = grouping.filter {
+        case ordinal @ ResolvedOrdinal(e) => !e.foldable
+        case e => !e.foldable
+      }
       if (newGrouping.nonEmpty) {
         a.copy(groupingExpressions = newGrouping)
       } else {

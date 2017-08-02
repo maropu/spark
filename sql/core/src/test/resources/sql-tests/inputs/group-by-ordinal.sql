@@ -52,8 +52,15 @@ select count(a), a from (select 1 as a) tmp group by 2 having a > 0;
 -- mixed cases: group-by ordinals and aliases
 select a, a AS k, count(b) from data group by k, 1;
 
--- turn of group by ordinal
+-- turn off group by ordinal
 set spark.sql.groupByOrdinal=false;
 
 -- can now group by negative literal
 select sum(b) from data group by -1;
+
+-- SPARK-21580 ints in aggregation expressions are taken as group-by ordinal
+set spark.sql.groupByOrdinal=true;
+
+select 3, 4, sum(b) from data group by 1, 2;
+
+select 3 as c, 4 as d, sum(b) from data group by c, d;
