@@ -43,10 +43,12 @@ class SubstituteUnresolvedOrdinals(conf: SQLConf) extends Rule[LogicalPlan] {
       }
       withOrigin(s.origin)(s.copy(order = newOrders))
 
-    case a: Aggregate if conf.groupByOrdinal && a.groupingExpressions.exists(isIntLiteral) =>
+    // If `conf.groupByOrdinal`=false, drops [[UnresolvedOrdinal]] if it exists
+    case a: Aggregate if !conf.groupByOrdinal &&
+        a.groupingExpressions.exists(_.isInstanceOf[UnresolvedOrdinal]) =>
       val newGroups = a.groupingExpressions.map {
-        case ordinal @ Literal(index: Int, IntegerType) =>
-          withOrigin(ordinal.origin)(UnresolvedOrdinal(index))
+        case ordinal @ UnresolvedOrdinal(index) =>
+          withOrigin(ordinal.origin)(Literal(index, IntegerType))
         case other => other
       }
       withOrigin(a.origin)(a.copy(groupingExpressions = newGroups))

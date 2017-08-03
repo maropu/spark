@@ -57,3 +57,10 @@ set spark.sql.groupByOrdinal=false;
 
 -- can now group by negative literal
 select sum(b) from data group by -1;
+
+-- SPARK-21580 ints in aggregation expressions are taken as group-by ordinal
+set spark.sql.groupByOrdinal=true;
+
+select 3, 4, sum(b) from data group by 1, 2;
+
+select 3 as c, 4 as d, sum(b) from data group by c, d;

@@ -528,7 +528,14 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
       } else {
         groupByExpressions
       }
-      Aggregate(mappedGroupByExpressions, selectExpressions, query)
+
+      // Replaces ordinal in 'order by' or 'group by' with UnresolvedOrdinal expression
+      val newGroups = mappedGroupByExpressions.map {
+        case ordinal @ Literal(index: Int, IntegerType) => UnresolvedOrdinal(index)
+        case other => other
+      }
+
+      Aggregate(newGroups, selectExpressions, query)
     }
   }
 
