@@ -444,7 +444,7 @@ class Analyzer(
     }
 
     // This require transformUp to replace grouping()/grouping_id() in resolved Filter/Sort
-    def apply(plan: LogicalPlan): LogicalPlan = plan transformUp {
+    def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
       case a if !a.childrenResolved => a // be sure all of the children are resolved.
       case p if p.expressions.exists(hasGroupingAttribute) =>
         failAnalysis(
@@ -480,7 +480,7 @@ class Analyzer(
   }
 
   object ResolvePivot extends Rule[LogicalPlan] {
-    def apply(plan: LogicalPlan): LogicalPlan = plan transform {
+    def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
       case p: Pivot if !p.childrenResolved | !p.aggregates.forall(_.resolved)
         | !p.groupByExprs.forall(_.resolved) | !p.pivotColumn.resolved => p
       case Pivot(groupByExprs, pivotColumn, pivotValues, aggregates, child) =>
@@ -1170,7 +1170,7 @@ class Analyzer(
    * @see https://issues.apache.org/jira/browse/SPARK-19737
    */
   object LookupFunctions extends Rule[LogicalPlan] {
-    override def apply(plan: LogicalPlan): LogicalPlan = plan.transformAllExpressions {
+    override def apply(plan: LogicalPlan): LogicalPlan = plan.resolveExpressions {
       case f: UnresolvedFunction if !catalog.functionExists(f.name) =>
         withPosition(f) {
           throw new NoSuchFunctionException(f.name.database.getOrElse("default"), f.name.funcName)
@@ -1649,7 +1649,7 @@ class Analyzer(
    */
   object FixNullability extends Rule[LogicalPlan] {
 
-    def apply(plan: LogicalPlan): LogicalPlan = plan transformUp {
+    def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
       case p if !p.resolved => p // Skip unresolved nodes.
       case p: LogicalPlan if p.resolved =>
         val childrenOutput = p.children.flatMap(c => c.output).groupBy(_.exprId).flatMap {
@@ -1995,7 +1995,7 @@ class Analyzer(
    * Check and add proper window frames for all window functions.
    */
   object ResolveWindowFrame extends Rule[LogicalPlan] {
-    def apply(plan: LogicalPlan): LogicalPlan = plan transform {
+    def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
       case logical: LogicalPlan => logical transformExpressions {
         case WindowExpression(wf: WindowFunction,
         WindowSpecDefinition(_, _, f: SpecifiedWindowFrame))
@@ -2017,7 +2017,7 @@ class Analyzer(
    * Check and add order to [[AggregateWindowFunction]]s.
    */
   object ResolveWindowOrder extends Rule[LogicalPlan] {
-    def apply(plan: LogicalPlan): LogicalPlan = plan transform {
+    def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
       case logical: LogicalPlan => logical transformExpressions {
         case WindowExpression(wf: WindowFunction, spec) if spec.orderSpec.isEmpty =>
           failAnalysis(s"Window function $wf requires window to be ordered, please add ORDER BY " +
@@ -2251,7 +2251,7 @@ object EliminateSubqueryAliases extends Rule[LogicalPlan] {
  * Removes [[Union]] operators from the plan if it just has one child.
  */
 object EliminateUnions extends Rule[LogicalPlan] {
-  def apply(plan: LogicalPlan): LogicalPlan = plan transform {
+  def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
     case Union(children) if children.size == 1 => children.head
   }
 }
@@ -2310,7 +2310,7 @@ object CleanupAliases extends Rule[LogicalPlan] {
  * TODO: add this rule into analyzer rule list.
  */
 object EliminateEventTimeWatermark extends Rule[LogicalPlan] {
-  override def apply(plan: LogicalPlan): LogicalPlan = plan transform {
+  override def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
     case EventTimeWatermark(_, _, child) if !child.isStreaming => child
   }
 }
@@ -2443,7 +2443,7 @@ object TimeWindowing extends Rule[LogicalPlan] {
  * Resolve a [[CreateNamedStruct]] if it contains [[NamePlaceholder]]s.
  */
 object ResolveCreateNamedStruct extends Rule[LogicalPlan] {
-  override def apply(plan: LogicalPlan): LogicalPlan = plan.transformAllExpressions {
+  override def apply(plan: LogicalPlan): LogicalPlan = plan.resolveExpressions {
     case e: CreateNamedStruct if !e.resolved =>
       val children = e.children.grouped(2).flatMap {
         case Seq(NamePlaceholder, e: NamedExpression) if e.resolved =>
@@ -2506,7 +2506,7 @@ object UpdateOuterReferences extends Rule[LogicalPlan] {
   }
 
   def apply(plan: LogicalPlan): LogicalPlan = {
-    plan transform {
+    plan resolveOperators {
       case f @ Filter(_, a: Aggregate) if f.resolved =>
         f transformExpressions {
           case s: SubqueryExpression if s.children.nonEmpty =>

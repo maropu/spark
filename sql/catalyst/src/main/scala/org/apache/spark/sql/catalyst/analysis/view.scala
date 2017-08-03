@@ -108,7 +108,7 @@ case class AliasViewChild(conf: SQLConf) extends Rule[LogicalPlan] with CastSupp
  * stage because we want to see which part of an analyzed logical plan is generated from a view.
  */
 object EliminateView extends Rule[LogicalPlan] {
-  def apply(plan: LogicalPlan): LogicalPlan = plan transform {
+  def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
     // The child should have the same output attributes with the View operator, so we simply
     // remove the View operator.
     case View(_, output, child) =>
