@@ -32,7 +32,7 @@ import org.codehaus.commons.compiler.CompileException
 import org.codehaus.janino.{ByteArrayClassLoader, ClassBodyEvaluator, JaninoRuntimeException, SimpleCompiler}
 import org.codehaus.janino.util.ClassFile
 
-import org.apache.spark.{SparkEnv, TaskContext, TaskKilledException}
+import org.apache.spark.{SparkContext, SparkEnv, TaskContext, TaskKilledException}
 import org.apache.spark.executor.InputMetrics
 import org.apache.spark.internal.Logging
 import org.apache.spark.metrics.source.CodegenMetrics
@@ -1016,6 +1016,14 @@ object CodeGenerator extends Logging {
       throw e.getCause
   }
 
+  private def isDriver: Boolean = {
+    if (SparkEnv.get != null) {
+      SparkEnv.get.executorId == SparkContext.DRIVER_IDENTIFIER
+    } else {
+      false
+    }
+  }
+
   /**
    * Compile the Java source code into a Java class, using Janino.
    */
@@ -1060,7 +1068,19 @@ object CodeGenerator extends Logging {
 
     try {
       evaluator.cook("generated.java", code.body)
-      recordCompilationStats(evaluator)
+      val methodsToByteCodeSize = updateAndGetCompilationStats(evaluator)
+      // Check each gen'd method bytecode size in a driver side only
+      if (isDriver) {
+        methodsToByteCodeSize.foreach { case (name, byteCodeSize) =>
+          val hugeMethodLimits = 8000
+          val methodName = name.replace("$", "")
+          if (byteCodeSize >= hugeMethodLimits) {
+            val clazzName = evaluator.getClazz.getSimpleName
+            logWarning(s"$clazzName.$methodName is too large to do JIT compilation on HotSpot; "
+              + s"the size of $methodName is $byteCodeSize; the limit is $hugeMethodLimits")
+          }
+        }
+      }
     } catch {
       case e: JaninoRuntimeException =>
         val msg = s"failed to compile: $e"
@@ -1081,7 +1101,7 @@ object CodeGenerator extends Logging {
   /**
    * Records the generated class and method bytecode sizes by inspecting janino private fields.
    */
-  private def recordCompilationStats(evaluator: ClassBodyEvaluator): Unit = {
+  private def updateAndGetCompilationStats(evaluator: ClassBodyEvaluator): Seq[(String, Int)] = {
     // First retrieve the generated classes.
     val classes = {
       val resultField = classOf[SimpleCompiler].getDeclaredField("result")
@@ -1093,6 +1113,7 @@ object CodeGenerator extends Logging {
     }
 
     // Then walk the classes to get at the method bytecode.
+    val methodsToByteCodeSize = mutable.ArrayBuffer[(String, Int)]()
     val codeAttr = Utils.classForName("org.codehaus.janino.util.ClassFile$CodeAttribute")
     val codeAttrField = codeAttr.getDeclaredField("code")
     codeAttrField.setAccessible(true)
@@ -1103,8 +1124,9 @@ object CodeGenerator extends Logging {
         cf.methodInfos.asScala.foreach { method =>
           method.getAttributes().foreach { a =>
             if (a.getClass.getName == codeAttr.getName) {
-              CodegenMetrics.METRIC_GENERATED_METHOD_BYTECODE_SIZE.update(
-                codeAttrField.get(a).asInstanceOf[Array[Byte]].length)
+              val byteCodeSize = codeAttrField.get(a).asInstanceOf[Array[Byte]].length
+              CodegenMetrics.METRIC_GENERATED_METHOD_BYTECODE_SIZE.update(byteCodeSize)
+              methodsToByteCodeSize.append((method.getName, byteCodeSize))
             }
           }
         }
@@ -1113,6 +1135,7 @@ object CodeGenerator extends Logging {
           logWarning("Error calculating stats of compiled class.", e)
       }
     }
+    methodsToByteCodeSize.toSeq
   }
 
   /**
