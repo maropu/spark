@@ -246,33 +246,41 @@ case class HashAggregateExec(
 
   protected override val shouldStopRequired = false
 
+  // We assume a prefix has lower cases and a name has camel cases
+  private val variableName = "^[a-z]+_[a-zA-Z]+[0-9]*".r
+
+  // Returns true if a given name id belongs to this `CodegenContext`
+  private def isVariable(nameId: String): Boolean = nameId match {
+    case variableName() => true
+    case _ => false
+  }
+
   // Extracts all the outer references for a given `aggExpr`. This result will be used to split
   // aggregation into small functions.
-  private def getInputVariablesIn(
-      aggExpr: Expression,
+  private def getOuterReferences(
       ctx: CodegenContext,
+      aggExpr: Expression,
       subExprs: Map[Expression, SubExprEliminationState]): Seq[(String, String)] = {
     val stack = mutable.Stack[Expression](aggExpr)
     val argSet = mutable.Set[(String, String)]()
-    val addIsNullIfNotLiteral = (isNull: String) => {
-      // Literals are not outer references
-      if (!Seq("true", "false").contains(isNull.toLowerCase)) {
-        argSet += (("boolean", isNull))
+    val addIfNotLiteral = (value: String, tpe: String) => {
+      if (isVariable(value)) {
+        argSet += ((tpe, value))
       }
     }
     while (stack.nonEmpty) {
       stack.pop() match {
         case e if subExprs.contains(e) =>
           val exprCode = subExprs(e)
-          argSet += ((ctx.javaType(e.dataType), exprCode.value))
-          addIsNullIfNotLiteral(exprCode.isNull)
+          addIfNotLiteral(exprCode.value, ctx.javaType(e.dataType))
+          addIfNotLiteral(exprCode.isNull, "boolean")
           // Since the children possibly has common expressions, we push them here
           stack.pushAll(e.children)
         case ref: BoundReference
             if ctx.currentVars != null && ctx.currentVars(ref.ordinal) != null =>
           val argVal = ctx.currentVars(ref.ordinal).value
-          argSet += ((ctx.javaType(ref.dataType), argVal))
-          addIsNullIfNotLiteral(ctx.currentVars(ref.ordinal).isNull)
+          addIfNotLiteral(argVal, ctx.javaType(ref.dataType))
+          addIfNotLiteral(ctx.currentVars(ref.ordinal).isNull, "boolean")
         case _: BoundReference =>
           argSet += (("InternalRow", ctx.INPUT_ROW))
         case e =>
@@ -297,8 +305,15 @@ case class HashAggregateExec(
       //   - The number of method parameters is limited to 255 by the definition of a method
       //     descriptor, where the limit includes one unit for this in the case of instance
       //     or interface method invocations.
-      val args = getInputVariablesIn(aggExpr, ctx, subExprs)
-      if (args.size < 256) {
+      val args = getOuterReferences(ctx, aggExpr, subExprs)
+
+      // This is for testing/benchmarking only
+      val maxParamNumInJavaMethod =
+          sqlContext.getConf("spark.sql.codegen.aggregate.maxParamNumInJavaMethod", null) match {
+        case null | "" => 256
+        case param => param.toInt
+      }
+      if (args.size < maxParamNumInJavaMethod) {
         val doAggVal = ctx.freshName(s"doAggregateVal_${aggExpr.prettyName}")
         val argList = args.map(a => s"${a._1} ${a._2}").mkString(", ")
         val doAggValFuncName = ctx.addNewFunction(doAggVal,

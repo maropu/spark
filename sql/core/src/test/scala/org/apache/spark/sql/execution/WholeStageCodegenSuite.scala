@@ -180,7 +180,7 @@ class WholeStageCodegenSuite extends SparkPlanTest with SharedSQLContext {
   }
 
   test("SPARK-21603 check there is a too long generated function") {
-    withSQLConf(SQLConf.WHOLESTAGE_MAX_LINES_PER_FUNCTION.key -> "1500") {
+    withSQLConf(SQLConf.WHOLESTAGE_MAX_LINES_PER_FUNCTION.key -> "500") {
       val ctx = genGroupByCodeGenContext(30)
       assert(ctx.isTooLongGeneratedFunction === true)
     }
@@ -204,6 +204,14 @@ class WholeStageCodegenSuite extends SparkPlanTest with SharedSQLContext {
     withSQLConf(SQLConf.WHOLESTAGE_MAX_LINES_PER_FUNCTION.key -> "0") {
       val ctx = genGroupByCodeGenContext(1)
       assert(ctx.isTooLongGeneratedFunction === true)
+    }
+  }
+
+  test("SPARK-XXXXX check the case where the number of parameters goes over the limit") {
+    withSQLConf("spark.sql.codegen.aggregate.maxParamNumInJavaMethod" -> "2") {
+      sql("CREATE OR REPLACE TEMPORARY VIEW t AS SELECT * FROM VALUES (1, 1, 1) AS t(a, b, c)")
+      val df = sql("SELECT SUM(a + b + c) AS sum FROM t")
+      assert(df.collect === Seq(Row(3)))
     }
   }
 }
