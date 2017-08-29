@@ -260,7 +260,7 @@ case class HashAggregateExec(
   private def getOuterReferences(
       ctx: CodegenContext,
       aggExpr: Expression,
-      subExprs: Map[Expression, SubExprEliminationState]): Seq[(String, String)] = {
+      subExprs: Map[Expression, SubExprEliminationState]): Set[(String, String)] = {
     val stack = mutable.Stack[Expression](aggExpr)
     val argSet = mutable.Set[(String, String)]()
     val addIfNotLiteral = (value: String, tpe: String) => {
@@ -288,7 +288,7 @@ case class HashAggregateExec(
       }
     }
 
-    argSet.toSeq
+    argSet.toSet
   }
 
   // Splits the aggregation into small functions because the HotSpot does not compile
@@ -297,7 +297,8 @@ case class HashAggregateExec(
       ctx: CodegenContext,
       aggExprs: Seq[Expression],
       evalAndUpdateCodes: Seq[String],
-      subExprs: Map[Expression, SubExprEliminationState]): Seq[String] = {
+      subExprs: Map[Expression, SubExprEliminationState],
+      otherArgs: Seq[(String, String)] = Seq.empty): Seq[String] = {
     aggExprs.zipWithIndex.map { case (aggExpr, i) =>
       // The maximum number of parameters in Java methods is 255, so this method gives up splitting
       // the code if the number goes over the limit.
@@ -305,7 +306,7 @@ case class HashAggregateExec(
       //   - The number of method parameters is limited to 255 by the definition of a method
       //     descriptor, where the limit includes one unit for this in the case of instance
       //     or interface method invocations.
-      val args = getOuterReferences(ctx, aggExpr, subExprs)
+      val args = (getOuterReferences(ctx, aggExpr, subExprs) ++ otherArgs).toSeq
 
       // This is for testing/benchmarking only
       val maxParamNumInJavaMethod =
@@ -895,8 +896,9 @@ case class HashAggregateExec(
          """.stripMargin
       }
 
-      val updateAggValCode =
-        splitAggregateExpressions(ctx, boundUpdateExpr, evalAndUpdateCodes, subExprs.states)
+      val updateAggValCode = splitAggregateExpressions(
+        ctx, boundUpdateExpr, evalAndUpdateCodes, subExprs.states,
+        Seq(("InternalRow", fastRowBuffer)))
 
       Option(
         s"""
@@ -961,8 +963,9 @@ case class HashAggregateExec(
          """.stripMargin
       }
 
-      val updateAggValCode =
-        splitAggregateExpressions(ctx, boundUpdateExpr, evalAndUpdateCodes, subExprs.states)
+      val updateAggValCode = splitAggregateExpressions(
+        ctx, boundUpdateExpr, evalAndUpdateCodes, subExprs.states,
+        Seq(("InternalRow", unsafeRowBuffer)))
 
       s"""
          | // common sub-expressions
