@@ -21,7 +21,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.analysis._
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.plans.QueryPlan
+import org.apache.spark.sql.catalyst.plans.{NotNullConstraint, QueryPlan}
 import org.apache.spark.sql.catalyst.plans.logical.statsEstimation.LogicalPlanStats
 import org.apache.spark.sql.catalyst.trees.CurrentOrigin
 import org.apache.spark.sql.types.StructType
@@ -31,6 +31,7 @@ abstract class LogicalPlan
   extends QueryPlan[LogicalPlan]
   with LogicalPlanStats
   with QueryPlanConstraints
+  with NotNullConstraint
   with Logging {
 
   private var _analyzed: Boolean = false

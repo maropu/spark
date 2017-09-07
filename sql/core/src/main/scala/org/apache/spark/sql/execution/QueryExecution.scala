@@ -82,7 +82,7 @@ class QueryExecution(val sparkSession: SparkSession, val logical: LogicalPlan) {
     SparkSession.setActiveSession(sparkSession)
     // TODO: We use next(), i.e. take the first plan returned by the planner, here for now,
     //       but we will implement to choose the best plan.
-    planner.plan(ReturnAnswer(optimizedPlan)).next()
+    planner.plan(ReturnAnswer(optimizedPlan.toPlanWithNotNullConstraint)).next()
   }
 
   // executedPlan should not be used to initialize any SparkPlan. It should be

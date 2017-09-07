@@ -2039,4 +2039,15 @@ class DataFrameSuite extends QueryTest with SharedSQLContext {
       testData2.select(lit(7), 'a, 'b).orderBy(lit(1), lit(2), lit(3)),
       Seq(Row(7, 1, 1), Row(7, 1, 2), Row(7, 2, 1), Row(7, 2, 2), Row(7, 3, 1), Row(7, 3, 2)))
   }
+
+  test("SPARK-21351 check nullability when inferred constraints applied")  {
+    def checkNotNullable(df: DataFrame): Unit = {
+      val expectedSchema = new StructType().add("a", "INT", nullable = false)
+      assert(df.queryExecution.optimizedPlan.toPlanWithNotNullConstraint.schema === expectedSchema)
+      assert(df.queryExecution.sparkPlan.schema === expectedSchema)
+    }
+    val testDf = Seq((Some(1), Some(1)), (None, None)).toDF("a", "b").where('a =!= 2)
+    checkNotNullable(testDf.select("a"))
+    checkNotNullable(testDf.groupBy("a").sum("b").select("a"))
+  }
 }
