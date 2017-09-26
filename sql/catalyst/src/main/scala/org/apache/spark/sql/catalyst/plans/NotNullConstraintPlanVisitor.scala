@@ -25,7 +25,7 @@ object NotNullConstraintPlanVisitor extends LogicalPlanVisitor[LogicalPlan] {
 
   override def default(p: LogicalPlan): LogicalPlan = p match {
     case p if !p.isInstanceOf[LeafNode] =>
-      val children = p.children.map(_.toPlanWithNotNullConstraint)
+      val children = p.children.map(NotNullConstraintPlanVisitor.visit)
       val childrenOutput = p.children.flatMap(_.outputWithNotNullConstraint)
       val nullabilityMap = AttributeMap(childrenOutput.map { x => x -> x.nullable })
       val newPlan = p.transformExpressions {
@@ -38,24 +38,4 @@ object NotNullConstraintPlanVisitor extends LogicalPlanVisitor[LogicalPlan] {
     case leafNode =>
       leafNode
   }
-
-  override def visitUnion(p: Union): LogicalPlan = default(p)
-  override def visitGlobalLimit(p: GlobalLimit): LogicalPlan = default(p)
-  override def visitAggregate(p: Aggregate): LogicalPlan = default(p)
-  override def visitExcept(p: Except): LogicalPlan = default(p)
-  override def visitDistinct(p: Distinct): LogicalPlan = default(p)
-  override def visitSample(p: Sample): LogicalPlan = default(p)
-  override def visitRepartitionByExpr(p: RepartitionByExpression): LogicalPlan = default(p)
-  override def visitFilter(p: Filter): LogicalPlan = default(p)
-  override def visitWindow(p: Window): LogicalPlan = default(p)
-  override def visitGenerate(p: Generate): LogicalPlan = default(p)
-  override def visitIntersect(p: Intersect): LogicalPlan = default(p)
-  override def visitScriptTransform(p: ScriptTransformation): LogicalPlan = default(p)
-  override def visitRepartition(p: Repartition): LogicalPlan = default(p)
-  override def visitJoin(p: Join): LogicalPlan = default(p)
-  override def visitLocalLimit(p: LocalLimit): LogicalPlan = default(p)
-  override def visitProject(p: Project): LogicalPlan = default(p)
-  override def visitExpand(p: Expand): LogicalPlan = default(p)
-  override def visitPivot(p: Pivot): LogicalPlan = default(p)
-  override def visitHint(p: ResolvedHint): LogicalPlan = default(p)
 }

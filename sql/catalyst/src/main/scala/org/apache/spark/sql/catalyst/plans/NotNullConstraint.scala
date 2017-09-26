@@ -18,12 +18,10 @@
 package org.apache.spark.sql.catalyst.plans
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, ExprId, Expression, IsNotNull, NullIntolerant}
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.logical.QueryPlanConstraints
 
 
-trait NotNullConstraint { self: LogicalPlan =>
-
-  final def toPlanWithNotNullConstraint: LogicalPlan = NotNullConstraintPlanVisitor.visit(self)
+trait NotNullConstraint { self: QueryPlan with QueryPlanConstraints =>
 
   final def outputWithNotNullConstraint: Seq[Attribute] = output.map { a =>
     if (a.nullable && notNullAttributes.contains(a.exprId)) {
@@ -34,13 +32,13 @@ trait NotNullConstraint { self: LogicalPlan =>
   }
 
   // If one expression and its children are null intolerant, it is null intolerant
-  private def isNullIntolerant(expr: Expression): Boolean = expr match {
+  def isNullIntolerant(expr: Expression): Boolean = expr match {
     case e: NullIntolerant => e.children.forall(isNullIntolerant)
     case _ => false
   }
 
   // Holds the `ExprId` set of not-NULL attributes in this logical plan
-  private lazy val notNullAttributes = constraints.flatMap {
+  lazy val notNullAttributes = constraints.flatMap {
     case isnotnull @ IsNotNull(a) if isNullIntolerant(a) => isnotnull.references.map(_.exprId)
     case _ => Seq.empty[ExprId]
   }.toSet

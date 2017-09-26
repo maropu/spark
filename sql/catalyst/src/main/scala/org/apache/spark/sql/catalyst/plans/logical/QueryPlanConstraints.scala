@@ -18,9 +18,10 @@
 package org.apache.spark.sql.catalyst.plans.logical
 
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.plans.QueryPlan
 
 
-trait QueryPlanConstraints { self: LogicalPlan =>
+trait QueryPlanConstraints { self: QueryPlan =>
 
   /**
    * An [[ExpressionSet]] that contains invariants about the rows output by this operator. For

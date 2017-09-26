@@ -24,6 +24,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{AnalysisException, Row, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.UnsupportedOperationChecker
+import org.apache.spark.sql.catalyst.plans.NotNullConstraintPlanVisitor
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, ReturnAnswer}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
@@ -78,11 +79,15 @@ class QueryExecution(val sparkSession: SparkSession, val logical: LogicalPlan) {
 
   lazy val optimizedPlan: LogicalPlan = sparkSession.sessionState.optimizer.execute(withCachedData)
 
+  private def toPlanWithNotNullConstraint(lp: LogicalPlan): LogicalPlan = {
+    NotNullConstraintPlanVisitor.visit(lp)
+  }
+
   lazy val sparkPlan: SparkPlan = {
     SparkSession.setActiveSession(sparkSession)
     // TODO: We use next(), i.e. take the first plan returned by the planner, here for now,
     //       but we will implement to choose the best plan.
-    planner.plan(ReturnAnswer(optimizedPlan.toPlanWithNotNullConstraint)).next()
+    planner.plan(ReturnAnswer(toPlanWithNotNullConstraint(optimizedPlan))).next()
   }
 
   // executedPlan should not be used to initialize any SparkPlan. It should be

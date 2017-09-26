@@ -47,41 +47,41 @@ trait LogicalPlanVisitor[T] {
 
   def default(p: LogicalPlan): T
 
-  def visitAggregate(p: Aggregate): T
+  def visitAggregate(p: Aggregate): T = default(p)
 
-  def visitDistinct(p: Distinct): T
+  def visitDistinct(p: Distinct): T = default(p)
 
-  def visitExcept(p: Except): T
+  def visitExcept(p: Except): T = default(p)
 
-  def visitExpand(p: Expand): T
+  def visitExpand(p: Expand): T = default(p)
 
-  def visitFilter(p: Filter): T
+  def visitFilter(p: Filter): T = default(p)
 
-  def visitGenerate(p: Generate): T
+  def visitGenerate(p: Generate): T = default(p)
 
-  def visitGlobalLimit(p: GlobalLimit): T
+  def visitGlobalLimit(p: GlobalLimit): T = default(p)
 
-  def visitHint(p: ResolvedHint): T
+  def visitHint(p: ResolvedHint): T = default(p)
 
-  def visitIntersect(p: Intersect): T
+  def visitIntersect(p: Intersect): T = default(p)
 
-  def visitJoin(p: Join): T
+  def visitJoin(p: Join): T = default(p)
 
-  def visitLocalLimit(p: LocalLimit): T
+  def visitLocalLimit(p: LocalLimit): T = default(p)
 
-  def visitPivot(p: Pivot): T
+  def visitPivot(p: Pivot): T = default(p)
 
-  def visitProject(p: Project): T
+  def visitProject(p: Project): T = default(p)
 
-  def visitRepartition(p: Repartition): T
+  def visitRepartition(p: Repartition): T = default(p)
 
-  def visitRepartitionByExpr(p: RepartitionByExpression): T
+  def visitRepartitionByExpr(p: RepartitionByExpression): T = default(p)
 
-  def visitSample(p: Sample): T
+  def visitSample(p: Sample): T = default(p)
 
-  def visitScriptTransform(p: ScriptTransformation): T
+  def visitScriptTransform(p: ScriptTransformation): T = default(p)
 
-  def visitUnion(p: Union): T
+  def visitUnion(p: Union): T = default(p)
 
-  def visitWindow(p: Window): T
+  def visitWindow(p: Window): T = default(p)
 }

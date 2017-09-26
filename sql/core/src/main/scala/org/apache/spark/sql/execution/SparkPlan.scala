@@ -34,6 +34,7 @@ import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.{Predicate => GenPredicate, _}
 import org.apache.spark.sql.catalyst.plans.{NotNullConstraint, QueryPlan}
+import org.apache.spark.sql.catalyst.plans.logical.QueryPlanConstraints
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.DataType
@@ -44,7 +45,12 @@ import org.apache.spark.util.ThreadUtils
  *
  * The naming convention is that physical operators end with "Exec" suffix, e.g. [[ProjectExec]].
  */
-abstract class SparkPlan extends QueryPlan[SparkPlan] with Logging with Serializable {
+abstract class SparkPlan
+  extends QueryPlan[SparkPlan]
+  with QueryPlanConstraints
+  with NotNullConstraint
+  with Logging
+  with Serializable {
 
   /**
    * A handle to the SQL Context that was used to create this plan.   Since many operators need

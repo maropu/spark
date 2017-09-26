@@ -28,6 +28,7 @@ import org.scalatest.Matchers._
 
 import org.apache.spark.SparkException
 import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.spark.sql.catalyst.plans.NotNullConstraintPlanVisitor
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, OneRowRelation, Union}
 import org.apache.spark.sql.execution.{FilterExec, QueryExecution}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
@@ -2043,7 +2044,8 @@ class DataFrameSuite extends QueryTest with SharedSQLContext {
   test("SPARK-21351 check nullability when inferred constraints applied")  {
     def checkNotNullable(df: DataFrame): Unit = {
       val expectedSchema = new StructType().add("a", "INT", nullable = false)
-      assert(df.queryExecution.optimizedPlan.toPlanWithNotNullConstraint.schema === expectedSchema)
+      val optimizedPlan = df.queryExecution.optimizedPlan
+      assert(NotNullConstraintPlanVisitor.visit(optimizedPlan).schema === expectedSchema)
       assert(df.queryExecution.sparkPlan.schema === expectedSchema)
     }
     val testDf = Seq((Some(1), Some(1)), (None, None)).toDF("a", "b").where('a =!= 2)

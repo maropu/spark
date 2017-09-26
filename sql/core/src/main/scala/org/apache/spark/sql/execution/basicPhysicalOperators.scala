@@ -93,28 +93,11 @@ case class FilterExec(condition: Expression, child: SparkPlan)
     case _ => false
   }
 
-  // If one expression and its children are null intolerant, it is null intolerant.
-  private def isNullIntolerant(expr: Expression): Boolean = expr match {
-    case e: NullIntolerant => e.children.forall(isNullIntolerant)
-    case _ => false
-  }
-
-  // The columns that will filtered out by `IsNotNull` could be considered as not nullable.
-  private val notNullAttributes = notNullPreds.flatMap(_.references).distinct.map(_.exprId)
-
   // Mark this as empty. We'll evaluate the input during doConsume(). We don't want to evaluate
   // all the variables at the beginning to take advantage of short circuiting.
   override def usedInputs: AttributeSet = AttributeSet.empty
 
-  override def output: Seq[Attribute] = {
-    child.output.map { a =>
-      if (a.nullable && notNullAttributes.contains(a.exprId)) {
-        a.withNullability(false)
-      } else {
-        a
-      }
-    }
-  }
+  override def output: Seq[Attribute] = child.output
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
