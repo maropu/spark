@@ -76,7 +76,10 @@ class QueryExecution(val sparkSession: SparkSession, val logical: LogicalPlan) {
     sparkSession.sharedState.cacheManager.useCachedData(analyzed)
   }
 
-  lazy val optimizedPlan: LogicalPlan = sparkSession.sessionState.optimizer.execute(withCachedData)
+
+  // TODO: Move this rule to the optimizer
+  lazy val _withCachedData = python.ReplacePythonUDFWithCodegenExpr.apply(withCachedData)
+  lazy val optimizedPlan: LogicalPlan = sparkSession.sessionState.optimizer.execute(_withCachedData)
 
   lazy val sparkPlan: SparkPlan = {
     SparkSession.setActiveSession(sparkSession)

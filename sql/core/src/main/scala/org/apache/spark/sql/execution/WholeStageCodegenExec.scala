@@ -19,6 +19,9 @@ package org.apache.spark.sql.execution
 
 import java.util.Locale
 
+import maropu.lljvm.LLJVMClassLoader
+import maropu.lljvm.LLJVMUtils
+
 import org.apache.spark.broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -29,9 +32,10 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, SortMergeJoinExec}
 import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.execution.python.PythonCodegenUDF
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
-import org.apache.spark.util.Utils
+import org.apache.spark.util.{ParentClassLoader, Utils}
 
 /**
  * An interface for those physical operators that support codegen.
@@ -382,9 +386,25 @@ case class WholeStageCodegenExec(child: SparkPlan) extends UnaryExecNode with Co
       }
       """.trim
 
+    // Extracts a LLJVM classloader for python functions
+    val classLoaderOption = child.collectFirst {
+      case p if p.expressions.exists(_.find(_.isInstanceOf[PythonCodegenUDF]).nonEmpty) =>
+        p.expressions.flatMap { e =>
+          e.collectFirst {
+            case udf: PythonCodegenUDF =>
+              val loader = new LLJVMClassLoader(Utils.getContextOrSparkClassLoader)
+              loader.loadClassFromBitcode("GeneratedClass", udf.func)
+              new ParentClassLoader(loader)
+          }
+        }.head
+    }
+
     // try to compile, helpful for debug
     val cleanedSource = CodeFormatter.stripOverlappingComments(
-      new CodeAndComment(CodeFormatter.stripExtraNewLines(source), ctx.getPlaceHolderToComments()))
+      new CodeAndComment(
+        CodeFormatter.stripExtraNewLines(source),
+        ctx.getPlaceHolderToComments(),
+        classLoaderOption))
 
     logDebug(s"\n${CodeFormatter.format(cleanedSource)}")
     (ctx, cleanedSource)

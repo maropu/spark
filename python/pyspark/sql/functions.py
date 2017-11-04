@@ -2110,14 +2110,20 @@ class UserDefinedFunction(object):
 
     def _create_judf(self):
         from pyspark.sql import SparkSession
+        from numba import cfunc
 
         spark = SparkSession.builder.getOrCreate()
         sc = spark.sparkContext
 
         wrapped_func = _wrap_function(sc, self.func, self.returnType)
         jdt = spark._jsparkSession.parseDataType(self.returnType.json())
+        # TODO: Compile a python function with hard-coded types for quick benchmarks.
+        # Probably, after the input types of the python function are resolved in the analyzer, Spark checks
+        # if it can compile the python function in the optimizer.
+        cf = cfunc("int64(int64, int64)")(self.func)
+        # print(cf.inspect_llvm())
         judf = sc._jvm.org.apache.spark.sql.execution.python.UserDefinedPythonFunction(
-            self._name, wrapped_func, jdt, self.pythonUdfType)
+            self._name, wrapped_func, jdt, self.pythonUdfType, bytearray(cf._library._final_module.as_bitcode()))
         return judf
 
     def __call__(self, *cols):

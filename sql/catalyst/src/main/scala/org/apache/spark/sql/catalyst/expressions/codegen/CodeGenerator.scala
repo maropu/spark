@@ -1068,8 +1068,10 @@ abstract class GeneratedClass {
 /**
  * A wrapper for the source code to be compiled by [[CodeGenerator]].
  */
-class CodeAndComment(val body: String, val comment: collection.Map[String, String])
-  extends Serializable {
+class CodeAndComment(
+    val body: String,
+    val comment: collection.Map[String, String],
+    @transient val classLoaderOption: Option[ClassLoader] = None) extends Serializable {
   override def equals(that: Any): Boolean = that match {
     case t: CodeAndComment if t.body == body => true
     case _ => false
@@ -1162,8 +1164,10 @@ object CodeGenerator extends Logging {
     // find other possible classes (see org.codehaus.janinoClassLoaderIClassLoader's
     // findIClass method). Please also see https://issues.apache.org/jira/browse/SPARK-15622 and
     // https://issues.apache.org/jira/browse/SPARK-11636.
-    val parentClassLoader = new ParentClassLoader(Utils.getContextOrSparkClassLoader)
-    evaluator.setParentClassLoader(parentClassLoader)
+    val classLoader = code.classLoaderOption.getOrElse {
+      new ParentClassLoader(Utils.getContextOrSparkClassLoader)
+    }
+    evaluator.setParentClassLoader(classLoader)
     // Cannot be under package codegen, or fail with java.lang.InstantiationException
     evaluator.setClassName("org.apache.spark.sql.catalyst.expressions.GeneratedClass")
     evaluator.setDefaultImports(Array(
