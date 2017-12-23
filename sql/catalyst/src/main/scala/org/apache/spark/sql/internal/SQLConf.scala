@@ -443,6 +443,12 @@ object SQLConf {
     .booleanConf
     .createWithDefault(true)
 
+  val CATALYST_RULE_METRICS_ENABLED =
+    buildConf("spark.sql.catalyst.metricsEnabled")
+      .doc("Whether Dropwizard/Codahale metrics will be reported for SQL queries.")
+      .booleanConf
+      .createWithDefault(false)
+
   val COLUMN_NAME_OF_CORRUPT_RECORD = buildConf("spark.sql.columnNameOfCorruptRecord")
     .doc("The name of internal column for storing raw/un-parsed JSON and CSV records that fail " +
       "to parse.")
@@ -1160,6 +1166,8 @@ class SQLConf extends Serializable with Logging {
   def gatherFastStats: Boolean = getConf(GATHER_FASTSTAT)
 
   def optimizerMetadataOnly: Boolean = getConf(OPTIMIZER_METADATA_ONLY)
+
+  def catalystRuleMetricsEnabled: Boolean = getConf(CATALYST_RULE_METRICS_ENABLED)
 
   def wholeStageEnabled: Boolean = getConf(WHOLESTAGE_CODEGEN_ENABLED)
 

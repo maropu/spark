@@ -176,6 +176,14 @@ class SparkSession private(
   @InterfaceStability.Evolving
   def listenerManager: ExecutionListenerManager = sessionState.listenerManager
 
+  // Initializes a sqlSource to register metrics
+  private[sql] val sqlSource = new SQLSource(this)
+
+  // Registers SQL metrics
+  assert(sparkContext.env.metricsSystem != null)
+  sparkContext.env.metricsSystem.registerSource(sqlSource)
+  listenerManager.register(new RuleMetricCollector())
+
   /**
    * :: Experimental ::
    * A collection of methods that are considered experimental, but can be used to hook into

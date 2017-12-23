@@ -20,12 +20,15 @@ package org.apache.spark.sql.execution
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Timestamp}
 
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{AnalysisException, Row, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.UnsupportedOperationChecker
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, ReturnAnswer}
-import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.catalyst.rules.{Rule, RuleExecutor}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.execution.command.{DescribeTableCommand, ExecutedCommandExec, ShowTablesCommand}
 import org.apache.spark.sql.execution.exchange.{EnsureRequirements, ReuseExchange}
@@ -64,9 +67,25 @@ class QueryExecution(val sparkSession: SparkSession, val logical: LogicalPlan) {
     }
   }
 
+  private[sql] val ruleMetricMap = mutable.Map[String, Long]()
+
+  def collectRuleMetrics[T](f: => T): T= {
+    if (sparkSession.sqlContext.conf.catalystRuleMetricsEnabled) {
+      val base = RuleExecutor.timeMap.asMap.asScala.clone
+      val ret = f
+      ruleMetricMap ++= RuleExecutor.timeMap.asMap().asScala.map { case (k, v) =>
+        val elapsed = v - base.getOrElse(k, 0L).asInstanceOf[Long]
+        k -> elapsed
+      }
+      ret
+    } else {
+      f
+    }
+  }
+
   lazy val analyzed: LogicalPlan = {
     SparkSession.setActiveSession(sparkSession)
-    sparkSession.sessionState.analyzer.execute(logical)
+    collectRuleMetrics { sparkSession.sessionState.analyzer.execute(logical) }
   }
 
   lazy val withCachedData: LogicalPlan = {
@@ -75,7 +94,9 @@ class QueryExecution(val sparkSession: SparkSession, val logical: LogicalPlan) {
     sparkSession.sharedState.cacheManager.useCachedData(analyzed)
   }
 
-  lazy val optimizedPlan: LogicalPlan = sparkSession.sessionState.optimizer.execute(withCachedData)
+  lazy val optimizedPlan: LogicalPlan = {
+    collectRuleMetrics { sparkSession.sessionState.optimizer.execute(withCachedData) }
+  }
 
   lazy val sparkPlan: SparkPlan = {
     SparkSession.setActiveSession(sparkSession)

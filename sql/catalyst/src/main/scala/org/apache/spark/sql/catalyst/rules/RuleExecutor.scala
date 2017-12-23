@@ -28,7 +28,7 @@ import org.apache.spark.sql.catalyst.util.sideBySide
 import org.apache.spark.util.Utils
 
 object RuleExecutor {
-  protected val timeMap = AtomicLongMap.create[String]()
+  private[sql] val timeMap = AtomicLongMap.create[String]()
 
   /** Resets statistics about time spent running specific rules */
   def resetTime(): Unit = timeMap.clear()
