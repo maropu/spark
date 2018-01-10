@@ -17,6 +17,9 @@
 
 package org.apache.spark.sql.execution.benchmark
 
+import org.apache.spark.SparkEnv
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.test.SQLTestUtils
 import org.apache.spark.util.Benchmark
 
 
@@ -27,17 +30,22 @@ import org.apache.spark.util.Benchmark
  *
  * Benchmarks in this file are skipped in normal builds.
  */
-class BenchmarkWideTable extends BenchmarkBase {
+class BenchmarkWideTable extends BenchmarkBase with SQLTestUtils {
 
-  ignore("project on wide table") {
+  override protected def spark: SparkSession = sparkSession
+
+  test("project on wide table") {
     val N = 1 << 20
     val df = sparkSession.range(N)
     val columns = (0 until 400).map{ i => s"id as id$i"}
-    val benchmark = new Benchmark("projection on wide table", N)
-    benchmark.addCase("wide table", numIters = 5) { iter =>
-      df.selectExpr(columns : _*).queryExecution.toRdd.count()
+    Seq(10, 100, 1024, 2048, 4096, 8192, 16384, 32768, 65536).foreach { t =>
+      SparkEnv.get.conf.set("spark.sql.codegen.splitExprThreshold", t.toString)
+      val benchmark = new Benchmark("projection on wide table", N)
+      benchmark.addCase(s"wide table (splitExprThreshold=$t)", numIters = 5) { iter =>
+        df.selectExpr(columns: _*).queryExecution.toRdd.count()
+      }
+      benchmark.run()
     }
-    benchmark.run()
 
     /**
      * Here are some numbers with different split threshold:

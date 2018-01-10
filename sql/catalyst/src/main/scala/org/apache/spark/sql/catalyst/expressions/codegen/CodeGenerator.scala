@@ -1036,7 +1036,12 @@ class CodegenContext {
       // as metric. A method should not go beyond 8K, otherwise it will not be JITted, should
       // also not be too small, or it will have many function calls (for wide table), see the
       // results in BenchmarkWideTable.
-      if (length > 1024) {
+      val splitExprThreshold = if (SparkEnv.get != null) {
+        SparkEnv.get.conf.getInt("spark.sql.codegen.splitExprThreshold", 1024)
+      } else {
+        1024
+      }
+      if (length > splitExprThreshold) {
         blocks += blockBuilder.toString()
         blockBuilder.clear()
         length = 0
