@@ -172,7 +172,7 @@ abstract class Optimizer(sessionCatalog: SessionCatalog)
   /**
    * Override to provide additional rules for the operator optimization batch.
    */
-  def extendedOperatorOptimizationRules: Seq[Rule[LogicalPlan]] = Nil
+  def extendedOperatorOptimizationRules: Seq[Rule[LogicalPlan]] = SamplePushDown :: Nil
 }
 
 /**

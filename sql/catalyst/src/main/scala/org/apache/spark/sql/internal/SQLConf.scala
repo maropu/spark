@@ -1084,6 +1084,11 @@ object SQLConf {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefault(100)
 
+  val SAMPLING_PUSH_DOWN_ENABLED = buildConf("spark.sql.optimizer.samplingPushDownEnabled")
+    .doc("When true, enable an optimization rule of experimental sampling pushdown")
+    .booleanConf
+    .createWithDefault(true)
+
   object PartitionOverwriteMode extends Enumeration {
     val STATIC, DYNAMIC = Value
   }
@@ -1427,6 +1432,8 @@ class SQLConf extends Serializable with Logging {
 
   def continuousStreamingExecutorPollIntervalMs: Long =
     getConf(CONTINUOUS_STREAMING_EXECUTOR_POLL_INTERVAL_MS)
+
+  def samplingPushDownEnabled: Boolean = getConf(SAMPLING_PUSH_DOWN_ENABLED)
 
   def concatBinaryAsString: Boolean = getConf(CONCAT_BINARY_AS_STRING)
 

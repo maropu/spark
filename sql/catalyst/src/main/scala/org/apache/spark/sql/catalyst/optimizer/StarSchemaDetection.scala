@@ -269,7 +269,7 @@ object StarSchemaDetection extends PredicateHelper {
    * to be selective if there are local predicates on the dimension
    * tables.
    */
-  private def isSelectiveStarJoin(
+  private[optimizer] def isSelectiveStarJoin(
       dimTables: Seq[LogicalPlan],
       conditions: Seq[Expression]): Boolean = dimTables.exists {
     case plan @ PhysicalOperation(_, p, _: LeafNode) =>
