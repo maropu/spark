@@ -906,4 +906,5 @@ case class AnalysisBarrier(child: LogicalPlan) extends LeafNode {
   override def output: Seq[Attribute] = child.output
   override def isStreaming: Boolean = child.isStreaming
   override def doCanonicalize(): LogicalPlan = child.canonicalized
+  override protected def innerChildren: Seq[LogicalPlan] = Seq(child)
 }
