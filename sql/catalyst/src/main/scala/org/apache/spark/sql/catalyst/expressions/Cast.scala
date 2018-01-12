@@ -282,6 +282,9 @@ case class Cast(child: Expression, dataType: DataType, timeZoneId: Option[String
         builder.append("]")
         builder.build()
       })
+
+    case udt: UserDefinedType[_] =>
+      buildCast[Any](_, o => UTF8String.fromString(udt.deserialize(o).toString))
     case _ => buildCast[Any](_, o => UTF8String.fromString(o.toString))
   }
 
@@ -835,6 +838,11 @@ case class Cast(child: Expression, dataType: DataType, timeZoneId: Option[String
              |$writeStructCode
              |$evPrim = $buffer.build();
            """.stripMargin
+        }
+      case udt: UserDefinedType[_] =>
+        (c, evPrim, evNull) => {
+          // Spark can't tell a way to convert a given internal data into an user-defined string
+          s"$evPrim = UTF8String.fromString($c.toString());"
         }
       case _ =>
         (c, evPrim, evNull) => s"$evPrim = UTF8String.fromString(String.valueOf($c));"
