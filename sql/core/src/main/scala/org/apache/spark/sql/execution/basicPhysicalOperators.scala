@@ -557,6 +557,158 @@ case class UnionExec(children: Seq[SparkPlan]) extends SparkPlan {
     sparkContext.union(children.map(_.execute()))
 }
 
+
+/**
+ * A base iterator class used in [[SetAllOperation]].
+ */
+abstract class SetAllIterator(
+    leftIter: Iterator[InternalRow],
+    rightIter: Iterator[InternalRow],
+    rowOrdering: Ordering[InternalRow]) extends RowIterator {
+
+  protected var leftRow: InternalRow = _
+  protected var rightRow: InternalRow = _
+  protected var nextOutputRow: InternalRow = _
+
+  // Initialize `leftRow` and `rightRow`
+  advanceLeft()
+  advanceRight()
+
+  override def getRow: InternalRow = nextOutputRow
+
+  protected def advanceLeft(): Boolean = {
+    val hasNext = leftIter.hasNext
+    leftRow = if (hasNext) leftIter.next() else null
+    hasNext
+  }
+
+  protected def advanceRight(): Boolean = {
+    val hasNext = rightIter.hasNext
+    rightRow = if (hasNext) rightIter.next() else null
+    hasNext
+  }
+
+  // A derived class needs to implement this method to fetch rows from both-side iterators then
+  // put an output row in `nextOutputRow`.
+  def advanceNext(): Boolean
+}
+
+/**
+ * A base class for set `ALL` operations, INTERSECT ALL and EXCEPT ALL in SQL.
+ */
+abstract class SetAllOperation(left: SparkPlan, right: SparkPlan) extends SparkPlan {
+
+  override def children: Seq[SparkPlan] = left :: right :: Nil
+  override def outputPartitioning: Partitioning = left.outputPartitioning
+  override def outputOrdering: Seq[SortOrder] = left.output.map(SortOrder(_, Ascending))
+  override def requiredChildDistribution: List[Distribution] = {
+    ClusteredDistribution(left.output) :: ClusteredDistribution(right.output) :: Nil
+  }
+  override def requiredChildOrdering: Seq[Seq[SortOrder]] = {
+    left.output.map(SortOrder(_, Ascending)) :: right.output.map(SortOrder(_, Ascending)) :: Nil
+  }
+
+  def createSetAllIterator(
+    leftIter: Iterator[InternalRow],
+    rightIter: Iterator[InternalRow],
+    rowOrdering: Ordering[InternalRow]): SetAllIterator
+
+  protected override def doExecute(): RDD[InternalRow] = {
+    left.execute().zipPartitions(right.execute()) { (leftIter, rightIter) =>
+      val rowOrdering = newNaturalAscendingOrdering(left.output.map(_.dataType))
+      val iter = createSetAllIterator(leftIter, rightIter, rowOrdering)
+      iter.toScala
+    }
+  }
+}
+
+/**
+ * Physical plan for intersecting two plans, without a distinct. This is INTERSECT ALL in SQL.
+ */
+case class IntersectAll(left: SparkPlan, right: SparkPlan) extends SetAllOperation(left, right) {
+
+  override def output: Seq[Attribute] =
+    left.output.zip(right.output).map { case (leftAttr, rightAttr) =>
+      leftAttr.withNullability(leftAttr.nullable && rightAttr.nullable)
+    }
+
+  def createSetAllIterator(
+      leftIter: Iterator[InternalRow],
+      rightIter: Iterator[InternalRow],
+      rowOrdering: Ordering[InternalRow]): SetAllIterator = {
+
+    new SetAllIterator(leftIter, rightIter, rowOrdering) {
+      override def advanceNext(): Boolean = {
+        if (leftRow == null || rightRow == null) {
+          nextOutputRow = null
+          return false
+        }
+        var cmp = 1
+        while (leftRow != null && rightRow != null && cmp != 0) {
+          cmp = rowOrdering.compare(leftRow, rightRow)
+          if (cmp < 0) {
+            if (!advanceLeft()) {
+              nextOutputRow = null
+              return false
+            }
+          } else if (cmp > 0) {
+            if (!advanceRight()) {
+              nextOutputRow = null
+              return false
+            }
+          }
+        }
+        nextOutputRow = leftRow
+        advanceLeft()
+        advanceRight()
+        true
+      }
+    }
+  }
+}
+
+/**
+ * Physical plan for computing the difference between two plans, without a distinct.
+ * This is EXCEPT/MINUS ALL in SQL.
+ */
+case class ExceptAllExec(left: SparkPlan, right: SparkPlan) extends SetAllOperation(left, right) {
+
+  override def output: Seq[Attribute] = left.output
+
+  def createSetAllIterator(
+      leftIter: Iterator[InternalRow],
+      rightIter: Iterator[InternalRow],
+      rowOrdering: Ordering[InternalRow]): SetAllIterator = {
+
+    new SetAllIterator(leftIter, rightIter, rowOrdering) {
+      override def advanceNext(): Boolean = {
+        if (leftRow == null) {
+          nextOutputRow = null
+          return false
+        }
+        var cmp = 1
+        while (rightRow != null && cmp >= 0) {
+          cmp = rowOrdering.compare(leftRow, rightRow)
+          if (cmp == 0) {
+            // If they are the same rows, advance both rows
+            if (!advanceLeft()) {
+              nextOutputRow = null
+              return false
+            }
+            advanceRight()
+          } else if (cmp > 0) {
+            // If the left is bigger, advance the right row only
+            advanceRight()
+          }
+        }
+        nextOutputRow = leftRow
+        advanceLeft()
+        true
+      }
+    }
+  }
+}
+
 /**
  * Physical plan for returning a new RDD that has exactly `numPartitions` partitions.
  * Similar to coalesce defined on an [[RDD]], this operation results in a narrow dependency, e.g.

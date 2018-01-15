@@ -182,7 +182,34 @@ case class Intersect(left: LogicalPlan, right: LogicalPlan) extends SetOperation
   }
 }
 
+case class IntersectAll(left: LogicalPlan, right: LogicalPlan) extends SetOperation(left, right) {
+
+  override def output: Seq[Attribute] =
+    left.output.zip(right.output).map { case (leftAttr, rightAttr) =>
+      leftAttr.withNullability(leftAttr.nullable && rightAttr.nullable)
+    }
+
+  override protected def validConstraints: Set[Expression] =
+    leftConstraints.union(rightConstraints)
+
+  override def maxRows: Option[Long] = {
+    if (children.exists(_.maxRows.isEmpty)) {
+      None
+    } else {
+      Some(children.flatMap(_.maxRows).min)
+    }
+  }
+}
+
 case class Except(left: LogicalPlan, right: LogicalPlan) extends SetOperation(left, right) {
+
+  /** We don't use right.output because those rows get excluded from the set. */
+  override def output: Seq[Attribute] = left.output
+
+  override protected def validConstraints: Set[Expression] = leftConstraints
+}
+
+case class ExceptAll(left: LogicalPlan, right: LogicalPlan) extends SetOperation(left, right) {
 
   /** We don't use right.output because those rows get excluded from the set. */
   override def output: Seq[Attribute] = left.output

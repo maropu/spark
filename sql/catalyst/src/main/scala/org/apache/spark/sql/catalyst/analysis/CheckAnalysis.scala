@@ -52,7 +52,7 @@ trait CheckAnalysis extends PredicateHelper {
   }
 
   protected def mapColumnInSetOperation(plan: LogicalPlan): Option[Attribute] = plan match {
-    case _: Intersect | _: Except | _: Distinct =>
+    case _: Intersect | _: IntersectAll | _: Except | _: ExceptAll | _: Distinct =>
       plan.output.find(a => hasMapType(a.dataType))
     case d: Deduplicate =>
       d.keys.find(a => hasMapType(a.dataType))
@@ -311,11 +311,29 @@ trait CheckAnalysis extends PredicateHelper {
                  |Conflicting attributes: ${conflictingAttributes.mkString(",")}
                """.stripMargin)
 
+          case i: IntersectAll if !i.duplicateResolved =>
+            val conflictingAttributes = i.left.outputSet.intersect(i.right.outputSet)
+            failAnalysis(
+              s"""
+                 |Failure when resolving conflicting references in Intersect All:
+                 |$plan
+                 |Conflicting attributes: ${conflictingAttributes.mkString(",")}
+               """.stripMargin)
+
           case e: Except if !e.duplicateResolved =>
             val conflictingAttributes = e.left.outputSet.intersect(e.right.outputSet)
             failAnalysis(
               s"""
                  |Failure when resolving conflicting references in Except:
+                 |$plan
+                 |Conflicting attributes: ${conflictingAttributes.mkString(",")}
+               """.stripMargin)
+
+          case e: ExceptAll if !e.duplicateResolved =>
+            val conflictingAttributes = e.left.outputSet.intersect(e.right.outputSet)
+            failAnalysis(
+              s"""
+                 |Failure when resolving conflicting references in Except All:
                  |$plan
                  |Conflicting attributes: ${conflictingAttributes.mkString(",")}
                """.stripMargin)

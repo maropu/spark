@@ -841,13 +841,17 @@ class Analyzer(
       case g: Generate if containsStar(g.generator.children) =>
         failAnalysis("Invalid usage of '*' in explode/json_tuple/UDTF")
 
-      // To resolve duplicate expression IDs for Join and Intersect
+      // To resolve duplicate expression IDs for Join, Intersect, and Except
       case j @ Join(left, right, _, _) if !j.duplicateResolved =>
         j.copy(right = dedupRight(left, right))
       case i @ Intersect(left, right) if !i.duplicateResolved =>
         i.copy(right = dedupRight(left, right))
-      case i @ Except(left, right) if !i.duplicateResolved =>
+      case i @ IntersectAll(left, right) if !i.duplicateResolved =>
         i.copy(right = dedupRight(left, right))
+      case e @ Except(left, right) if !e.duplicateResolved =>
+        e.copy(right = dedupRight(left, right))
+      case e @ ExceptAll(left, right) if !e.duplicateResolved =>
+        e.copy(right = dedupRight(left, right))
 
       // When resolve `SortOrder`s in Sort based on child, don't report errors as
       // we still have chance to resolve it based on its descendants
