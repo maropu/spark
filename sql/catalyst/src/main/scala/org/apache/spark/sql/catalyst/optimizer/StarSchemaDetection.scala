@@ -307,6 +307,21 @@ object StarSchemaDetection extends PredicateHelper {
     case _ => None
   }
 
+  private def hasFactTableHint(p: LogicalPlan): Boolean = {
+    p.collect { case h @ ResolvedHint(_, hints) if hints.factTable => h }.nonEmpty
+  }
+
+  private def findStarJoinsFromHint(plans: Seq[LogicalPlan], conditions: Seq[Expression])
+    : Option[Seq[LogicalPlan]] = {
+    // TODO: Check fact table conditions
+    val (factTable, dimTables) = plans.partition(hasFactTableHint)
+    if (factTable.nonEmpty) {
+      Some(factTable ++ dimTables)
+    } else {
+      None
+    }
+  }
+
   /**
    * Reorders a star join based on heuristics. It is called from ReorderJoin if CBO is disabled.
    *   1) Finds the star join with the largest fact table.
@@ -325,8 +340,10 @@ object StarSchemaDetection extends PredicateHelper {
     // Find the eligible star plans. Currently, it only returns
     // the star join with the largest fact table.
     val eligibleJoins = input.collect{ case (plan, Inner) => plan }
-    val starPlan = findStarJoins(eligibleJoins, conditions)
 
+    val starPlan = findStarJoinsFromHint(eligibleJoins, conditions).getOrElse {
+      findStarJoins(eligibleJoins, conditions)
+    }
     if (starPlan.isEmpty) {
       emptyStarJoinPlan
     } else {

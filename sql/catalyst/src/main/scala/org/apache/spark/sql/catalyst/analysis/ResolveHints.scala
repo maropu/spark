@@ -102,6 +102,16 @@ object ResolveHints {
     }
   }
 
+  object ResolveFactTableHints extends Rule[LogicalPlan] {
+    private val FACTTABLE_HINT_NAMES = Set("FACT", "FACTTABLE")
+
+    override def apply(plan: LogicalPlan): LogicalPlan = plan transformUp {
+      case h @ UnresolvedHint(name, _, child)
+          if FACTTABLE_HINT_NAMES.contains(name.toUpperCase(Locale.ROOT)) =>
+        ResolvedHint(child, HintInfo(factTable = true))
+    }
+  }
+
   /**
    * Removes all the hints, used to remove invalid hints provided by the user.
    * This must be executed after all the other hint rules are executed.
