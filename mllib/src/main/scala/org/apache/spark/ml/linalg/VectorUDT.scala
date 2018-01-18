@@ -25,9 +25,14 @@ import org.apache.spark.sql.types._
  * User-defined type for [[Vector]] in [[mllib-local]] which allows easy interaction with SQL
  * via [[org.apache.spark.sql.Dataset]].
  */
-private[spark] class VectorUDT extends UserDefinedType[Vector] {
+class VectorUDT extends UserDefinedType[Vector] {
 
   override final def sqlType: StructType = _sqlType
+
+  override final def compatibleSqlTypes: Option[Set[DataType]] = {
+    Some(Set(ArrayType(DoubleType, containsNull = true),
+      ArrayType(DoubleType, containsNull = false)))
+  }
 
   override def serialize(obj: Vector): InternalRow = {
     obj match {
@@ -65,6 +70,40 @@ private[spark] class VectorUDT extends UserDefinedType[Vector] {
             new DenseVector(values)
         }
     }
+  }
+
+  override def castToCatalystType(obj: Any): Any = {
+    obj match {
+      case row: InternalRow =>
+        require(row.numFields == 4,
+          s"VectorUDT.deserialize given row with length ${row.numFields} but requires length == 4")
+        val tpe = row.getByte(0)
+        tpe match {
+          case 0 => // Sparse case
+            val size = row.getInt(1)
+            val indices = row.getArray(2).toIntArray()
+            val values = row.getArray(3).toDoubleArray()
+            val newValues = Array.fill[Double](size)(0.0)
+            for ((i, v) <- indices.zip(values)) {
+              newValues(i) = v
+            }
+            UnsafeArrayData.fromPrimitiveArray(values)
+          case 1 => // Dense case
+            val values = row.getArray(3).toDoubleArray()
+            UnsafeArrayData.fromPrimitiveArray(values)
+        }
+    }
+  }
+
+  override def castToUserType(datum: Any): Any = {
+    val array = datum.asInstanceOf[UnsafeArrayData]
+    // Convert datum to internal DenseVector
+    val row = new GenericInternalRow(4)
+    row.setByte(0, 1)
+    row.setNullAt(1)
+    row.setNullAt(2)
+    row.update(3, UnsafeArrayData.fromPrimitiveArray(array.toDoubleArray))
+    row
   }
 
   override def pyUDT: String = "pyspark.ml.linalg.VectorUDT"

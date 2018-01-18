@@ -44,6 +44,8 @@ abstract class UserDefinedType[UserType >: Null] extends DataType with Serializa
   /** Underlying storage type for this UDT */
   def sqlType: DataType
 
+  def compatibleSqlTypes: Option[Set[DataType]] = None
+
   /** Paired Python UDT class, if exists. */
   def pyUDT: String = null
 
@@ -57,6 +59,14 @@ abstract class UserDefinedType[UserType >: Null] extends DataType with Serializa
 
   /** Convert a SQL datum to the user type */
   def deserialize(datum: Any): UserType
+
+  def castToCatalystType(obj: Any): Any = {
+    throw new RuntimeException(s"Can not cast $typeName to other SQL types.")
+  }
+
+  def castToUserType(datum: Any): Any = {
+    throw new RuntimeException(s"Can not cast other SQL types to $typeName.")
+  }
 
   override private[sql] def jsonValue: JValue = {
     ("type" -> "udt") ~

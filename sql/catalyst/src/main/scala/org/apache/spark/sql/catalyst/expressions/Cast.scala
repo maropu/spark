@@ -83,6 +83,8 @@ object Cast {
                 toField.nullable)
         }
 
+    case (_, udt: UserDefinedType[_]) if udt.compatibleSqlTypes.exists(_.contains(from)) => true
+    case (udt: UserDefinedType[_], _) if udt.compatibleSqlTypes.exists(_.contains(to)) => true
     case (udt1: UserDefinedType[_], udt2: UserDefinedType[_]) if udt1.userClass == udt2.userClass =>
       true
 
@@ -579,6 +581,20 @@ case class Cast(child: Expression, dataType: DataType, timeZoneId: Option[String
     } else {
       to match {
         case dt if dt == from => identity[Any]
+
+        // Check UserDefinedType casts first
+        case udt: UserDefinedType[_] if from.isInstanceOf[UserDefinedType[_]] &&
+            udt.userClass == from.asInstanceOf[UserDefinedType[_]].userClass =>
+          identity[Any]
+        case _ if from.isInstanceOf[UserDefinedType[_]] &&
+            from.asInstanceOf[UserDefinedType[_]].compatibleSqlTypes.exists(_.contains(to)) =>
+          val udt = from.asInstanceOf[UserDefinedType[_]]
+          buildCast[Any](_, d => udt.castToCatalystType(d))
+        case udt: UserDefinedType[_] if udt.compatibleSqlTypes.exists(_.contains(from)) =>
+          buildCast[Any](_, d => udt.castToUserType(d))
+        case _: UserDefinedType[_] =>
+          throw new SparkException(s"Cannot cast $from to $to.")
+
         case StringType => castToString(from)
         case BinaryType => castToBinary(from)
         case DateType => castToDate(from)
@@ -596,11 +612,6 @@ case class Cast(child: Expression, dataType: DataType, timeZoneId: Option[String
           castArray(from.asInstanceOf[ArrayType].elementType, array.elementType)
         case map: MapType => castMap(from.asInstanceOf[MapType], map)
         case struct: StructType => castStruct(from.asInstanceOf[StructType], struct)
-        case udt: UserDefinedType[_]
-          if udt.userClass == from.asInstanceOf[UserDefinedType[_]].userClass =>
-          identity[Any]
-        case _: UserDefinedType[_] =>
-          throw new SparkException(s"Cannot cast $from to $to.")
       }
     }
   }
@@ -637,6 +648,21 @@ case class Cast(child: Expression, dataType: DataType, timeZoneId: Option[String
 
     case _ if from == NullType => (c, evPrim, evNull) => s"$evNull = true;"
     case _ if to == from => (c, evPrim, evNull) => s"$evPrim = $c;"
+
+    // Check UserDefinedType casts first
+    case _ if from.isInstanceOf[UserDefinedType[_]] &&
+        from.asInstanceOf[UserDefinedType[_]].compatibleSqlTypes.exists(_.contains(to)) =>
+      val udtRef = ctx.addReferenceObj("udt", from)
+      (c, evPrim, evNull) => s"$evPrim = $udtRef.castToCatalystType($c);"
+    case udt: UserDefinedType[_] if from.isInstanceOf[UserDefinedType[_]] &&
+        udt.userClass == from.asInstanceOf[UserDefinedType[_]].userClass =>
+      (c, evPrim, evNull) => s"$evPrim = $c;"
+    case _: UserDefinedType[_] =>
+      val udtRef = ctx.addReferenceObj("udt", to)
+      (c, evPrim, evNull) => s"$evPrim = $udtRef.castToUserType($c);"
+    case _: UserDefinedType[_] =>
+      throw new SparkException(s"Cannot cast $from to $to.")
+
     case StringType => castToStringCode(from, ctx)
     case BinaryType => castToBinaryCode(from)
     case DateType => castToDateCode(from, ctx)
@@ -655,11 +681,6 @@ case class Cast(child: Expression, dataType: DataType, timeZoneId: Option[String
       castArrayCode(from.asInstanceOf[ArrayType].elementType, array.elementType, ctx)
     case map: MapType => castMapCode(from.asInstanceOf[MapType], map, ctx)
     case struct: StructType => castStructCode(from.asInstanceOf[StructType], struct, ctx)
-    case udt: UserDefinedType[_]
-      if udt.userClass == from.asInstanceOf[UserDefinedType[_]].userClass =>
-      (c, evPrim, evNull) => s"$evPrim = $c;"
-    case _: UserDefinedType[_] =>
-      throw new SparkException(s"Cannot cast $from to $to.")
   }
 
   // Since we need to cast input expressions recursively inside ComplexTypes, such as Map's
