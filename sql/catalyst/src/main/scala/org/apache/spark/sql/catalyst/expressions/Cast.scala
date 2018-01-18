@@ -282,8 +282,7 @@ case class Cast(child: Expression, dataType: DataType, timeZoneId: Option[String
         builder.append("]")
         builder.build()
       })
-    case udt: UserDefinedType[_] =>
-      buildCast[Any](_, o => UTF8String.fromString(udt.deserialize(o).toString))
+    case udt: UserDefinedType[_] => castToString(udt.sqlType)
     case _ => buildCast[Any](_, o => UTF8String.fromString(o.toString))
   }
 
@@ -838,11 +837,7 @@ case class Cast(child: Expression, dataType: DataType, timeZoneId: Option[String
              |$evPrim = $buffer.build();
            """.stripMargin
         }
-      case udt: UserDefinedType[_] =>
-        val udtRef = ctx.addReferenceObj("udt", udt)
-        (c, evPrim, evNull) => {
-          s"$evPrim = UTF8String.fromString($udtRef.deserialize($c).toString());"
-        }
+      case udt: UserDefinedType[_] => castToStringCode(udt.sqlType, ctx)
       case _ =>
         (c, evPrim, evNull) => s"$evPrim = UTF8String.fromString(String.valueOf($c));"
     }
