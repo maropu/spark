@@ -46,6 +46,19 @@ class JoinOptimizationSuite extends PlanTest {
   val testRelation = LocalRelation('a.int, 'b.int, 'c.int)
   val testRelation1 = LocalRelation('d.int)
 
+  def testExtractInnerJoins
+      (plan: LogicalPlan, expected: Option[(Seq[(LogicalPlan, InnerLike)], Seq[Expression])]) {
+    ExtractFiltersAndInnerJoins.unapply(plan) match {
+      case Some((input, conditions, _)) =>
+        expected.map { case (expectedPlans, expectedConditions) =>
+          assert(expectedPlans.toSet === input.toSet)
+          assert(expectedConditions.toSet === conditions.toSet)
+        }
+      case None =>
+        assert(expected.isEmpty)
+    }
+  }
+
   test("extract filters and joins") {
     val x = testRelation.subquery('x)
     val y = testRelation1.subquery('y)
@@ -59,12 +72,7 @@ class JoinOptimizationSuite extends PlanTest {
           (noCartesian, seq_pair._2)
         }
       }
-      testExtractCheckCross(plan, expectedNoCross)
-    }
-
-    def testExtractCheckCross
-        (plan: LogicalPlan, expected: Option[(Seq[(LogicalPlan, InnerLike)], Seq[Expression])]) {
-      assert(ExtractFiltersAndInnerJoins.unapply(plan) === expected)
+      testExtractInnerJoins(plan, expectedNoCross)
     }
 
     testExtract(x, None)
@@ -81,14 +89,14 @@ class JoinOptimizationSuite extends PlanTest {
     testExtract(x.join(y).join(x.join(z)).where("x.b".attr === "y.d".attr),
       Some((Seq(x, y, x.join(z)), Seq("x.b".attr === "y.d".attr))))
 
-    testExtractCheckCross(x.join(y, Cross), Some((Seq((x, Cross), (y, Cross)), Seq())))
-    testExtractCheckCross(x.join(y, Cross).join(z, Cross),
+    testExtractInnerJoins(x.join(y, Cross), Some((Seq((x, Cross), (y, Cross)), Seq())))
+    testExtractInnerJoins(x.join(y, Cross).join(z, Cross),
       Some((Seq((x, Cross), (y, Cross), (z, Cross)), Seq())))
-    testExtractCheckCross(x.join(y, Cross, Some("x.b".attr === "y.d".attr)).join(z, Cross),
+    testExtractInnerJoins(x.join(y, Cross, Some("x.b".attr === "y.d".attr)).join(z, Cross),
       Some((Seq((x, Cross), (y, Cross), (z, Cross)), Seq("x.b".attr === "y.d".attr))))
-    testExtractCheckCross(x.join(y, Inner, Some("x.b".attr === "y.d".attr)).join(z, Cross),
+    testExtractInnerJoins(x.join(y, Inner, Some("x.b".attr === "y.d".attr)).join(z, Cross),
       Some((Seq((x, Inner), (y, Inner), (z, Cross)), Seq("x.b".attr === "y.d".attr))))
-    testExtractCheckCross(x.join(y, Cross, Some("x.b".attr === "y.d".attr)).join(z, Inner),
+    testExtractInnerJoins(x.join(y, Cross, Some("x.b".attr === "y.d".attr)).join(z, Inner),
       Some((Seq((x, Cross), (y, Cross), (z, Inner)), Seq("x.b".attr === "y.d".attr))))
   }
 
@@ -116,7 +124,12 @@ class JoinOptimizationSuite extends PlanTest {
     )
 
     queryAnswers foreach { queryAnswerPair =>
-      val optimized = Optimize.execute(queryAnswerPair._1.analyze)
+      val optimized = Optimize.execute(queryAnswerPair._1.analyze) match {
+        // `ReorderJoin` adds `Project` to keep the same order of output attributes.
+        // So, we drop a top `Project` for tests.
+        case project: Project => project.child
+        case p => p
+      }
       comparePlans(optimized, queryAnswerPair._2.analyze)
     }
   }
@@ -144,5 +157,16 @@ class JoinOptimizationSuite extends PlanTest {
       case Join(_, r, _, _) if r.stats.sizeInBytes == 1 => r
     }
     assert(broadcastChildren.size == 1)
+  }
+
+  test("SPARK-23172 skip projections when flattening joins") {
+    val x = testRelation.subquery('x)
+    val y = testRelation1.subquery('y)
+    val z = testRelation.subquery('z)
+    val joined = x.join(z, Inner, Some($"x.b"=== $"z.b")).select($"x.a", $"z.a", $"z.c")
+      .join(y, Inner, Some($"y.d" === $"z.a")).analyze
+    val expectedTables = joined.collectLeaves().map { case p => (p, Inner) }
+    val expectedConditions = joined.collect { case Join(_, _, _, Some(conditions)) => conditions }
+    testExtractInnerJoins(joined, Some((expectedTables, expectedConditions)))
   }
 }

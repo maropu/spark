@@ -85,9 +85,9 @@ object ReorderJoin extends Rule[LogicalPlan] with PredicateHelper {
   }
 
   def apply(plan: LogicalPlan): LogicalPlan = plan transform {
-    case ExtractFiltersAndInnerJoins(input, conditions)
+    case ExtractFiltersAndInnerJoins(input, conditions, projectionList)
         if input.size > 2 && conditions.nonEmpty =>
-      if (SQLConf.get.starSchemaDetection && !SQLConf.get.cboEnabled) {
+      val newJoins = if (SQLConf.get.starSchemaDetection && !SQLConf.get.cboEnabled) {
         val starJoinPlan = StarSchemaDetection.reorderStarJoins(input, conditions)
         if (starJoinPlan.nonEmpty) {
           val rest = input.filterNot(starJoinPlan.contains(_))
@@ -97,6 +97,12 @@ object ReorderJoin extends Rule[LogicalPlan] with PredicateHelper {
         }
       } else {
         createOrderedJoin(input, conditions)
+      }
+      if (projectionList != newJoins.output) {
+        // Keep the same output attributes and the order
+        Project(projectionList, newJoins)
+      } else {
+        newJoins
       }
   }
 }
