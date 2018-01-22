@@ -49,7 +49,7 @@ class JoinOptimizationSuite extends PlanTest {
   def testExtractInnerJoins
       (plan: LogicalPlan, expected: Option[(Seq[(LogicalPlan, InnerLike)], Seq[Expression])]) {
     ExtractFiltersAndInnerJoins.unapply(plan) match {
-      case Some((input, conditions, _)) =>
+      case Some((input, conditions)) =>
         expected.map { case (expectedPlans, expectedConditions) =>
           assert(expectedPlans.toSet === input.toSet)
           assert(expectedConditions.toSet === conditions.toSet)

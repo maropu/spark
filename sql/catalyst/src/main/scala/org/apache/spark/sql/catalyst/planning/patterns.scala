@@ -181,20 +181,15 @@ object ExtractFiltersAndInnerJoins extends PredicateHelper {
       } else {
         (Seq((plan, parentJoinType)), Seq.empty)
       }
-
     case _ => (Seq((plan, parentJoinType)), Seq.empty)
   }
 
-  def unapply(plan: LogicalPlan)
-    : Option[(Seq[(LogicalPlan, InnerLike)], Seq[Expression], Seq[NamedExpression])] = {
-    plan match {
-      case f @ Filter(filterCondition, j @ Join(_, _, joinType: InnerLike, _)) =>
-        val (plans, conditions) = flattenJoin(f)
-        Some((plans, conditions, f.output))
-      case j @ Join(_, _, joinType, _) =>
-        val (plans, conditions) = flattenJoin(j)
-        Some((plans, conditions, j.output))
-      case _ => None
+  def unapply(plan: LogicalPlan): Option[(Seq[(LogicalPlan, InnerLike)], Seq[Expression])] = {
+    val (plans, conditions) = flattenJoin(plan)
+    if (plans.size > 1) {
+      Some((plans, conditions))
+    } else {
+      None
     }
   }
 }

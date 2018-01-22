@@ -84,25 +84,46 @@ object ReorderJoin extends Rule[LogicalPlan] with PredicateHelper {
     }
   }
 
+  private def extractLeftDeepInnerJoins(plan: LogicalPlan): Seq[LogicalPlan] = plan match {
+    case j @ Join(left, right, _: InnerLike, _) => right +: extractLeftDeepInnerJoins(left)
+    case p @ Project(_, j @ Join(_, _, _: InnerLike, _)) => extractLeftDeepInnerJoins(j)
+    case _ => Seq(plan)
+  }
+
+  private def checkSameJoinOrder(plan1: LogicalPlan, plan2: LogicalPlan): Boolean = {
+    extractLeftDeepInnerJoins(plan1) == extractLeftDeepInnerJoins(plan2)
+  }
+
+  private def mayCreateOrderedJoin(
+      originalPlan: LogicalPlan,
+      input: Seq[(LogicalPlan, InnerLike)],
+      conditions: Seq[Expression]): LogicalPlan = {
+    val orderedJoins = createOrderedJoin(input, conditions)
+    if (!checkSameJoinOrder(orderedJoins, originalPlan)) {
+      if (originalPlan.output != orderedJoins.output) {
+        // Keep the same output attributes and the order
+        Project(originalPlan.output, orderedJoins)
+      } else {
+        orderedJoins
+      }
+    } else {
+      originalPlan
+    }
+  }
+
   def apply(plan: LogicalPlan): LogicalPlan = plan transform {
-    case ExtractFiltersAndInnerJoins(input, conditions, projectionList)
+    case p @ ExtractFiltersAndInnerJoins(input, conditions)
         if input.size > 2 && conditions.nonEmpty =>
-      val newJoins = if (SQLConf.get.starSchemaDetection && !SQLConf.get.cboEnabled) {
+      if (SQLConf.get.starSchemaDetection && !SQLConf.get.cboEnabled) {
         val starJoinPlan = StarSchemaDetection.reorderStarJoins(input, conditions)
         if (starJoinPlan.nonEmpty) {
           val rest = input.filterNot(starJoinPlan.contains(_))
-          createOrderedJoin(starJoinPlan ++ rest, conditions)
+          mayCreateOrderedJoin(p, starJoinPlan ++ rest, conditions)
         } else {
-          createOrderedJoin(input, conditions)
+          mayCreateOrderedJoin(p, input, conditions)
         }
       } else {
-        createOrderedJoin(input, conditions)
-      }
-      if (projectionList != newJoins.output) {
-        // Keep the same output attributes and the order
-        Project(projectionList, newJoins)
-      } else {
-        newJoins
+        mayCreateOrderedJoin(p, input, conditions)
       }
   }
 }
