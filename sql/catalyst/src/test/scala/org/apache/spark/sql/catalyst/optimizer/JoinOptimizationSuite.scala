@@ -46,12 +46,13 @@ class JoinOptimizationSuite extends PlanTest {
   val testRelation = LocalRelation('a.int, 'b.int, 'c.int)
   val testRelation1 = LocalRelation('d.int)
 
-  def testExtractInnerJoins
-      (plan: LogicalPlan, expected: Option[(Seq[(LogicalPlan, InnerLike)], Seq[Expression])]) {
+  def testExtractInnerJoins(
+      plan: LogicalPlan,
+      expected: Option[(Seq[(LogicalPlan, InnerLike)], Seq[Expression])]) {
     ExtractFiltersAndInnerJoins.unapply(plan) match {
       case Some((input, conditions)) =>
         expected.map { case (expectedPlans, expectedConditions) =>
-          assert(expectedPlans.toSet === input.toSet)
+          assert(expectedPlans === input)
           assert(expectedConditions.toSet === conditions.toSet)
         }
       case None =>
@@ -125,7 +126,7 @@ class JoinOptimizationSuite extends PlanTest {
 
     queryAnswers foreach { queryAnswerPair =>
       val optimized = Optimize.execute(queryAnswerPair._1.analyze) match {
-        // `ReorderJoin` adds `Project` to keep the same order of output attributes.
+        // `ReorderJoin` may add `Project` to keep the same order of output attributes.
         // So, we drop a top `Project` for tests.
         case project: Project => project.child
         case p => p

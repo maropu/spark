@@ -84,6 +84,9 @@ object ReorderJoin extends Rule[LogicalPlan] with PredicateHelper {
     }
   }
 
+  // Extract a list of logical plans to be joined for join-order comparisons.
+  // Since `ExtractFiltersAndInnerJoins` handles left-deep trees only, this function have
+  // the same strategy to extract the plan list.
   private def extractLeftDeepInnerJoins(plan: LogicalPlan): Seq[LogicalPlan] = plan match {
     case j @ Join(left, right, _: InnerLike, _) => right +: extractLeftDeepInnerJoins(left)
     case p @ Project(_, j @ Join(_, _, _: InnerLike, _)) => extractLeftDeepInnerJoins(j)
