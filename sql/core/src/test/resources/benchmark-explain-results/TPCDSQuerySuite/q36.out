@@ -1,0 +1,30 @@
+TakeOrderedAndProject(limit=100, orderBy=[lochierarchy#0 DESC NULLS LAST,CASE WHEN (cast(lochierarchy#0 as int) = 0) THEN i_category#0 END ASC NULLS FIRST,rank_within_parent#0 ASC NULLS FIRST], output=[gross_margin#0,i_category#0,i_class#0,lochierarchy#0,rank_within_parent#0])
++- *Project [lochierarchy#0, i_class#0, rank_within_parent#0, gross_margin#0, i_category#0]
+   +- Window [rank(_w3#0) windowspecdefinition(_w1#0, _w2#0, _w3#0 ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS none#0], [_w1#0, _w2#0], [_w3#0 ASC NULLS FIRST]
+      +- *Sort [_w1#0 ASC NULLS FIRST, _w2#0 ASC NULLS FIRST, _w3#0 ASC NULLS FIRST], false, 0
+         +- Exchange hashpartitioning(_w1#0, _w2#0, 5)
+            +- *HashAggregate(keys=[i_category#0, i_class#0, spark_grouping_id#0], functions=[sum(UnscaledValue(ss_net_profit#0)), sum(UnscaledValue(ss_ext_sales_price#0))])
+               +- Exchange hashpartitioning(i_category#0, i_class#0, spark_grouping_id#0, 5)
+                  +- *HashAggregate(keys=[i_category#0, i_class#0, spark_grouping_id#0], functions=[partial_sum(UnscaledValue(ss_net_profit#0)), partial_sum(UnscaledValue(ss_ext_sales_price#0))])
+                     +- *Expand [List(ss_ext_sales_price#0, ss_net_profit#0, i_category#0, i_class#0, 0), List(ss_ext_sales_price#0, ss_net_profit#0, i_category#0, null, 1), List(ss_ext_sales_price#0, ss_net_profit#0, null, null, 3)], [ss_ext_sales_price#0, ss_net_profit#0, i_category#0, i_class#0, spark_grouping_id#0]
+                        +- *Project [ss_net_profit#0, i_category#0, ss_ext_sales_price#0, i_class#0]
+                           +- *BroadcastHashJoin [ss_store_sk#0], [s_store_sk#0], Inner, BuildRight
+                              :- *Project [i_class#0, ss_store_sk#0, ss_net_profit#0, ss_ext_sales_price#0, i_category#0]
+                              :  +- *BroadcastHashJoin [ss_item_sk#0], [i_item_sk#0], Inner, BuildRight
+                              :     :- *Project [ss_item_sk#0, ss_store_sk#0, ss_net_profit#0, ss_ext_sales_price#0]
+                              :     :  +- *BroadcastHashJoin [ss_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+                              :     :     :- *Project [ss_item_sk#0, ss_store_sk#0, ss_sold_date_sk#0, ss_net_profit#0, ss_ext_sales_price#0]
+                              :     :     :  +- *Filter ((isnotnull(ss_item_sk#0) && isnotnull(ss_store_sk#0)) && isnotnull(ss_sold_date_sk#0))
+                              :     :     :     +- *FileScan parquet default.store_sales[ss_sold_date_sk#0,ss_item_sk#0,ss_store_sk#0,ss_ext_sales_price#0,ss_net_profit#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ss_net_...
+                              :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                              :     :        +- *Project [d_date_sk#0]
+                              :     :           +- *Filter (((2001 = d_year#0) && isnotnull(d_year#0)) && isnotnull(d_date_sk#0))
+                              :     :              +- *FileScan parquet default.date_dim[d_date_sk#0,d_year#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_year:int>
+                              :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                              :        +- *Project [i_item_sk#0, i_class#0, i_category#0]
+                              :           +- *Filter isnotnull(i_item_sk#0)
+                              :              +- *FileScan parquet default.item[i_item_sk#0,i_class#0,i_category#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,i_category:string>
+                              +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                                 +- *Project [s_store_sk#0]
+                                    +- *Filter (isnotnull(s_store_sk#0) && s_state#0 IN (TN))
+                                       +- *FileScan parquet default.store[s_store_sk#0,s_state#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,s_state:string>

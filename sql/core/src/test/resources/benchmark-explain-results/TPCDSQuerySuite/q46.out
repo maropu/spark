@@ -1,0 +1,40 @@
+TakeOrderedAndProject(limit=100, orderBy=[c_last_name#0 ASC NULLS FIRST,c_first_name#0 ASC NULLS FIRST,ca_city#0 ASC NULLS FIRST,bought_city#0 ASC NULLS FIRST,ss_ticket_number#0 ASC NULLS FIRST], output=[c_last_name#0,c_first_name#0,ca_city#0,bought_city#0,ss_ticket_number#0,amt#0,profit#0])
++- *Project [c_last_name#0, profit#0, ss_ticket_number#0, amt#0, ca_city#0, bought_city#0, c_first_name#0]
+   +- *BroadcastHashJoin [c_current_addr_sk#0], [ca_address_sk#0], Inner, BuildRight, NOT (ca_city#0 = bought_city#0)
+      :- *Project [c_current_addr_sk#0, bought_city#0, c_first_name#0, c_last_name#0, profit#0, amt#0, ss_ticket_number#0]
+      :  +- *BroadcastHashJoin [ss_customer_sk#0], [c_customer_sk#0], Inner, BuildRight
+      :     :- *HashAggregate(keys=[ss_ticket_number#0, ss_customer_sk#0, ss_addr_sk#0, ca_city#0], functions=[sum(UnscaledValue(ss_coupon_amt#0)), sum(UnscaledValue(ss_net_profit#0))])
+      :     :  +- Exchange hashpartitioning(ss_ticket_number#0, ss_customer_sk#0, ss_addr_sk#0, ca_city#0, 5)
+      :     :     +- *HashAggregate(keys=[ss_ticket_number#0, ss_customer_sk#0, ss_addr_sk#0, ca_city#0], functions=[partial_sum(UnscaledValue(ss_coupon_amt#0)), partial_sum(UnscaledValue(ss_net_profit#0))])
+      :     :        +- *Project [ca_city#0, ss_ticket_number#0, ss_coupon_amt#0, ss_net_profit#0, ss_customer_sk#0, ss_addr_sk#0]
+      :     :           +- *BroadcastHashJoin [ss_addr_sk#0], [ca_address_sk#0], Inner, BuildRight
+      :     :              :- *Project [ss_ticket_number#0, ss_coupon_amt#0, ss_net_profit#0, ss_customer_sk#0, ss_addr_sk#0]
+      :     :              :  +- *BroadcastHashJoin [ss_hdemo_sk#0], [hd_demo_sk#0], Inner, BuildRight
+      :     :              :     :- *Project [ss_hdemo_sk#0, ss_ticket_number#0, ss_coupon_amt#0, ss_net_profit#0, ss_customer_sk#0, ss_addr_sk#0]
+      :     :              :     :  +- *BroadcastHashJoin [ss_store_sk#0], [s_store_sk#0], Inner, BuildRight
+      :     :              :     :     :- *Project [ss_hdemo_sk#0, ss_ticket_number#0, ss_store_sk#0, ss_coupon_amt#0, ss_net_profit#0, ss_customer_sk#0, ss_addr_sk#0]
+      :     :              :     :     :  +- *BroadcastHashJoin [ss_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+      :     :              :     :     :     :- *Project [ss_hdemo_sk#0, ss_ticket_number#0, ss_store_sk#0, ss_sold_date_sk#0, ss_coupon_amt#0, ss_net_profit#0, ss_customer_sk#0, ss_addr_sk#0]
+      :     :              :     :     :     :  +- *Filter ((((isnotnull(ss_hdemo_sk#0) && isnotnull(ss_customer_sk#0)) && isnotnull(ss_store_sk#0)) && isnotnull(ss_sold_date_sk#0)) && isnotnull(ss_addr_sk#0))
+      :     :              :     :     :     :     +- *FileScan parquet default.store_sales[ss_sold_date_sk#0,ss_customer_sk#0,ss_hdemo_sk#0,ss_addr_sk#0,ss_store_sk#0,ss_ticket_number#0,ss_coupon_amt#0,ss_net_profit#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ss_t...
+      :     :              :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :     :              :     :     :        +- *Project [d_date_sk#0]
+      :     :              :     :     :           +- *Filter ((isnotnull(d_date_sk#0) && d_dow#0 IN (6,0)) && d_year#0 IN (1999,2000,2001))
+      :     :              :     :     :              +- *FileScan parquet default.date_dim[d_date_sk#0,d_year#0,d_dow#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_dow:int>
+      :     :              :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :     :              :     :        +- *Project [s_store_sk#0]
+      :     :              :     :           +- *Filter (isnotnull(s_store_sk#0) && s_city#0 IN (Fairview,Midway))
+      :     :              :     :              +- *FileScan parquet default.store[s_store_sk#0,s_city#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,s_city:string>
+      :     :              :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :     :              :        +- *Project [hd_demo_sk#0]
+      :     :              :           +- *Filter (((hd_dep_count#0 = 4) || (3 = hd_vehicle_count#0)) && isnotnull(hd_demo_sk#0))
+      :     :              :              +- *FileScan parquet default.household_demographics[hd_demo_sk#0,hd_dep_count#0,hd_vehicle_count#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,hd_vehicle_count:int>
+      :     :              +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :     :                 +- *Project [ca_city#0, ca_address_sk#0]
+      :     :                    +- *Filter (isnotnull(ca_city#0) && isnotnull(ca_address_sk#0))
+      :     :                       +- *FileScan parquet default.customer_address[ca_address_sk#0,ca_city#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ca_city:string>
+      :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :        +- *Project [c_current_addr_sk#0, c_first_name#0, c_last_name#0, c_customer_sk#0]
+      :           +- *Filter (isnotnull(c_current_addr_sk#0) && isnotnull(c_customer_sk#0))
+      :              +- *FileScan parquet default.customer[c_customer_sk#0,c_current_addr_sk#0,c_first_name#0,c_last_name#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,c_last_name:string>
+      +- ReusedExchange [ca_address_sk#0, ca_city#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))

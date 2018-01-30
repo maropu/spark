@@ -1,0 +1,19 @@
+TakeOrderedAndProject(limit=10, orderBy=[revenue#0 DESC NULLS LAST,o_orderdate#0 ASC NULLS FIRST], output=[l_orderkey#0L,revenue#0,o_orderdate#0,o_shippriority#0])
++- *HashAggregate(keys=[l_orderkey#0L, o_orderdate#0, o_shippriority#0], functions=[sum(CheckOverflow((promote_precision(cast(l_extendedprice#0 as decimal(11,0))) * promote_precision(CheckOverflow((1 - promote_precision(cast(l_discount#0 as decimal(11,0)))), DecimalType(11,0)))), DecimalType(22,0)))])
+   +- Exchange hashpartitioning(l_orderkey#0L, o_orderdate#0, o_shippriority#0, 5)
+      +- *HashAggregate(keys=[l_orderkey#0L, o_orderdate#0, o_shippriority#0], functions=[partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#0 as decimal(11,0))) * promote_precision(CheckOverflow((1 - promote_precision(cast(l_discount#0 as decimal(11,0)))), DecimalType(11,0)))), DecimalType(22,0)))])
+         +- *Project [o_shippriority#0, l_discount#0, l_orderkey#0L, l_extendedprice#0, o_orderdate#0]
+            +- *BroadcastHashJoin [o_orderkey#0L], [l_orderkey#0L], Inner, BuildRight
+               :- *Project [o_shippriority#0, o_orderkey#0L, o_orderdate#0]
+               :  +- *BroadcastHashJoin [c_custkey#0L], [o_custkey#0L], Inner, BuildRight
+               :     :- *Project [c_custkey#0L]
+               :     :  +- *Filter ((isnotnull(c_mktsegment#0) && isnotnull(c_custkey#0L)) && (c_mktsegment#0 = BUILDING))
+               :     :     +- *FileScan parquet default.customer[c_custkey#0L,c_mktsegment#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,c_mktsegment:string>
+               :     +- BroadcastExchange HashedRelationBroadcastMode(List(input[1, bigint, true]))
+               :        +- *Project [o_custkey#0L, o_shippriority#0, o_orderkey#0L, o_orderdate#0]
+               :           +- *Filter (((isnotnull(o_orderdate#0) && isnotnull(o_custkey#0L)) && (o_orderdate#0 < 9204)) && isnotnull(o_orderkey#0L))
+               :              +- *FileScan parquet default.orders[o_orderkey#0L,o_custkey#0L,o_orderdate#0,o_shippriority#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,o_shippriority:int>
+               +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+                  +- *Project [l_discount#0, l_orderkey#0L, l_extendedprice#0]
+                     +- *Filter ((isnotnull(l_shipdate#0) && (l_shipdate#0 > 9204)) && isnotnull(l_orderkey#0L))
+                        +- *FileScan parquet default.lineitem[l_orderkey#0L,l_extendedprice#0,l_discount#0,l_shipdate#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,l_shipdate:date>

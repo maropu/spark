@@ -1,0 +1,25 @@
+TakeOrderedAndProject(limit=20, orderBy=[revenue#0 DESC NULLS LAST], output=[c_custkey#0L,c_name#0,revenue#0,c_acctbal#0,n_name#0,c_address#0,c_phone#0,c_comment#0])
++- *HashAggregate(keys=[c_custkey#0L, c_name#0, c_acctbal#0, c_phone#0, n_name#0, c_address#0, c_comment#0], functions=[sum(CheckOverflow((promote_precision(cast(l_extendedprice#0 as decimal(11,0))) * promote_precision(CheckOverflow((1 - promote_precision(cast(l_discount#0 as decimal(11,0)))), DecimalType(11,0)))), DecimalType(22,0)))])
+   +- Exchange hashpartitioning(c_custkey#0L, c_name#0, c_acctbal#0, c_phone#0, n_name#0, c_address#0, c_comment#0, 5)
+      +- *HashAggregate(keys=[c_custkey#0L, c_name#0, c_acctbal#0, c_phone#0, n_name#0, c_address#0, c_comment#0], functions=[partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#0 as decimal(11,0))) * promote_precision(CheckOverflow((1 - promote_precision(cast(l_discount#0 as decimal(11,0)))), DecimalType(11,0)))), DecimalType(22,0)))])
+         +- *Project [c_custkey#0L, c_phone#0, c_name#0, l_discount#0, c_acctbal#0, n_name#0, c_address#0, l_extendedprice#0, c_comment#0]
+            +- *BroadcastHashJoin [cast(c_nationkey#0 as bigint)], [n_nationkey#0L], Inner, BuildRight
+               :- *Project [c_custkey#0L, c_phone#0, c_name#0, l_discount#0, c_acctbal#0, c_nationkey#0, c_address#0, l_extendedprice#0, c_comment#0]
+               :  +- *BroadcastHashJoin [o_orderkey#0L], [l_orderkey#0L], Inner, BuildRight
+               :     :- *Project [c_custkey#0L, c_phone#0, c_name#0, o_orderkey#0L, c_acctbal#0, c_nationkey#0, c_address#0, c_comment#0]
+               :     :  +- *BroadcastHashJoin [c_custkey#0L], [o_custkey#0L], Inner, BuildRight
+               :     :     :- *Project [c_custkey#0L, c_phone#0, c_name#0, c_acctbal#0, c_nationkey#0, c_address#0, c_comment#0]
+               :     :     :  +- *Filter (isnotnull(c_nationkey#0) && isnotnull(c_custkey#0L))
+               :     :     :     +- *FileScan parquet default.customer[c_custkey#0L,c_name#0,c_address#0,c_nationkey#0,c_phone#0,c_acctbal#0,c_comment#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,c_acctba...
+               :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(input[1, bigint, true]))
+               :     :        +- *Project [o_custkey#0L, o_orderkey#0L]
+               :     :           +- *Filter (((((o_orderdate#0 >= 8674) && isnotnull(o_orderdate#0)) && isnotnull(o_custkey#0L)) && isnotnull(o_orderkey#0L)) && (o_orderdate#0 < 8766))
+               :     :              +- *FileScan parquet default.orders[o_orderkey#0L,o_custkey#0L,o_orderdate#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,o_orderdate:date>
+               :     +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+               :        +- *Project [l_discount#0, l_orderkey#0L, l_extendedprice#0]
+               :           +- *Filter ((isnotnull(l_orderkey#0L) && (R = l_returnflag#0)) && isnotnull(l_returnflag#0))
+               :              +- *FileScan parquet default.lineitem[l_orderkey#0L,l_extendedprice#0,l_discount#0,l_returnflag#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,l_returnflag:string>
+               +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+                  +- *Project [n_name#0, n_nationkey#0L]
+                     +- *Filter isnotnull(n_nationkey#0L)
+                        +- *FileScan parquet default.nation[n_nationkey#0L,n_name#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,n_name:string>

@@ -1,0 +1,26 @@
+*Sort [d_year#0 ASC NULLS FIRST, p_brand1#0 ASC NULLS FIRST], true, 0
++- Exchange rangepartitioning(d_year#0 ASC NULLS FIRST, p_brand1#0 ASC NULLS FIRST, 5)
+   +- *HashAggregate(keys=[d_year#0, p_brand1#0], functions=[sum(cast(lo_revenue#0 as bigint))])
+      +- Exchange hashpartitioning(d_year#0, p_brand1#0, 5)
+         +- *HashAggregate(keys=[d_year#0, p_brand1#0], functions=[partial_sum(cast(lo_revenue#0 as bigint))])
+            +- *Project [d_year#0, p_brand1#0, lo_revenue#0]
+               +- *BroadcastHashJoin [lo_suppkey#0], [s_suppkey#0], Inner, BuildRight
+                  :- *Project [d_year#0, lo_suppkey#0, p_brand1#0, lo_revenue#0]
+                  :  +- *BroadcastHashJoin [lo_partkey#0], [p_partkey#0], Inner, BuildRight
+                  :     :- *Project [lo_partkey#0, d_year#0, lo_suppkey#0, lo_revenue#0]
+                  :     :  +- *BroadcastHashJoin [lo_orderdate#0], [d_datekey#0], Inner, BuildRight
+                  :     :     :- *Project [lo_partkey#0, lo_suppkey#0, lo_revenue#0, lo_orderdate#0]
+                  :     :     :  +- *Filter ((isnotnull(lo_orderdate#0) && isnotnull(lo_partkey#0)) && isnotnull(lo_suppkey#0))
+                  :     :     :     +- *FileScan parquet default.lineorder[lo_partkey#0,lo_suppkey#0,lo_orderdate#0,lo_revenue#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,lo_revenue:int>
+                  :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  :     :        +- *Project [d_year#0, d_datekey#0]
+                  :     :           +- *Filter isnotnull(d_datekey#0)
+                  :     :              +- *FileScan parquet default.date[d_datekey#0,d_year#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_year:int>
+                  :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  :        +- *Project [p_partkey#0, p_brand1#0]
+                  :           +- *Filter (((isnotnull(p_partkey#0) && isnotnull(p_brand1#0)) && (MFGR#2221 <= p_brand1#0)) && (MFGR#2228 >= p_brand1#0))
+                  :              +- *FileScan parquet default.part[p_partkey#0,p_brand1#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,p_brand1:string>
+                  +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                     +- *Project [s_suppkey#0]
+                        +- *Filter (((ASIA = s_region#0) && isnotnull(s_region#0)) && isnotnull(s_suppkey#0))
+                           +- *FileScan parquet default.supplier[s_suppkey#0,s_region#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,s_region:string>

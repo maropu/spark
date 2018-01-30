@@ -1,0 +1,74 @@
+TakeOrderedAndProject(limit=100, orderBy=[i_item_id#0 ASC NULLS FIRST,s_state#0 ASC NULLS FIRST], output=[i_item_id#0,s_state#0,g_state#0,agg1#0,agg2#0,agg3#0,agg4#0])
++- Union
+   :- *HashAggregate(keys=[i_item_id#0, s_state#0], functions=[avg(cast(agg1#0 as bigint)), avg(UnscaledValue(agg2#0)), avg(UnscaledValue(agg3#0)), avg(UnscaledValue(agg4#0))])
+   :  +- Exchange hashpartitioning(i_item_id#0, s_state#0, 5)
+   :     +- *HashAggregate(keys=[i_item_id#0, s_state#0], functions=[partial_avg(cast(agg1#0 as bigint)), partial_avg(UnscaledValue(agg2#0)), partial_avg(UnscaledValue(agg3#0)), partial_avg(UnscaledValue(agg4#0))])
+   :        +- *Project [s_state#0, ss_list_price#0 AS none#0, ss_quantity#0 AS none#0, ss_sales_price#0 AS none#0, i_item_id#0, ss_coupon_amt#0 AS none#0]
+   :           +- *BroadcastHashJoin [ss_item_sk#0], [i_item_sk#0], Inner, BuildRight
+   :              :- *Project [ss_sales_price#0, ss_quantity#0, ss_list_price#0, s_state#0, ss_item_sk#0, ss_coupon_amt#0]
+   :              :  +- *BroadcastHashJoin [ss_store_sk#0], [s_store_sk#0], Inner, BuildRight
+   :              :     :- *Project [ss_sales_price#0, ss_quantity#0, ss_list_price#0, ss_item_sk#0, ss_store_sk#0, ss_coupon_amt#0]
+   :              :     :  +- *BroadcastHashJoin [ss_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+   :              :     :     :- *Project [ss_sales_price#0, ss_quantity#0, ss_list_price#0, ss_item_sk#0, ss_store_sk#0, ss_sold_date_sk#0, ss_coupon_amt#0]
+   :              :     :     :  +- *BroadcastHashJoin [ss_cdemo_sk#0], [cd_demo_sk#0], Inner, BuildRight
+   :              :     :     :     :- *Project [ss_sales_price#0, ss_quantity#0, ss_list_price#0, ss_item_sk#0, ss_cdemo_sk#0, ss_store_sk#0, ss_sold_date_sk#0, ss_coupon_amt#0]
+   :              :     :     :     :  +- *Filter ((((((ss_sold_date_sk#0 <= 2451910) && isnotnull(ss_cdemo_sk#0)) && isnotnull(ss_item_sk#0)) && isnotnull(ss_store_sk#0)) && (ss_sold_date_sk#0 >= 2451545)) && isnotnull(ss_sold_date_sk#0))
+   :              :     :     :     :     +- *FileScan parquet default.store_sales[ss_sold_date_sk#0,ss_item_sk#0,ss_cdemo_sk#0,ss_store_sk#0,ss_quantity#0,ss_list_price#0,ss_sales_price#0,ss_coupon_amt#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ss_list...
+   :              :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+   :              :     :     :        +- *Project [cd_demo_sk#0]
+   :              :     :     :           +- *Filter (((((((D = cd_marital_status#0) && (Primary = cd_education_status#0)) && isnotnull(cd_education_status#0)) && (cd_gender#0 = F)) && isnotnull(cd_marital_status#0)) && isnotnull(cd_demo_sk#0)) && isnotnull(cd_gender#0))
+   :              :     :     :              +- *FileScan parquet default.customer_demographics[cd_demo_sk#0,cd_gender#0,cd_marital_status#0,cd_education_status#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,cd_education_status:string>
+   :              :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+   :              :     :        +- *Project [d_date_sk#0]
+   :              :     :           +- *Filter (((((2451910 >= d_date_sk#0) && isnotnull(d_date_sk#0)) && (2451545 <= d_date_sk#0)) && isnotnull(d_year#0)) && (2000 = d_year#0))
+   :              :     :              +- *FileScan parquet default.date_dim[d_date_sk#0,d_year#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_year:int>
+   :              :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+   :              :        +- *Project [s_state#0, s_store_sk#0]
+   :              :           +- *Filter (isnotnull(s_store_sk#0) && s_state#0 IN (TN,AL,SD))
+   :              :              +- *FileScan parquet default.store[s_store_sk#0,s_state#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,s_state:string>
+   :              +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+   :                 +- *Project [i_item_sk#0, i_item_id#0]
+   :                    +- *Filter isnotnull(i_item_sk#0)
+   :                       +- *FileScan parquet default.item[i_item_sk#0,i_item_id#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,i_item_id:string>
+   :- *HashAggregate(keys=[i_item_id#0], functions=[avg(cast(agg1#0 as bigint)), avg(UnscaledValue(agg2#0)), avg(UnscaledValue(agg3#0)), avg(UnscaledValue(agg4#0))])
+   :  +- Exchange hashpartitioning(i_item_id#0, 5)
+   :     +- *HashAggregate(keys=[i_item_id#0], functions=[partial_avg(cast(agg1#0 as bigint)), partial_avg(UnscaledValue(agg2#0)), partial_avg(UnscaledValue(agg3#0)), partial_avg(UnscaledValue(agg4#0))])
+   :        +- *Project [ss_list_price#0 AS none#0, ss_quantity#0 AS none#0, ss_sales_price#0 AS none#0, i_item_id#0, ss_coupon_amt#0 AS none#0]
+   :           +- *BroadcastHashJoin [ss_item_sk#0], [i_item_sk#0], Inner, BuildRight
+   :              :- *Project [ss_sales_price#0, ss_quantity#0, ss_list_price#0, ss_item_sk#0, ss_coupon_amt#0]
+   :              :  +- *BroadcastHashJoin [ss_store_sk#0], [s_store_sk#0], Inner, BuildRight
+   :              :     :- *Project [ss_sales_price#0, ss_quantity#0, ss_list_price#0, ss_item_sk#0, ss_store_sk#0, ss_coupon_amt#0]
+   :              :     :  +- *BroadcastHashJoin [ss_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+   :              :     :     :- *Project [ss_sales_price#0, ss_quantity#0, ss_list_price#0, ss_item_sk#0, ss_store_sk#0, ss_sold_date_sk#0, ss_coupon_amt#0]
+   :              :     :     :  +- *BroadcastHashJoin [ss_cdemo_sk#0], [cd_demo_sk#0], Inner, BuildRight
+   :              :     :     :     :- *Project [ss_sales_price#0, ss_quantity#0, ss_list_price#0, ss_item_sk#0, ss_cdemo_sk#0, ss_store_sk#0, ss_sold_date_sk#0, ss_coupon_amt#0]
+   :              :     :     :     :  +- *Filter ((((((ss_sold_date_sk#0 <= 2451910) && isnotnull(ss_cdemo_sk#0)) && isnotnull(ss_item_sk#0)) && isnotnull(ss_store_sk#0)) && (ss_sold_date_sk#0 >= 2451545)) && isnotnull(ss_sold_date_sk#0))
+   :              :     :     :     :     +- *FileScan parquet default.store_sales[ss_sold_date_sk#0,ss_item_sk#0,ss_cdemo_sk#0,ss_store_sk#0,ss_quantity#0,ss_list_price#0,ss_sales_price#0,ss_coupon_amt#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ss_list...
+   :              :     :     :     +- ReusedExchange [cd_demo_sk#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+   :              :     :     +- ReusedExchange [d_date_sk#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+   :              :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+   :              :        +- *Project [s_store_sk#0]
+   :              :           +- *Filter (isnotnull(s_store_sk#0) && s_state#0 IN (TN,AL,SD))
+   :              :              +- *FileScan parquet default.store[s_store_sk#0,s_state#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,s_state:string>
+   :              +- ReusedExchange [i_item_sk#0, i_item_id#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+   +- *HashAggregate(keys=[], functions=[avg(cast(agg1#0 as bigint)), avg(UnscaledValue(agg2#0)), avg(UnscaledValue(agg3#0)), avg(UnscaledValue(agg4#0))])
+      +- Exchange SinglePartition
+         +- *HashAggregate(keys=[], functions=[partial_avg(cast(agg1#0 as bigint)), partial_avg(UnscaledValue(agg2#0)), partial_avg(UnscaledValue(agg3#0)), partial_avg(UnscaledValue(agg4#0))])
+            +- *Project [ss_list_price#0 AS none#0, ss_quantity#0 AS none#0, ss_sales_price#0 AS none#0, ss_coupon_amt#0 AS none#0]
+               +- *BroadcastHashJoin [ss_item_sk#0], [i_item_sk#0], Inner, BuildRight
+                  :- *Project [ss_sales_price#0, ss_quantity#0, ss_list_price#0, ss_item_sk#0, ss_coupon_amt#0]
+                  :  +- *BroadcastHashJoin [ss_store_sk#0], [s_store_sk#0], Inner, BuildRight
+                  :     :- *Project [ss_sales_price#0, ss_quantity#0, ss_list_price#0, ss_item_sk#0, ss_store_sk#0, ss_coupon_amt#0]
+                  :     :  +- *BroadcastHashJoin [ss_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+                  :     :     :- *Project [ss_sales_price#0, ss_quantity#0, ss_list_price#0, ss_item_sk#0, ss_store_sk#0, ss_sold_date_sk#0, ss_coupon_amt#0]
+                  :     :     :  +- *BroadcastHashJoin [ss_cdemo_sk#0], [cd_demo_sk#0], Inner, BuildRight
+                  :     :     :     :- *Project [ss_sales_price#0, ss_quantity#0, ss_list_price#0, ss_item_sk#0, ss_cdemo_sk#0, ss_store_sk#0, ss_sold_date_sk#0, ss_coupon_amt#0]
+                  :     :     :     :  +- *Filter ((((((ss_sold_date_sk#0 <= 2451910) && isnotnull(ss_cdemo_sk#0)) && isnotnull(ss_item_sk#0)) && isnotnull(ss_store_sk#0)) && (ss_sold_date_sk#0 >= 2451545)) && isnotnull(ss_sold_date_sk#0))
+                  :     :     :     :     +- *FileScan parquet default.store_sales[ss_sold_date_sk#0,ss_item_sk#0,ss_cdemo_sk#0,ss_store_sk#0,ss_quantity#0,ss_list_price#0,ss_sales_price#0,ss_coupon_amt#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ss_list...
+                  :     :     :     +- ReusedExchange [cd_demo_sk#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  :     :     +- ReusedExchange [d_date_sk#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  :     +- ReusedExchange [s_store_sk#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                     +- *Project [i_item_sk#0]
+                        +- *Filter isnotnull(i_item_sk#0)
+                           +- *FileScan parquet default.item[i_item_sk#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>, ReadSchema: struct<i_item_sk:int>

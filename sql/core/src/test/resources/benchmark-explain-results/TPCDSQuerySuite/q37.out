@@ -1,0 +1,25 @@
+TakeOrderedAndProject(limit=100, orderBy=[i_item_id#0 ASC NULLS FIRST], output=[i_item_id#0,i_item_desc#0,i_current_price#0])
++- *HashAggregate(keys=[i_item_id#0, i_item_desc#0, i_current_price#0], functions=[])
+   +- Exchange hashpartitioning(i_item_id#0, i_item_desc#0, i_current_price#0, 5)
+      +- *HashAggregate(keys=[i_item_id#0, i_item_desc#0, i_current_price#0], functions=[])
+         +- *Project [i_item_desc#0, i_item_id#0, i_current_price#0]
+            +- *BroadcastHashJoin [i_item_sk#0], [cs_item_sk#0], Inner, BuildRight
+               :- *Project [i_item_sk#0, i_item_desc#0, i_item_id#0, i_current_price#0]
+               :  +- *BroadcastHashJoin [inv_date_sk#0], [d_date_sk#0], Inner, BuildRight
+               :     :- *Project [i_item_sk#0, i_item_desc#0, i_item_id#0, inv_date_sk#0, i_current_price#0]
+               :     :  +- *BroadcastHashJoin [i_item_sk#0], [inv_item_sk#0], Inner, BuildRight
+               :     :     :- *Project [i_item_sk#0, i_item_desc#0, i_item_id#0, i_current_price#0]
+               :     :     :  +- *Filter (((((i_current_price#0 >= 68.00) && i_manufact_id#0 IN (677,940,694,808)) && (98.00 >= cast(i_current_price#0 as decimal(12,2)))) && isnotnull(i_item_sk#0)) && isnotnull(i_current_price#0))
+               :     :     :     +- *FileScan parquet default.item[i_item_sk#0,i_item_id#0,i_item_desc#0,i_current_price#0,i_manufact_id#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,i_manufact_...
+               :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[1, int, true] as bigint)))
+               :     :        +- *Project [inv_item_sk#0, inv_date_sk#0]
+               :     :           +- *Filter ((((isnotnull(inv_date_sk#0) && isnotnull(inv_item_sk#0)) && (inv_quantity_on_hand#0 <= 500)) && (inv_quantity_on_hand#0 >= 100)) && isnotnull(inv_quantity_on_hand#0))
+               :     :              +- *FileScan parquet default.inventory[inv_date_sk#0,inv_item_sk#0,inv_quantity_on_hand#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,inv_quantity_on_hand:int>
+               :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :        +- *Project [d_date_sk#0]
+               :           +- *Filter ((((d_date#0 >= 2000-02-01) && isnotnull(d_date_sk#0)) && isnotnull(d_date#0)) && (2000-04-01 >= d_date#0))
+               :              +- *FileScan parquet default.date_dim[d_date_sk#0,d_date#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_date:string>
+               +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  +- *Project [cs_item_sk#0]
+                     +- *Filter isnotnull(cs_item_sk#0)
+                        +- *FileScan parquet default.catalog_sales[cs_item_sk#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>, ReadSchema: struct<cs_item_sk:int>

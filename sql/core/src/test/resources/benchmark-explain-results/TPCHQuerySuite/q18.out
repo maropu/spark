@@ -1,0 +1,29 @@
+TakeOrderedAndProject(limit=100, orderBy=[o_totalprice#0 DESC NULLS LAST,o_orderdate#0 ASC NULLS FIRST], output=[c_name#0,c_custkey#0L,o_orderkey#0L,o_orderdate#0,o_totalprice#0,sum(l_quantity)#0])
++- *HashAggregate(keys=[c_name#0, c_custkey#0L, o_orderkey#0L, o_orderdate#0, o_totalprice#0], functions=[sum(l_quantity#0)])
+   +- Exchange hashpartitioning(c_name#0, c_custkey#0L, o_orderkey#0L, o_orderdate#0, o_totalprice#0, 5)
+      +- *HashAggregate(keys=[c_name#0, c_custkey#0L, o_orderkey#0L, o_orderdate#0, o_totalprice#0], functions=[partial_sum(l_quantity#0)])
+         +- *Project [o_totalprice#0, c_custkey#0L, l_quantity#0, c_name#0, o_orderkey#0L, o_orderdate#0]
+            +- *BroadcastHashJoin [o_orderkey#0L], [l_orderkey#0L], Inner, BuildRight
+               :- *Project [o_totalprice#0, c_custkey#0L, c_name#0, o_orderkey#0L, o_orderdate#0]
+               :  +- *BroadcastHashJoin [c_custkey#0L], [o_custkey#0L], Inner, BuildRight
+               :     :- *Project [c_custkey#0L, c_name#0]
+               :     :  +- *Filter isnotnull(c_custkey#0L)
+               :     :     +- *FileScan parquet default.customer[c_custkey#0L,c_name#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,c_name:string>
+               :     +- BroadcastExchange HashedRelationBroadcastMode(List(input[1, bigint, true]))
+               :        +- *BroadcastHashJoin [o_orderkey#0L], [l_orderkey#0L#0L], LeftSemi, BuildRight
+               :           :- *Project [o_totalprice#0, o_custkey#0L, o_orderkey#0L, o_orderdate#0]
+               :           :  +- *Filter (isnotnull(o_custkey#0L) && isnotnull(o_orderkey#0L))
+               :           :     +- *FileScan parquet default.orders[o_orderkey#0L,o_custkey#0L,o_totalprice#0,o_orderdate#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,o_orderdate:date>
+               :           +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+               :              +- *Project [l_orderkey#0L AS none#0L]
+               :                 +- *Filter ((sum(l_quantity#0)#0 > 300) && isnotnull(sum(l_quantity#0)#0))
+               :                    +- *HashAggregate(keys=[l_orderkey#0L], functions=[sum(l_quantity#0)])
+               :                       +- Exchange hashpartitioning(l_orderkey#0L, 5)
+               :                          +- *HashAggregate(keys=[l_orderkey#0L], functions=[partial_sum(l_quantity#0)])
+               :                             +- *FileScan parquet default.lineitem[l_orderkey#0L,l_quantity#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,0)>
+               +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+                  +- *BroadcastHashJoin [l_orderkey#0L], [l_orderkey#0L#0L], LeftSemi, BuildRight
+                     :- *Project [l_quantity#0, l_orderkey#0L]
+                     :  +- *Filter isnotnull(l_orderkey#0L)
+                     :     +- *FileScan parquet default.lineitem[l_orderkey#0L,l_quantity#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,0)>
+                     +- ReusedExchange [l_orderkey#0L#0L], BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))

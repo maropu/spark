@@ -1,0 +1,50 @@
+*Sort [w_warehouse_sk#0 ASC NULLS FIRST, i_item_sk#0 ASC NULLS FIRST, d_moy#0 ASC NULLS FIRST, mean#0 ASC NULLS FIRST, cov#0 ASC NULLS FIRST, d_moy#0 ASC NULLS FIRST, mean#0 ASC NULLS FIRST, cov#0 ASC NULLS FIRST], true, 0
++- Exchange rangepartitioning(w_warehouse_sk#0 ASC NULLS FIRST, i_item_sk#0 ASC NULLS FIRST, d_moy#0 ASC NULLS FIRST, mean#0 ASC NULLS FIRST, cov#0 ASC NULLS FIRST, d_moy#0 ASC NULLS FIRST, mean#0 ASC NULLS FIRST, cov#0 ASC NULLS FIRST, 5)
+   +- *BroadcastHashJoin [i_item_sk#0, w_warehouse_sk#0], [i_item_sk#0, w_warehouse_sk#0], Inner, BuildRight
+      :- *Project [d_moy#0, CASE WHEN (mean#0 = 0.0) THEN null ELSE (stdev#0 / mean#0) END AS none#0, mean#0, w_warehouse_sk#0, i_item_sk#0]
+      :  +- *Filter (CASE WHEN (0.0 = mean#0) THEN 0.0 ELSE (stdev#0 / mean#0) END > 1.0)
+      :     +- *HashAggregate(keys=[w_warehouse_name#0, w_warehouse_sk#0, i_item_sk#0, d_moy#0], functions=[stddev_samp(cast(inv_quantity_on_hand#0 as double)), avg(cast(inv_quantity_on_hand#0 as bigint))])
+      :        +- Exchange hashpartitioning(w_warehouse_name#0, w_warehouse_sk#0, i_item_sk#0, d_moy#0, 5)
+      :           +- *HashAggregate(keys=[w_warehouse_name#0, w_warehouse_sk#0, i_item_sk#0, d_moy#0], functions=[partial_stddev_samp(cast(inv_quantity_on_hand#0 as double)), partial_avg(cast(inv_quantity_on_hand#0 as bigint))])
+      :              +- *Project [w_warehouse_sk#0, i_item_sk#0, d_moy#0, inv_quantity_on_hand#0, w_warehouse_name#0]
+      :                 +- *BroadcastHashJoin [inv_date_sk#0], [d_date_sk#0], Inner, BuildRight
+      :                    :- *Project [w_warehouse_sk#0, i_item_sk#0, inv_date_sk#0, inv_quantity_on_hand#0, w_warehouse_name#0]
+      :                    :  +- *BroadcastHashJoin [inv_warehouse_sk#0], [w_warehouse_sk#0], Inner, BuildRight
+      :                    :     :- *Project [i_item_sk#0, inv_warehouse_sk#0, inv_date_sk#0, inv_quantity_on_hand#0]
+      :                    :     :  +- *BroadcastHashJoin [inv_item_sk#0], [i_item_sk#0], Inner, BuildRight
+      :                    :     :     :- *Project [inv_item_sk#0, inv_warehouse_sk#0, inv_date_sk#0, inv_quantity_on_hand#0]
+      :                    :     :     :  +- *Filter ((isnotnull(inv_date_sk#0) && isnotnull(inv_item_sk#0)) && isnotnull(inv_warehouse_sk#0))
+      :                    :     :     :     +- *FileScan parquet default.inventory[inv_date_sk#0,inv_item_sk#0,inv_warehouse_sk#0,inv_quantity_on_hand#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,inv_quantity_on_hand:int>
+      :                    :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :                    :     :        +- *Project [i_item_sk#0]
+      :                    :     :           +- *Filter isnotnull(i_item_sk#0)
+      :                    :     :              +- *FileScan parquet default.item[i_item_sk#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>, ReadSchema: struct<i_item_sk:int>
+      :                    :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :                    :        +- *Project [w_warehouse_sk#0, w_warehouse_name#0]
+      :                    :           +- *Filter isnotnull(w_warehouse_sk#0)
+      :                    :              +- *FileScan parquet default.warehouse[w_warehouse_sk#0,w_warehouse_name#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,w_warehouse_name:string>
+      :                    +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :                       +- *Project [d_date_sk#0, d_moy#0]
+      :                          +- *Filter ((((isnotnull(d_date_sk#0) && (2001 = d_year#0)) && isnotnull(d_year#0)) && isnotnull(d_moy#0)) && (d_moy#0 = 1))
+      :                             +- *FileScan parquet default.date_dim[d_date_sk#0,d_year#0,d_moy#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_moy:int>
+      +- BroadcastExchange HashedRelationBroadcastMode(List((shiftleft(cast(input[1, int, true] as bigint), 32) | (cast(input[0, int, true] as bigint) & 4294967295))))
+         +- *Project [d_moy#0, CASE WHEN (mean#0 = 0.0) THEN null ELSE (stdev#0 / mean#0) END AS none#0, mean#0, w_warehouse_sk#0, i_item_sk#0]
+            +- *Filter (CASE WHEN (0.0 = mean#0) THEN 0.0 ELSE (stdev#0 / mean#0) END > 1.0)
+               +- *HashAggregate(keys=[w_warehouse_name#0, w_warehouse_sk#0, i_item_sk#0, d_moy#0], functions=[stddev_samp(cast(inv_quantity_on_hand#0 as double)), avg(cast(inv_quantity_on_hand#0 as bigint))])
+                  +- Exchange hashpartitioning(w_warehouse_name#0, w_warehouse_sk#0, i_item_sk#0, d_moy#0, 5)
+                     +- *HashAggregate(keys=[w_warehouse_name#0, w_warehouse_sk#0, i_item_sk#0, d_moy#0], functions=[partial_stddev_samp(cast(inv_quantity_on_hand#0 as double)), partial_avg(cast(inv_quantity_on_hand#0 as bigint))])
+                        +- *Project [w_warehouse_sk#0, i_item_sk#0, d_moy#0, inv_quantity_on_hand#0, w_warehouse_name#0]
+                           +- *BroadcastHashJoin [inv_date_sk#0], [d_date_sk#0], Inner, BuildRight
+                              :- *Project [w_warehouse_sk#0, i_item_sk#0, inv_date_sk#0, inv_quantity_on_hand#0, w_warehouse_name#0]
+                              :  +- *BroadcastHashJoin [inv_warehouse_sk#0], [w_warehouse_sk#0], Inner, BuildRight
+                              :     :- *Project [i_item_sk#0, inv_warehouse_sk#0, inv_date_sk#0, inv_quantity_on_hand#0]
+                              :     :  +- *BroadcastHashJoin [inv_item_sk#0], [i_item_sk#0], Inner, BuildRight
+                              :     :     :- *Project [inv_item_sk#0, inv_warehouse_sk#0, inv_date_sk#0, inv_quantity_on_hand#0]
+                              :     :     :  +- *Filter ((isnotnull(inv_date_sk#0) && isnotnull(inv_item_sk#0)) && isnotnull(inv_warehouse_sk#0))
+                              :     :     :     +- *FileScan parquet default.inventory[inv_date_sk#0,inv_item_sk#0,inv_warehouse_sk#0,inv_quantity_on_hand#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,inv_quantity_on_hand:int>
+                              :     :     +- ReusedExchange [i_item_sk#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                              :     +- ReusedExchange [w_warehouse_sk#0, w_warehouse_name#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                              +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                                 +- *Project [d_date_sk#0, d_moy#0]
+                                    +- *Filter ((((isnotnull(d_date_sk#0) && (2001 = d_year#0)) && isnotnull(d_year#0)) && isnotnull(d_moy#0)) && (2 = d_moy#0))
+                                       +- *FileScan parquet default.date_dim[d_date_sk#0,d_year#0,d_moy#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_moy:int>

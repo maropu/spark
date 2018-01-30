@@ -1,0 +1,74 @@
+TakeOrderedAndProject(limit=100, orderBy=[channel#0 ASC NULLS FIRST,return_rank#0 ASC NULLS FIRST,currency_rank#0 ASC NULLS FIRST], output=[channel#0,item#0,return_ratio#0,return_rank#0,currency_rank#0])
++- *HashAggregate(keys=[channel#0, item#0, return_ratio#0, return_rank#0, currency_rank#0], functions=[])
+   +- Exchange hashpartitioning(channel#0, item#0, return_ratio#0, return_rank#0, currency_rank#0, 5)
+      +- *HashAggregate(keys=[channel#0, item#0, return_ratio#0, return_rank#0, currency_rank#0], functions=[])
+         +- Union
+            :- *Project [return_rank#0, currency_rank#0, return_ratio#0, item#0, web AS none#0]
+            :  +- *Filter ((return_rank#0 <= 10) || (currency_rank#0 <= 10))
+            :     +- Window [rank(currency_ratio#0) windowspecdefinition(currency_ratio#0 ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS none#0], [currency_ratio#0 ASC NULLS FIRST]
+            :        +- *Sort [currency_ratio#0 ASC NULLS FIRST], false, 0
+            :           +- Window [rank(return_ratio#0) windowspecdefinition(return_ratio#0 ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS none#0], [return_ratio#0 ASC NULLS FIRST]
+            :              +- *Sort [return_ratio#0 ASC NULLS FIRST], false, 0
+            :                 +- Exchange SinglePartition
+            :                    +- *HashAggregate(keys=[ws_item_sk#0], functions=[sum(coalesce(wr_return_quantity#0L, 0)), sum(cast(coalesce(ws_quantity#0, 0) as bigint)), sum(coalesce(cast(wr_return_amt#0 as decimal(12,2)), 0.00)), sum(coalesce(cast(ws_net_paid#0 as decimal(12,2)), 0.00))])
+            :                       +- Exchange hashpartitioning(ws_item_sk#0, 5)
+            :                          +- *HashAggregate(keys=[ws_item_sk#0], functions=[partial_sum(coalesce(wr_return_quantity#0L, 0)), partial_sum(cast(coalesce(ws_quantity#0, 0) as bigint)), partial_sum(coalesce(cast(wr_return_amt#0 as decimal(12,2)), 0.00)), partial_sum(coalesce(cast(ws_net_paid#0 as decimal(12,2)), 0.00))])
+            :                             +- *Project [wr_return_quantity#0L, ws_item_sk#0, ws_net_paid#0, ws_quantity#0, wr_return_amt#0]
+            :                                +- *BroadcastHashJoin [ws_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+            :                                   :- *Project [wr_return_quantity#0L, ws_item_sk#0, ws_sold_date_sk#0, ws_net_paid#0, ws_quantity#0, wr_return_amt#0]
+            :                                   :  +- *BroadcastHashJoin [cast(ws_order_number#0 as bigint), cast(ws_item_sk#0 as bigint)], [wr_order_number#0L, wr_item_sk#0L], Inner, BuildRight
+            :                                   :     :- *Project [ws_order_number#0, ws_item_sk#0, ws_sold_date_sk#0, ws_net_paid#0, ws_quantity#0]
+            :                                   :     :  +- *Filter ((((((((isnotnull(ws_order_number#0) && isnotnull(ws_net_profit#0)) && isnotnull(ws_item_sk#0)) && (0 < ws_quantity#0)) && isnotnull(ws_quantity#0)) && (ws_net_paid#0 > 0.00)) && isnotnull(ws_net_paid#0)) && isnotnull(ws_sold_date_sk#0)) && (ws_net_profit#0 > 1.00))
+            :                                   :     :     +- *FileScan parquet default.web_sales[ws_sold_date_sk#0,ws_item_sk#0,ws_order_number#0,ws_quantity#0,ws_net_paid#0,ws_net_profit#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ws_net_paid:decimal...
+            :                                   :     +- BroadcastExchange HashedRelationBroadcastMode(List(input[1, bigint, true], input[0, bigint, true]))
+            :                                   :        +- *Project [wr_return_quantity#0L, wr_item_sk#0L, wr_order_number#0L, wr_return_amt#0]
+            :                                   :           +- *Filter ((((wr_return_amt#0 > 10000.00) && isnotnull(wr_return_amt#0)) && isnotnull(wr_item_sk#0L)) && isnotnull(wr_order_number#0L))
+            :                                   :              +- *FileScan parquet default.web_returns[wr_item_sk#0L,wr_order_number#0L,wr_return_quantity#0L,wr_return_amt#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,wr_return_amt:decimal(7...
+            :                                   +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+            :                                      +- *Project [d_date_sk#0]
+            :                                         +- *Filter ((((isnotnull(d_date_sk#0) && (2001 = d_year#0)) && isnotnull(d_moy#0)) && isnotnull(d_year#0)) && (d_moy#0 = 12))
+            :                                            +- *FileScan parquet default.date_dim[d_date_sk#0,d_year#0,d_moy#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_moy:int>
+            :- *Project [item#0, return_rank#0, catalog AS none#0, currency_rank#0, return_ratio#0]
+            :  +- *Filter ((10 >= return_rank#0) || (10 >= currency_rank#0))
+            :     +- Window [rank(currency_ratio#0) windowspecdefinition(currency_ratio#0 ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS none#0], [currency_ratio#0 ASC NULLS FIRST]
+            :        +- *Sort [currency_ratio#0 ASC NULLS FIRST], false, 0
+            :           +- Window [rank(return_ratio#0) windowspecdefinition(return_ratio#0 ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS none#0], [return_ratio#0 ASC NULLS FIRST]
+            :              +- *Sort [return_ratio#0 ASC NULLS FIRST], false, 0
+            :                 +- Exchange SinglePartition
+            :                    +- *HashAggregate(keys=[cs_item_sk#0], functions=[sum(cast(coalesce(cr_return_quantity#0, 0) as bigint)), sum(cast(coalesce(cs_quantity#0, 0) as bigint)), sum(coalesce(cast(cr_return_amount#0 as decimal(12,2)), 0.00)), sum(coalesce(cast(cs_net_paid#0 as decimal(12,2)), 0.00))])
+            :                       +- Exchange hashpartitioning(cs_item_sk#0, 5)
+            :                          +- *HashAggregate(keys=[cs_item_sk#0], functions=[partial_sum(cast(coalesce(cr_return_quantity#0, 0) as bigint)), partial_sum(cast(coalesce(cs_quantity#0, 0) as bigint)), partial_sum(coalesce(cast(cr_return_amount#0 as decimal(12,2)), 0.00)), partial_sum(coalesce(cast(cs_net_paid#0 as decimal(12,2)), 0.00))])
+            :                             +- *Project [cs_net_paid#0, cs_quantity#0, cr_return_quantity#0, cr_return_amount#0, cs_item_sk#0]
+            :                                +- *BroadcastHashJoin [cs_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+            :                                   :- *Project [cs_net_paid#0, cs_quantity#0, cr_return_quantity#0, cr_return_amount#0, cs_sold_date_sk#0, cs_item_sk#0]
+            :                                   :  +- *BroadcastHashJoin [cs_order_number#0, cs_item_sk#0], [cr_order_number#0, cr_item_sk#0], Inner, BuildRight
+            :                                   :     :- *Project [cs_net_paid#0, cs_quantity#0, cs_order_number#0, cs_sold_date_sk#0, cs_item_sk#0]
+            :                                   :     :  +- *Filter ((((((((isnotnull(cs_net_profit#0) && (cs_net_profit#0 > 1.00)) && isnotnull(cs_order_number#0)) && isnotnull(cs_sold_date_sk#0)) && (cs_quantity#0 > 0)) && isnotnull(cs_net_paid#0)) && isnotnull(cs_item_sk#0)) && isnotnull(cs_quantity#0)) && (cs_net_paid#0 > 0.00))
+            :                                   :     :     +- *FileScan parquet default.catalog_sales[cs_sold_date_sk#0,cs_item_sk#0,cs_order_number#0,cs_quantity#0,cs_net_paid#0,cs_net_profit#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,cs_net_paid:decimal...
+            :                                   :     +- BroadcastExchange HashedRelationBroadcastMode(List((shiftleft(cast(input[1, int, true] as bigint), 32) | (cast(input[0, int, true] as bigint) & 4294967295))))
+            :                                   :        +- *Project [cr_return_quantity#0, cr_return_amount#0, cr_item_sk#0, cr_order_number#0]
+            :                                   :           +- *Filter (((isnotnull(cr_return_amount#0) && isnotnull(cr_order_number#0)) && isnotnull(cr_item_sk#0)) && (cr_return_amount#0 > 10000.00))
+            :                                   :              +- *FileScan parquet default.catalog_returns[cr_item_sk#0,cr_order_number#0,cr_return_quantity#0,cr_return_amount#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+            :                                   +- ReusedExchange [d_date_sk#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+            +- *Project [return_ratio#0, item#0, store AS none#0, return_rank#0, currency_rank#0]
+               +- *Filter ((10 >= return_rank#0) || (10 >= currency_rank#0))
+                  +- Window [rank(currency_ratio#0) windowspecdefinition(currency_ratio#0 ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS none#0], [currency_ratio#0 ASC NULLS FIRST]
+                     +- *Sort [currency_ratio#0 ASC NULLS FIRST], false, 0
+                        +- Window [rank(return_ratio#0) windowspecdefinition(return_ratio#0 ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS none#0], [return_ratio#0 ASC NULLS FIRST]
+                           +- *Sort [return_ratio#0 ASC NULLS FIRST], false, 0
+                              +- Exchange SinglePartition
+                                 +- *HashAggregate(keys=[ss_item_sk#0], functions=[sum(coalesce(sr_return_quantity#0L, 0)), sum(cast(coalesce(ss_quantity#0, 0) as bigint)), sum(coalesce(cast(sr_return_amt#0 as decimal(12,2)), 0.00)), sum(coalesce(cast(ss_net_paid#0 as decimal(12,2)), 0.00))])
+                                    +- Exchange hashpartitioning(ss_item_sk#0, 5)
+                                       +- *HashAggregate(keys=[ss_item_sk#0], functions=[partial_sum(coalesce(sr_return_quantity#0L, 0)), partial_sum(cast(coalesce(ss_quantity#0, 0) as bigint)), partial_sum(coalesce(cast(sr_return_amt#0 as decimal(12,2)), 0.00)), partial_sum(coalesce(cast(ss_net_paid#0 as decimal(12,2)), 0.00))])
+                                          +- *Project [ss_net_paid#0, ss_quantity#0, sr_return_amt#0, ss_item_sk#0, sr_return_quantity#0L]
+                                             +- *BroadcastHashJoin [ss_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+                                                :- *Project [ss_net_paid#0, ss_quantity#0, sr_return_amt#0, ss_item_sk#0, ss_sold_date_sk#0, sr_return_quantity#0L]
+                                                :  +- *BroadcastHashJoin [cast(ss_ticket_number#0 as bigint), cast(ss_item_sk#0 as bigint)], [sr_ticket_number#0L, sr_item_sk#0L], Inner, BuildRight
+                                                :     :- *Project [ss_net_paid#0, ss_quantity#0, ss_item_sk#0, ss_ticket_number#0, ss_sold_date_sk#0]
+                                                :     :  +- *Filter ((((((((isnotnull(ss_net_paid#0) && (0 < ss_quantity#0)) && isnotnull(ss_net_profit#0)) && (ss_net_profit#0 > 1.00)) && isnotnull(ss_sold_date_sk#0)) && (0.00 < ss_net_paid#0)) && isnotnull(ss_item_sk#0)) && isnotnull(ss_ticket_number#0)) && isnotnull(ss_quantity#0))
+                                                :     :     +- *FileScan parquet default.store_sales[ss_sold_date_sk#0,ss_item_sk#0,ss_ticket_number#0,ss_quantity#0,ss_net_paid#0,ss_net_profit#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ss_net_paid:decima...
+                                                :     +- BroadcastExchange HashedRelationBroadcastMode(List(input[1, bigint, true], input[0, bigint, true]))
+                                                :        +- *Project [sr_return_amt#0, sr_item_sk#0L, sr_ticket_number#0L, sr_return_quantity#0L]
+                                                :           +- *Filter (((isnotnull(sr_item_sk#0L) && (10000.00 < sr_return_amt#0)) && isnotnull(sr_return_amt#0)) && isnotnull(sr_ticket_number#0L))
+                                                :              +- *FileScan parquet default.store_returns[sr_item_sk#0L,sr_ticket_number#0L,sr_return_quantity#0L,sr_return_amt#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,sr_return_amt:decimal(...
+                                                +- ReusedExchange [d_date_sk#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))

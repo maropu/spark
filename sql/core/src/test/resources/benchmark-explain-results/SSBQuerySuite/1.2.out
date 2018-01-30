@@ -1,0 +1,12 @@
+*HashAggregate(keys=[], functions=[sum(cast((lo_extendedprice#0 * lo_discount#0) as bigint))])
++- Exchange SinglePartition
+   +- *HashAggregate(keys=[], functions=[partial_sum(cast((lo_extendedprice#0 * lo_discount#0) as bigint))])
+      +- *Project [lo_discount#0, lo_extendedprice#0]
+         +- *BroadcastHashJoin [lo_orderdate#0], [d_datekey#0], Inner, BuildRight
+            :- *Project [lo_discount#0, lo_extendedprice#0, lo_orderdate#0]
+            :  +- *Filter ((((((isnotnull(lo_discount#0) && isnotnull(lo_orderdate#0)) && (lo_discount#0 <= 6)) && (lo_discount#0 >= 4)) && isnotnull(lo_quantity#0)) && (lo_quantity#0 <= 35)) && (lo_quantity#0 >= 26))
+            :     +- *FileScan parquet default.lineorder[lo_orderdate#0,lo_quantity#0,lo_extendedprice#0,lo_discount#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,lo_discount:int>
+            +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               +- *Project [d_datekey#0]
+                  +- *Filter ((isnotnull(d_yearmonthnum#0) && isnotnull(d_datekey#0)) && (199401 = d_yearmonthnum#0))
+                     +- *FileScan parquet default.date[d_datekey#0,d_yearmonthnum#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_yearmonthnum:int>

@@ -1,0 +1,99 @@
+*Sort [ca_county#0 ASC NULLS FIRST], true, 0
++- Exchange rangepartitioning(ca_county#0 ASC NULLS FIRST, 5)
+   +- *Project [ca_county#0, CheckOverflow((promote_precision(store_sales#0) / promote_precision(store_sales#0)), DecimalType(37,20)) AS none#0, CheckOverflow((promote_precision(web_sales#0) / promote_precision(web_sales#0)), DecimalType(37,20)) AS none#0, CheckOverflow((promote_precision(web_sales#0) / promote_precision(web_sales#0)), DecimalType(37,20)) AS none#0, d_year#0, CheckOverflow((promote_precision(store_sales#0) / promote_precision(store_sales#0)), DecimalType(37,20)) AS none#0]
+      +- *BroadcastHashJoin [ca_county#0], [ca_county#0], Inner, BuildRight, (CASE WHEN (web_sales#0 > 0.00) THEN CheckOverflow((promote_precision(web_sales#0) / promote_precision(web_sales#0)), DecimalType(37,20)) ELSE null END > CASE WHEN (store_sales#0 > 0.00) THEN CheckOverflow((promote_precision(store_sales#0) / promote_precision(store_sales#0)), DecimalType(37,20)) ELSE null END)
+         :- *Project [web_sales#0, web_sales#0, ca_county#0, ca_county#0, store_sales#0, store_sales#0, store_sales#0, d_year#0]
+         :  +- *BroadcastHashJoin [ca_county#0], [ca_county#0], Inner, BuildRight, (CASE WHEN (web_sales#0 > 0.00) THEN CheckOverflow((promote_precision(web_sales#0) / promote_precision(web_sales#0)), DecimalType(37,20)) ELSE null END > CASE WHEN (store_sales#0 > 0.00) THEN CheckOverflow((promote_precision(store_sales#0) / promote_precision(store_sales#0)), DecimalType(37,20)) ELSE null END)
+         :     :- *BroadcastHashJoin [ca_county#0], [ca_county#0], Inner, BuildRight
+         :     :  :- *Project [ca_county#0, store_sales#0, store_sales#0, store_sales#0, d_year#0]
+         :     :  :  +- *BroadcastHashJoin [ca_county#0], [ca_county#0], Inner, BuildRight
+         :     :  :     :- *BroadcastHashJoin [ca_county#0], [ca_county#0], Inner, BuildRight
+         :     :  :     :  :- *HashAggregate(keys=[ca_county#0, d_qoy#0, d_year#0], functions=[sum(UnscaledValue(ss_ext_sales_price#0))])
+         :     :  :     :  :  +- Exchange hashpartitioning(ca_county#0, d_qoy#0, d_year#0, 5)
+         :     :  :     :  :     +- *HashAggregate(keys=[ca_county#0, d_qoy#0, d_year#0], functions=[partial_sum(UnscaledValue(ss_ext_sales_price#0))])
+         :     :  :     :  :        +- *Project [d_year#0, d_qoy#0, ca_county#0, ss_ext_sales_price#0]
+         :     :  :     :  :           +- *BroadcastHashJoin [ss_addr_sk#0], [ca_address_sk#0], Inner, BuildRight
+         :     :  :     :  :              :- *Project [d_year#0, d_qoy#0, ss_addr_sk#0, ss_ext_sales_price#0]
+         :     :  :     :  :              :  +- *BroadcastHashJoin [ss_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+         :     :  :     :  :              :     :- *Project [ss_sold_date_sk#0, ss_addr_sk#0, ss_ext_sales_price#0]
+         :     :  :     :  :              :     :  +- *Filter (isnotnull(ss_sold_date_sk#0) && isnotnull(ss_addr_sk#0))
+         :     :  :     :  :              :     :     +- *FileScan parquet default.store_sales[ss_sold_date_sk#0,ss_addr_sk#0,ss_ext_sales_price#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+         :     :  :     :  :              :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+         :     :  :     :  :              :        +- *Project [d_date_sk#0, d_year#0, d_qoy#0]
+         :     :  :     :  :              :           +- *Filter ((((isnotnull(d_date_sk#0) && isnotnull(d_qoy#0)) && (d_qoy#0 = 1)) && isnotnull(d_year#0)) && (2000 = d_year#0))
+         :     :  :     :  :              :              +- *FileScan parquet default.date_dim[d_date_sk#0,d_year#0,d_qoy#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_qoy:int>
+         :     :  :     :  :              +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+         :     :  :     :  :                 +- *Project [ca_address_sk#0, ca_county#0]
+         :     :  :     :  :                    +- *Filter (isnotnull(ca_address_sk#0) && isnotnull(ca_county#0))
+         :     :  :     :  :                       +- *FileScan parquet default.customer_address[ca_address_sk#0,ca_county#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ca_county:string>
+         :     :  :     :  +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, true]))
+         :     :  :     :     +- *HashAggregate(keys=[ca_county#0, d_qoy#0, d_year#0], functions=[sum(UnscaledValue(ss_ext_sales_price#0))])
+         :     :  :     :        +- Exchange hashpartitioning(ca_county#0, d_qoy#0, d_year#0, 5)
+         :     :  :     :           +- *HashAggregate(keys=[ca_county#0, d_qoy#0, d_year#0], functions=[partial_sum(UnscaledValue(ss_ext_sales_price#0))])
+         :     :  :     :              +- *Project [d_year#0, d_qoy#0, ca_county#0, ss_ext_sales_price#0]
+         :     :  :     :                 +- *BroadcastHashJoin [ss_addr_sk#0], [ca_address_sk#0], Inner, BuildRight
+         :     :  :     :                    :- *Project [d_year#0, d_qoy#0, ss_addr_sk#0, ss_ext_sales_price#0]
+         :     :  :     :                    :  +- *BroadcastHashJoin [ss_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+         :     :  :     :                    :     :- *Project [ss_sold_date_sk#0, ss_addr_sk#0, ss_ext_sales_price#0]
+         :     :  :     :                    :     :  +- *Filter (isnotnull(ss_sold_date_sk#0) && isnotnull(ss_addr_sk#0))
+         :     :  :     :                    :     :     +- *FileScan parquet default.store_sales[ss_sold_date_sk#0,ss_addr_sk#0,ss_ext_sales_price#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+         :     :  :     :                    :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+         :     :  :     :                    :        +- *Project [d_date_sk#0, d_year#0, d_qoy#0]
+         :     :  :     :                    :           +- *Filter ((((isnotnull(d_date_sk#0) && (2 = d_qoy#0)) && (2000 = d_year#0)) && isnotnull(d_year#0)) && isnotnull(d_qoy#0))
+         :     :  :     :                    :              +- *FileScan parquet default.date_dim[d_date_sk#0,d_year#0,d_qoy#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_qoy:int>
+         :     :  :     :                    +- ReusedExchange [ca_address_sk#0, ca_county#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+         :     :  :     +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, true]))
+         :     :  :        +- *HashAggregate(keys=[ca_county#0, d_qoy#0, d_year#0], functions=[sum(UnscaledValue(ss_ext_sales_price#0))])
+         :     :  :           +- Exchange hashpartitioning(ca_county#0, d_qoy#0, d_year#0, 5)
+         :     :  :              +- *HashAggregate(keys=[ca_county#0, d_qoy#0, d_year#0], functions=[partial_sum(UnscaledValue(ss_ext_sales_price#0))])
+         :     :  :                 +- *Project [d_year#0, d_qoy#0, ca_county#0, ss_ext_sales_price#0]
+         :     :  :                    +- *BroadcastHashJoin [ss_addr_sk#0], [ca_address_sk#0], Inner, BuildRight
+         :     :  :                       :- *Project [d_year#0, d_qoy#0, ss_addr_sk#0, ss_ext_sales_price#0]
+         :     :  :                       :  +- *BroadcastHashJoin [ss_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+         :     :  :                       :     :- *Project [ss_sold_date_sk#0, ss_addr_sk#0, ss_ext_sales_price#0]
+         :     :  :                       :     :  +- *Filter (isnotnull(ss_sold_date_sk#0) && isnotnull(ss_addr_sk#0))
+         :     :  :                       :     :     +- *FileScan parquet default.store_sales[ss_sold_date_sk#0,ss_addr_sk#0,ss_ext_sales_price#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+         :     :  :                       :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+         :     :  :                       :        +- *Project [d_date_sk#0, d_year#0, d_qoy#0]
+         :     :  :                       :           +- *Filter ((((isnotnull(d_qoy#0) && isnotnull(d_date_sk#0)) && (d_year#0 = 2000)) && (3 = d_qoy#0)) && isnotnull(d_year#0))
+         :     :  :                       :              +- *FileScan parquet default.date_dim[d_date_sk#0,d_year#0,d_qoy#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_qoy:int>
+         :     :  :                       +- ReusedExchange [ca_address_sk#0, ca_county#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+         :     :  +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, true]))
+         :     :     +- *HashAggregate(keys=[ca_county#0, d_qoy#0, d_year#0], functions=[sum(UnscaledValue(ws_ext_sales_price#0))])
+         :     :        +- Exchange hashpartitioning(ca_county#0, d_qoy#0, d_year#0, 5)
+         :     :           +- *HashAggregate(keys=[ca_county#0, d_qoy#0, d_year#0], functions=[partial_sum(UnscaledValue(ws_ext_sales_price#0))])
+         :     :              +- *Project [d_year#0, ws_ext_sales_price#0, d_qoy#0, ca_county#0]
+         :     :                 +- *BroadcastHashJoin [ws_bill_addr_sk#0], [ca_address_sk#0], Inner, BuildRight
+         :     :                    :- *Project [d_year#0, ws_ext_sales_price#0, d_qoy#0, ws_bill_addr_sk#0]
+         :     :                    :  +- *BroadcastHashJoin [ws_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+         :     :                    :     :- *Project [ws_sold_date_sk#0, ws_ext_sales_price#0, ws_bill_addr_sk#0]
+         :     :                    :     :  +- *Filter (isnotnull(ws_bill_addr_sk#0) && isnotnull(ws_sold_date_sk#0))
+         :     :                    :     :     +- *FileScan parquet default.web_sales[ws_sold_date_sk#0,ws_bill_addr_sk#0,ws_ext_sales_price#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+         :     :                    :     +- ReusedExchange [d_date_sk#0, d_year#0, d_qoy#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+         :     :                    +- ReusedExchange [ca_address_sk#0, ca_county#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+         :     +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, true]))
+         :        +- *HashAggregate(keys=[ca_county#0, d_qoy#0, d_year#0], functions=[sum(UnscaledValue(ws_ext_sales_price#0))])
+         :           +- Exchange hashpartitioning(ca_county#0, d_qoy#0, d_year#0, 5)
+         :              +- *HashAggregate(keys=[ca_county#0, d_qoy#0, d_year#0], functions=[partial_sum(UnscaledValue(ws_ext_sales_price#0))])
+         :                 +- *Project [d_year#0, ws_ext_sales_price#0, d_qoy#0, ca_county#0]
+         :                    +- *BroadcastHashJoin [ws_bill_addr_sk#0], [ca_address_sk#0], Inner, BuildRight
+         :                       :- *Project [d_year#0, ws_ext_sales_price#0, d_qoy#0, ws_bill_addr_sk#0]
+         :                       :  +- *BroadcastHashJoin [ws_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+         :                       :     :- *Project [ws_sold_date_sk#0, ws_ext_sales_price#0, ws_bill_addr_sk#0]
+         :                       :     :  +- *Filter (isnotnull(ws_bill_addr_sk#0) && isnotnull(ws_sold_date_sk#0))
+         :                       :     :     +- *FileScan parquet default.web_sales[ws_sold_date_sk#0,ws_bill_addr_sk#0,ws_ext_sales_price#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+         :                       :     +- ReusedExchange [d_date_sk#0, d_year#0, d_qoy#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+         :                       +- ReusedExchange [ca_address_sk#0, ca_county#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+         +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, true]))
+            +- *HashAggregate(keys=[ca_county#0, d_qoy#0, d_year#0], functions=[sum(UnscaledValue(ws_ext_sales_price#0))])
+               +- Exchange hashpartitioning(ca_county#0, d_qoy#0, d_year#0, 5)
+                  +- *HashAggregate(keys=[ca_county#0, d_qoy#0, d_year#0], functions=[partial_sum(UnscaledValue(ws_ext_sales_price#0))])
+                     +- *Project [d_year#0, ws_ext_sales_price#0, d_qoy#0, ca_county#0]
+                        +- *BroadcastHashJoin [ws_bill_addr_sk#0], [ca_address_sk#0], Inner, BuildRight
+                           :- *Project [d_year#0, ws_ext_sales_price#0, d_qoy#0, ws_bill_addr_sk#0]
+                           :  +- *BroadcastHashJoin [ws_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+                           :     :- *Project [ws_sold_date_sk#0, ws_ext_sales_price#0, ws_bill_addr_sk#0]
+                           :     :  +- *Filter (isnotnull(ws_bill_addr_sk#0) && isnotnull(ws_sold_date_sk#0))
+                           :     :     +- *FileScan parquet default.web_sales[ws_sold_date_sk#0,ws_bill_addr_sk#0,ws_ext_sales_price#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+                           :     +- ReusedExchange [d_date_sk#0, d_year#0, d_qoy#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                           +- ReusedExchange [ca_address_sk#0, ca_county#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))

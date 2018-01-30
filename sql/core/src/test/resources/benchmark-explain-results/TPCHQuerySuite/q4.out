@@ -1,0 +1,14 @@
+*Sort [o_orderpriority#0 ASC NULLS FIRST], true, 0
++- Exchange rangepartitioning(o_orderpriority#0 ASC NULLS FIRST, 5)
+   +- *HashAggregate(keys=[o_orderpriority#0], functions=[count(1)])
+      +- Exchange hashpartitioning(o_orderpriority#0, 5)
+         +- *HashAggregate(keys=[o_orderpriority#0], functions=[partial_count(1)])
+            +- *Project [o_orderpriority#0]
+               +- *BroadcastHashJoin [o_orderkey#0L], [l_orderkey#0L], LeftSemi, BuildRight
+                  :- *Project [o_orderkey#0L, o_orderpriority#0]
+                  :  +- *Filter (((o_orderdate#0 < 8674) && isnotnull(o_orderdate#0)) && (o_orderdate#0 >= 8582))
+                  :     +- *FileScan parquet default.orders[o_orderkey#0L,o_orderdate#0,o_orderpriority#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,o_orderpriority:string>
+                  +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+                     +- *Project [l_orderkey#0L]
+                        +- *Filter ((isnotnull(l_commitdate#0) && (l_receiptdate#0 > l_commitdate#0)) && isnotnull(l_receiptdate#0))
+                           +- *FileScan parquet default.lineitem[l_orderkey#0L,l_commitdate#0,l_receiptdate#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,l_receiptdate:date>

@@ -1,0 +1,36 @@
+TakeOrderedAndProject(limit=100, orderBy=[order count #0L ASC NULLS FIRST], output=[order count #0L,total shipping cost #0,total net profit #0])
++- *HashAggregate(keys=[], functions=[sum(UnscaledValue(cs_ext_ship_cost#0)), sum(UnscaledValue(cs_net_profit#0)), count(distinct cs_order_number#0)])
+   +- Exchange SinglePartition
+      +- *HashAggregate(keys=[], functions=[merge_sum(UnscaledValue(cs_ext_ship_cost#0)), merge_sum(UnscaledValue(cs_net_profit#0)), partial_count(distinct cs_order_number#0)])
+         +- *HashAggregate(keys=[cs_order_number#0], functions=[merge_sum(UnscaledValue(cs_ext_ship_cost#0)), merge_sum(UnscaledValue(cs_net_profit#0))])
+            +- Exchange hashpartitioning(cs_order_number#0, 5)
+               +- *HashAggregate(keys=[cs_order_number#0], functions=[partial_sum(UnscaledValue(cs_ext_ship_cost#0)), partial_sum(UnscaledValue(cs_net_profit#0))])
+                  +- *Project [cs_order_number#0, cs_net_profit#0, cs_ext_ship_cost#0]
+                     +- *BroadcastHashJoin [cs_call_center_sk#0], [cc_call_center_sk#0], Inner, BuildRight
+                        :- *Project [cs_call_center_sk#0, cs_order_number#0, cs_net_profit#0, cs_ext_ship_cost#0]
+                        :  +- *BroadcastHashJoin [cs_ship_addr_sk#0], [ca_address_sk#0], Inner, BuildRight
+                        :     :- *Project [cs_call_center_sk#0, cs_ship_addr_sk#0, cs_order_number#0, cs_net_profit#0, cs_ext_ship_cost#0]
+                        :     :  +- *BroadcastHashJoin [cs_ship_date_sk#0], [d_date_sk#0], Inner, BuildRight
+                        :     :     :- *BroadcastHashJoin [cs_order_number#0], [cr_order_number#0], LeftAnti, BuildRight
+                        :     :     :  :- *Project [cs_call_center_sk#0, cs_ship_addr_sk#0, cs_order_number#0, cs_net_profit#0, cs_ext_ship_cost#0, cs_ship_date_sk#0]
+                        :     :     :  :  +- *BroadcastHashJoin [cs_order_number#0], [cs_order_number#0#0], LeftSemi, BuildRight, NOT (cs_warehouse_sk#0 = cs_warehouse_sk#0#0)
+                        :     :     :  :     :- *Project [cs_call_center_sk#0, cs_ship_addr_sk#0, cs_order_number#0, cs_net_profit#0, cs_warehouse_sk#0, cs_ext_ship_cost#0, cs_ship_date_sk#0]
+                        :     :     :  :     :  +- *Filter ((isnotnull(cs_ship_date_sk#0) && isnotnull(cs_call_center_sk#0)) && isnotnull(cs_ship_addr_sk#0))
+                        :     :     :  :     :     +- *FileScan parquet default.catalog_sales[cs_ship_date_sk#0,cs_ship_addr_sk#0,cs_call_center_sk#0,cs_warehouse_sk#0,cs_order_number#0,cs_ext_ship_cost#0,cs_net_profit#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,cs_order...
+                        :     :     :  :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[1, int, true] as bigint)))
+                        :     :     :  :        +- *Project [cs_order_number#0 AS none#0, cs_warehouse_sk#0 AS none#0]
+                        :     :     :  :           +- *FileScan parquet default.catalog_sales[cs_warehouse_sk#0,cs_order_number#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,cs_order_number:int>
+                        :     :     :  +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                        :     :     :     +- *FileScan parquet default.catalog_returns[cr_order_number#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>, ReadSchema: struct<cr_order_number:int>
+                        :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                        :     :        +- *Project [d_date_sk#0]
+                        :     :           +- *Filter ((((2002-04-02 >= d_date#0) && isnotnull(d_date_sk#0)) && isnotnull(d_date#0)) && (2002-02-01 <= d_date#0))
+                        :     :              +- *FileScan parquet default.date_dim[d_date_sk#0,d_date#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_date:string>
+                        :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                        :        +- *Project [ca_address_sk#0]
+                        :           +- *Filter (((GA = ca_state#0) && isnotnull(ca_state#0)) && isnotnull(ca_address_sk#0))
+                        :              +- *FileScan parquet default.customer_address[ca_address_sk#0,ca_state#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ca_state:string>
+                        +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                           +- *Project [cc_call_center_sk#0]
+                              +- *Filter (isnotnull(cc_call_center_sk#0) && cc_county#0 IN (Williamson County))
+                                 +- *FileScan parquet default.call_center[cc_call_center_sk#0,cc_county#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,cc_county:string>

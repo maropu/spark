@@ -1,0 +1,68 @@
+TakeOrderedAndProject(limit=100, orderBy=[item_id#0 ASC NULLS FIRST,sr_item_qty#0L ASC NULLS FIRST], output=[item_id#0,sr_item_qty#0L,sr_dev#0,cr_item_qty#0L,cr_dev#0,wr_item_qty#0L,wr_dev#0,average#0])
++- *Project [cr_item_qty#0L, item_id#0, (((cast(wr_item_qty#0L as double) / cast(((sr_item_qty#0L + cr_item_qty#0L) + wr_item_qty#0L) as double)) / 3.0) * 100.0) AS none#0, sr_item_qty#0L, (((cast(cr_item_qty#0L as double) / cast(((sr_item_qty#0L + cr_item_qty#0L) + wr_item_qty#0L) as double)) / 3.0) * 100.0) AS none#0, CheckOverflow((promote_precision(cast(cast(((sr_item_qty#0L + cr_item_qty#0L) + wr_item_qty#0L) as decimal(20,0)) as decimal(21,1))) / 3.0), DecimalType(27,6)) AS none#0, (((cast(sr_item_qty#0L as double) / cast(((sr_item_qty#0L + cr_item_qty#0L) + wr_item_qty#0L) as double)) / 3.0) * 100.0) AS none#0, wr_item_qty#0L]
+   +- *BroadcastHashJoin [item_id#0], [item_id#0], Inner, BuildRight
+      :- *Project [item_id#0, sr_item_qty#0L, cr_item_qty#0L]
+      :  +- *BroadcastHashJoin [item_id#0], [item_id#0], Inner, BuildRight
+      :     :- *HashAggregate(keys=[i_item_id#0], functions=[sum(sr_return_quantity#0L)])
+      :     :  +- Exchange hashpartitioning(i_item_id#0, 5)
+      :     :     +- *HashAggregate(keys=[i_item_id#0], functions=[partial_sum(sr_return_quantity#0L)])
+      :     :        +- *Project [i_item_id#0, sr_return_quantity#0L]
+      :     :           +- *BroadcastHashJoin [sr_returned_date_sk#0L], [cast(d_date_sk#0 as bigint)], Inner, BuildRight
+      :     :              :- *Project [i_item_id#0, sr_returned_date_sk#0L, sr_return_quantity#0L]
+      :     :              :  +- *BroadcastHashJoin [sr_item_sk#0L], [cast(i_item_sk#0 as bigint)], Inner, BuildRight
+      :     :              :     :- *Project [sr_item_sk#0L, sr_returned_date_sk#0L, sr_return_quantity#0L]
+      :     :              :     :  +- *Filter (isnotnull(sr_item_sk#0L) && isnotnull(sr_returned_date_sk#0L))
+      :     :              :     :     +- *FileScan parquet default.store_returns[sr_returned_date_sk#0L,sr_item_sk#0L,sr_return_quantity#0L] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,sr_return_quantity:bigint>
+      :     :              :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :     :              :        +- *Project [i_item_sk#0, i_item_id#0]
+      :     :              :           +- *Filter (isnotnull(i_item_sk#0) && isnotnull(i_item_id#0))
+      :     :              :              +- *FileScan parquet default.item[i_item_sk#0,i_item_id#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,i_item_id:string>
+      :     :              +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :     :                 +- *Project [d_date_sk#0]
+      :     :                    +- *BroadcastHashJoin [d_date#0], [d_date#0#0], LeftSemi, BuildRight
+      :     :                       :- *Project [d_date_sk#0, d_date#0]
+      :     :                       :  +- *Filter isnotnull(d_date_sk#0)
+      :     :                       :     +- *FileScan parquet default.date_dim[d_date_sk#0,d_date#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_date:string>
+      :     :                       +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, true]))
+      :     :                          +- *Project [d_date#0 AS none#0]
+      :     :                             +- *BroadcastHashJoin [d_week_seq#0], [d_week_seq#0#0], LeftSemi, BuildRight
+      :     :                                :- *FileScan parquet default.date_dim[d_date#0,d_week_seq#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_week_seq:int>
+      :     :                                +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :     :                                   +- *Project [d_week_seq#0 AS none#0]
+      :     :                                      +- *Filter d_date#0 IN (2000-06-30,2000-09-27,2000-11-17)
+      :     :                                         +- *FileScan parquet default.date_dim[d_date#0,d_week_seq#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_week_seq:int>
+      :     +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, true]))
+      :        +- *HashAggregate(keys=[i_item_id#0], functions=[sum(cast(cr_return_quantity#0 as bigint))])
+      :           +- Exchange hashpartitioning(i_item_id#0, 5)
+      :              +- *HashAggregate(keys=[i_item_id#0], functions=[partial_sum(cast(cr_return_quantity#0 as bigint))])
+      :                 +- *Project [cr_return_quantity#0, i_item_id#0]
+      :                    +- *BroadcastHashJoin [cr_returned_date_sk#0], [d_date_sk#0], Inner, BuildRight
+      :                       :- *Project [cr_return_quantity#0, i_item_id#0, cr_returned_date_sk#0]
+      :                       :  +- *BroadcastHashJoin [cr_item_sk#0], [i_item_sk#0], Inner, BuildRight
+      :                       :     :- *Project [cr_return_quantity#0, cr_returned_date_sk#0, cr_item_sk#0]
+      :                       :     :  +- *Filter (isnotnull(cr_returned_date_sk#0) && isnotnull(cr_item_sk#0))
+      :                       :     :     +- *FileScan parquet default.catalog_returns[cr_returned_date_sk#0,cr_item_sk#0,cr_return_quantity#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,cr_return_quantity:int>
+      :                       :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :                       :        +- *Project [i_item_sk#0, i_item_id#0]
+      :                       :           +- *Filter (isnotnull(i_item_sk#0) && isnotnull(i_item_id#0))
+      :                       :              +- *FileScan parquet default.item[i_item_sk#0,i_item_id#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,i_item_id:string>
+      :                       +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :                          +- *Project [d_date_sk#0]
+      :                             +- *BroadcastHashJoin [d_date#0], [d_date#0#0], LeftSemi, BuildRight
+      :                                :- *Project [d_date_sk#0, d_date#0]
+      :                                :  +- *Filter isnotnull(d_date_sk#0)
+      :                                :     +- *FileScan parquet default.date_dim[d_date_sk#0,d_date#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_date:string>
+      :                                +- ReusedExchange [d_date#0#0], BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, true]))
+      +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, true]))
+         +- *HashAggregate(keys=[i_item_id#0], functions=[sum(wr_return_quantity#0L)])
+            +- Exchange hashpartitioning(i_item_id#0, 5)
+               +- *HashAggregate(keys=[i_item_id#0], functions=[partial_sum(wr_return_quantity#0L)])
+                  +- *Project [wr_return_quantity#0L, i_item_id#0]
+                     +- *BroadcastHashJoin [wr_returned_date_sk#0L], [cast(d_date_sk#0 as bigint)], Inner, BuildRight
+                        :- *Project [wr_return_quantity#0L, wr_returned_date_sk#0L, i_item_id#0]
+                        :  +- *BroadcastHashJoin [wr_item_sk#0L], [cast(i_item_sk#0 as bigint)], Inner, BuildRight
+                        :     :- *Project [wr_return_quantity#0L, wr_returned_date_sk#0L, wr_item_sk#0L]
+                        :     :  +- *Filter (isnotnull(wr_item_sk#0L) && isnotnull(wr_returned_date_sk#0L))
+                        :     :     +- *FileScan parquet default.web_returns[wr_returned_date_sk#0L,wr_item_sk#0L,wr_return_quantity#0L] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,wr_return_quantity:bigint>
+                        :     +- ReusedExchange [i_item_sk#0, i_item_id#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                        +- ReusedExchange [d_date_sk#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))

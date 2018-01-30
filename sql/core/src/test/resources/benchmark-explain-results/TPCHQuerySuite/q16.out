@@ -1,0 +1,22 @@
+*Sort [supplier_cnt#0L DESC NULLS LAST, p_brand#0 ASC NULLS FIRST, p_type#0 ASC NULLS FIRST, p_size#0 ASC NULLS FIRST], true, 0
++- Exchange rangepartitioning(supplier_cnt#0L DESC NULLS LAST, p_brand#0 ASC NULLS FIRST, p_type#0 ASC NULLS FIRST, p_size#0 ASC NULLS FIRST, 5)
+   +- *HashAggregate(keys=[p_brand#0, p_type#0, p_size#0], functions=[count(distinct ps_suppkey#0L)])
+      +- Exchange hashpartitioning(p_brand#0, p_type#0, p_size#0, 5)
+         +- *HashAggregate(keys=[p_brand#0, p_type#0, p_size#0], functions=[partial_count(distinct ps_suppkey#0L)])
+            +- *HashAggregate(keys=[p_brand#0, p_type#0, p_size#0, ps_suppkey#0L], functions=[])
+               +- Exchange hashpartitioning(p_brand#0, p_type#0, p_size#0, ps_suppkey#0L, 5)
+                  +- *HashAggregate(keys=[p_brand#0, p_type#0, p_size#0, ps_suppkey#0L], functions=[])
+                     +- *Project [p_size#0, p_brand#0, p_type#0, ps_suppkey#0L]
+                        +- *BroadcastHashJoin [ps_partkey#0L], [p_partkey#0L], Inner, BuildRight
+                           :- BroadcastNestedLoopJoin BuildRight, LeftAnti, ((ps_suppkey#0L = s_suppkey#0L) || isnull((ps_suppkey#0L = s_suppkey#0L)))
+                           :  :- *Project [ps_partkey#0L, ps_suppkey#0L]
+                           :  :  +- *Filter isnotnull(ps_partkey#0L)
+                           :  :     +- *FileScan parquet default.partsupp[ps_partkey#0L,ps_suppkey#0L] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ps_suppkey:bigint>
+                           :  +- BroadcastExchange IdentityBroadcastMode
+                           :     +- *Project [s_suppkey#0L]
+                           :        +- *Filter (s_comment#0 LIKE %Customer%Complaints% && isnotnull(s_comment#0))
+                           :           +- *FileScan parquet default.supplier[s_suppkey#0L,s_comment#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,s_comment:string>
+                           +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+                              +- *Project [p_size#0, p_brand#0, p_partkey#0L, p_type#0]
+                                 +- *Filter (((((NOT (p_brand#0 = Brand#45) && NOT StartsWith(p_type#0, MEDIUM POLISHED)) && isnotnull(p_brand#0)) && isnotnull(p_partkey#0L)) && p_size#0 IN (49,14,23,45,19,3,36,9)) && isnotnull(p_type#0))
+                                    +- *FileScan parquet default.part[p_partkey#0L,p_brand#0,p_type#0,p_size#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,p_size:int>

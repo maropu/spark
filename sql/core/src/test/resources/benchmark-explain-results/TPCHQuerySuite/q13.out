@@ -1,0 +1,15 @@
+*Sort [custdist#0L DESC NULLS LAST, c_count#0L DESC NULLS LAST], true, 0
++- Exchange rangepartitioning(custdist#0L DESC NULLS LAST, c_count#0L DESC NULLS LAST, 5)
+   +- *HashAggregate(keys=[c_count#0L], functions=[count(1)])
+      +- Exchange hashpartitioning(c_count#0L, 5)
+         +- *HashAggregate(keys=[c_count#0L], functions=[partial_count(1)])
+            +- *HashAggregate(keys=[c_custkey#0L], functions=[count(o_orderkey#0L)])
+               +- Exchange hashpartitioning(c_custkey#0L, 5)
+                  +- *HashAggregate(keys=[c_custkey#0L], functions=[partial_count(o_orderkey#0L)])
+                     +- *Project [c_custkey#0L, o_orderkey#0L]
+                        +- *BroadcastHashJoin [c_custkey#0L], [o_custkey#0L], LeftOuter, BuildRight
+                           :- *FileScan parquet default.customer[c_custkey#0L] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>, ReadSchema: struct<c_custkey:bigint>
+                           +- BroadcastExchange HashedRelationBroadcastMode(List(input[1, bigint, true]))
+                              +- *Project [o_custkey#0L, o_orderkey#0L]
+                                 +- *Filter (NOT o_comment#0 LIKE %special%requests% && isnotnull(o_comment#0))
+                                    +- *FileScan parquet default.orders[o_orderkey#0L,o_custkey#0L,o_comment#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,o_comment:string>

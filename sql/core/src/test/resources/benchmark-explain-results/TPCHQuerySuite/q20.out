@@ -1,0 +1,34 @@
+*Sort [s_name#0 ASC NULLS FIRST], true, 0
++- Exchange rangepartitioning(s_name#0 ASC NULLS FIRST, 5)
+   +- *Project [s_address#0, s_name#0]
+      +- *BroadcastHashJoin [s_nationkey#0L], [n_nationkey#0L], Inner, BuildRight
+         :- *Project [s_address#0, s_name#0, s_nationkey#0L]
+         :  +- *BroadcastHashJoin [s_suppkey#0L], [ps_suppkey#0L], LeftSemi, BuildRight
+         :     :- *Project [s_address#0, s_name#0, s_suppkey#0L, s_nationkey#0L]
+         :     :  +- *Filter isnotnull(s_nationkey#0L)
+         :     :     +- *FileScan parquet default.supplier[s_suppkey#0L,s_name#0,s_address#0,s_nationkey#0L] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,s_nationkey:bigint>
+         :     +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+         :        +- *Project [ps_suppkey#0L]
+         :           +- *BroadcastHashJoin [ps_partkey#0L, ps_suppkey#0L], [l_partkey#0L, l_suppkey#0L], Inner, BuildRight, (cast(cast(ps_availqty#0 as decimal(10,0)) as decimal(22,1)) > (CAST(0.5 AS DECIMAL(21,1)) * CAST(sum(l_quantity) AS DECIMAL(21,1)))#0)
+         :              :- *BroadcastHashJoin [ps_partkey#0L], [p_partkey#0L], LeftSemi, BuildRight
+         :              :  :- *Project [ps_availqty#0, ps_partkey#0L, ps_suppkey#0L]
+         :              :  :  +- *Filter ((isnotnull(ps_availqty#0) && isnotnull(ps_suppkey#0L)) && isnotnull(ps_partkey#0L))
+         :              :  :     +- *FileScan parquet default.partsupp[ps_partkey#0L,ps_suppkey#0L,ps_availqty#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ps_availqty:int>
+         :              :  +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+         :              :     +- *Project [p_partkey#0L]
+         :              :        +- *Filter (isnotnull(p_name#0) && StartsWith(p_name#0, forest))
+         :              :           +- *FileScan parquet default.part[p_partkey#0L,p_name#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,p_name:string>
+         :              +- BroadcastExchange HashedRelationBroadcastMode(ArrayBuffer(input[1, bigint, true], input[2, bigint, true]))
+         :                 +- *Filter isnotnull((CAST(0.5 AS DECIMAL(21,1)) * CAST(sum(l_quantity) AS DECIMAL(21,1)))#0)
+         :                    +- *HashAggregate(keys=[l_partkey#0L, l_suppkey#0L], functions=[sum(l_quantity#0)])
+         :                       +- Exchange hashpartitioning(l_partkey#0L, l_suppkey#0L, 5)
+         :                          +- *HashAggregate(keys=[l_partkey#0L, l_suppkey#0L], functions=[partial_sum(l_quantity#0)])
+         :                             +- *BroadcastHashJoin [l_partkey#0L], [p_partkey#0L], LeftSemi, BuildRight
+         :                                :- *Project [l_partkey#0L, l_quantity#0, l_suppkey#0L]
+         :                                :  +- *Filter (((((l_shipdate#0 < 9131) && isnotnull(l_shipdate#0)) && isnotnull(l_partkey#0L)) && isnotnull(l_suppkey#0L)) && (l_shipdate#0 >= 8766))
+         :                                :     +- *FileScan parquet default.lineitem[l_partkey#0L,l_suppkey#0L,l_quantity#0,l_shipdate#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,l_shipdate:date>
+         :                                +- ReusedExchange [p_partkey#0L], BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+         +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+            +- *Project [n_nationkey#0L]
+               +- *Filter ((isnotnull(n_name#0) && isnotnull(n_nationkey#0L)) && (n_name#0 = CANADA))
+                  +- *FileScan parquet default.nation[n_nationkey#0L,n_name#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,n_name:string>

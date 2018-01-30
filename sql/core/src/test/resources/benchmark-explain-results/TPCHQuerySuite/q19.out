@@ -1,0 +1,12 @@
+*HashAggregate(keys=[], functions=[sum(CheckOverflow((promote_precision(cast(l_extendedprice#0 as decimal(11,0))) * promote_precision(CheckOverflow((1 - promote_precision(cast(l_discount#0 as decimal(11,0)))), DecimalType(11,0)))), DecimalType(22,0)))])
++- Exchange SinglePartition
+   +- *HashAggregate(keys=[], functions=[partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#0 as decimal(11,0))) * promote_precision(CheckOverflow((1 - promote_precision(cast(l_discount#0 as decimal(11,0)))), DecimalType(11,0)))), DecimalType(22,0)))])
+      +- *Project [l_discount#0, l_extendedprice#0]
+         +- *BroadcastHashJoin [l_partkey#0L], [p_partkey#0L], Inner, BuildRight, (((((((p_brand#0 = Brand#12) && p_container#0 IN (SM CASE,SM BOX,SM PACK,SM PKG)) && (l_quantity#0 >= 1)) && (l_quantity#0 <= 11)) && (p_size#0 <= 5)) || (((((p_brand#0 = Brand#23) && p_container#0 IN (MED BAG,MED BOX,MED PKG,MED PACK)) && (l_quantity#0 >= 10)) && (l_quantity#0 <= 20)) && (p_size#0 <= 10))) || (((((p_brand#0 = Brand#34) && p_container#0 IN (LG CASE,LG BOX,LG PACK,LG PKG)) && (l_quantity#0 >= 20)) && (l_quantity#0 <= 30)) && (p_size#0 <= 15)))
+            :- *Project [l_partkey#0L, l_quantity#0, l_discount#0, l_extendedprice#0]
+            :  +- *Filter (((isnotnull(l_partkey#0L) && (DELIVER IN PERSON = l_shipinstruct#0)) && isnotnull(l_shipinstruct#0)) && l_shipmode#0 IN (AIR,AIR REG))
+            :     +- *FileScan parquet default.lineitem[l_partkey#0L,l_quantity#0,l_extendedprice#0,l_discount#0,l_shipinstruct#0,l_shipmode#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,l_discount:decimal...
+            +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+               +- *Project [p_size#0, p_brand#0, p_container#0, p_partkey#0L]
+                  +- *Filter (((p_size#0 >= 1) && isnotnull(p_size#0)) && isnotnull(p_partkey#0L))
+                     +- *FileScan parquet default.part[p_partkey#0L,p_brand#0,p_size#0,p_container#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,p_container:string>

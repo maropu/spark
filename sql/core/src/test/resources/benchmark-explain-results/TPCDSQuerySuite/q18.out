@@ -1,0 +1,44 @@
+TakeOrderedAndProject(limit=100, orderBy=[ca_country#0 ASC NULLS FIRST,ca_state#0 ASC NULLS FIRST,ca_county#0 ASC NULLS FIRST,i_item_id#0 ASC NULLS FIRST], output=[i_item_id#0,ca_country#0,ca_state#0,ca_county#0,agg1#0,agg2#0,agg3#0,agg4#0,agg5#0,agg6#0,agg7#0])
++- *HashAggregate(keys=[i_item_id#0, ca_country#0, ca_state#0, ca_county#0, spark_grouping_id#0], functions=[avg(cast(cs_quantity#0 as decimal(12,2))), avg(cast(cs_list_price#0 as decimal(12,2))), avg(cast(cs_coupon_amt#0 as decimal(12,2))), avg(cast(cs_sales_price#0 as decimal(12,2))), avg(cast(cs_net_profit#0 as decimal(12,2))), avg(cast(c_birth_year#0 as decimal(12,2))), avg(cast(cd_dep_count#0 as decimal(12,2)))])
+   +- Exchange hashpartitioning(i_item_id#0, ca_country#0, ca_state#0, ca_county#0, spark_grouping_id#0, 5)
+      +- *HashAggregate(keys=[i_item_id#0, ca_country#0, ca_state#0, ca_county#0, spark_grouping_id#0], functions=[partial_avg(cast(cs_quantity#0 as decimal(12,2))), partial_avg(cast(cs_list_price#0 as decimal(12,2))), partial_avg(cast(cs_coupon_amt#0 as decimal(12,2))), partial_avg(cast(cs_sales_price#0 as decimal(12,2))), partial_avg(cast(cs_net_profit#0 as decimal(12,2))), partial_avg(cast(c_birth_year#0 as decimal(12,2))), partial_avg(cast(cd_dep_count#0 as decimal(12,2)))])
+         +- *Expand [List(cs_quantity#0, cs_list_price#0, cs_sales_price#0, cs_coupon_amt#0, cs_net_profit#0, cd_dep_count#0, c_birth_year#0, i_item_id#0, ca_country#0, ca_state#0, ca_county#0, 0), List(cs_quantity#0, cs_list_price#0, cs_sales_price#0, cs_coupon_amt#0, cs_net_profit#0, cd_dep_count#0, c_birth_year#0, i_item_id#0, ca_country#0, ca_state#0, null, 1), List(cs_quantity#0, cs_list_price#0, cs_sales_price#0, cs_coupon_amt#0, cs_net_profit#0, cd_dep_count#0, c_birth_year#0, i_item_id#0, ca_country#0, null, null, 3), List(cs_quantity#0, cs_list_price#0, cs_sales_price#0, cs_coupon_amt#0, cs_net_profit#0, cd_dep_count#0, c_birth_year#0, i_item_id#0, null, null, null, 7), List(cs_quantity#0, cs_list_price#0, cs_sales_price#0, cs_coupon_amt#0, cs_net_profit#0, cd_dep_count#0, c_birth_year#0, null, null, null, null, 15)], [cs_quantity#0, cs_list_price#0, cs_sales_price#0, cs_coupon_amt#0, cs_net_profit#0, cd_dep_count#0, c_birth_year#0, i_item_id#0, ca_country#0, ca_state#0, ca_county#0, spark_grouping_id#0]
+            +- *Project [cs_coupon_amt#0, cs_sales_price#0, ca_county#0, cs_net_profit#0, ca_state#0, c_birth_year#0, cs_list_price#0, cd_dep_count#0, cs_quantity#0, i_item_id#0, ca_country#0]
+               +- *BroadcastHashJoin [cs_item_sk#0], [i_item_sk#0], Inner, BuildRight
+                  :- *Project [cs_quantity#0, cd_dep_count#0, ca_country#0, cs_coupon_amt#0, cs_sales_price#0, cs_net_profit#0, ca_county#0, c_birth_year#0, cs_item_sk#0, ca_state#0, cs_list_price#0]
+                  :  +- *BroadcastHashJoin [cs_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+                  :     :- *Project [cs_quantity#0, cd_dep_count#0, ca_country#0, cs_coupon_amt#0, cs_sales_price#0, cs_net_profit#0, ca_county#0, c_birth_year#0, cs_sold_date_sk#0, cs_item_sk#0, ca_state#0, cs_list_price#0]
+                  :     :  +- *BroadcastHashJoin [c_current_addr_sk#0], [ca_address_sk#0], Inner, BuildRight
+                  :     :     :- *Project [c_current_addr_sk#0, cs_quantity#0, cd_dep_count#0, cs_coupon_amt#0, cs_sales_price#0, cs_net_profit#0, c_birth_year#0, cs_sold_date_sk#0, cs_item_sk#0, cs_list_price#0]
+                  :     :     :  +- *BroadcastHashJoin [c_current_cdemo_sk#0], [cd_demo_sk#0], Inner, BuildRight
+                  :     :     :     :- *Project [c_current_addr_sk#0, cs_quantity#0, cd_dep_count#0, c_current_cdemo_sk#0, cs_coupon_amt#0, cs_sales_price#0, cs_net_profit#0, c_birth_year#0, cs_sold_date_sk#0, cs_item_sk#0, cs_list_price#0]
+                  :     :     :     :  +- *BroadcastHashJoin [cs_bill_customer_sk#0], [c_customer_sk#0], Inner, BuildRight
+                  :     :     :     :     :- *Project [cs_quantity#0, cd_dep_count#0, cs_coupon_amt#0, cs_sales_price#0, cs_net_profit#0, cs_bill_customer_sk#0, cs_sold_date_sk#0, cs_item_sk#0, cs_list_price#0]
+                  :     :     :     :     :  +- *BroadcastHashJoin [cs_bill_cdemo_sk#0], [cd_demo_sk#0], Inner, BuildRight
+                  :     :     :     :     :     :- *Project [cs_quantity#0, cs_bill_cdemo_sk#0, cs_coupon_amt#0, cs_sales_price#0, cs_net_profit#0, cs_bill_customer_sk#0, cs_sold_date_sk#0, cs_item_sk#0, cs_list_price#0]
+                  :     :     :     :     :     :  +- *Filter (((isnotnull(cs_bill_cdemo_sk#0) && isnotnull(cs_sold_date_sk#0)) && isnotnull(cs_bill_customer_sk#0)) && isnotnull(cs_item_sk#0))
+                  :     :     :     :     :     :     +- *FileScan parquet default.catalog_sales[cs_sold_date_sk#0,cs_bill_customer_sk#0,cs_bill_cdemo_sk#0,cs_item_sk#0,cs_quantity#0,cs_list_price#0,cs_sales_price#0,cs_coupon_amt#0,cs_net_profit#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,cs_quantit...
+                  :     :     :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  :     :     :     :     :        +- *Project [cd_dep_count#0, cd_demo_sk#0]
+                  :     :     :     :     :           +- *Filter ((((isnotnull(cd_gender#0) && isnotnull(cd_education_status#0)) && isnotnull(cd_demo_sk#0)) && (Unknown = cd_education_status#0)) && (F = cd_gender#0))
+                  :     :     :     :     :              +- *FileScan parquet default.customer_demographics[cd_demo_sk#0,cd_gender#0,cd_education_status#0,cd_dep_count#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,cd_dep_count:int>
+                  :     :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  :     :     :     :        +- *Project [c_current_addr_sk#0, c_customer_sk#0, c_current_cdemo_sk#0, c_birth_year#0]
+                  :     :     :     :           +- *Filter (((isnotnull(c_current_addr_sk#0) && c_birth_month#0 IN (1,6,8,9,12,2)) && isnotnull(c_customer_sk#0)) && isnotnull(c_current_cdemo_sk#0))
+                  :     :     :     :              +- *FileScan parquet default.customer[c_customer_sk#0,c_current_cdemo_sk#0,c_current_addr_sk#0,c_birth_month#0,c_birth_year#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,c_birth_y...
+                  :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  :     :     :        +- *Project [cd_demo_sk#0]
+                  :     :     :           +- *Filter isnotnull(cd_demo_sk#0)
+                  :     :     :              +- *FileScan parquet default.customer_demographics[cd_demo_sk#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>, ReadSchema: struct<cd_demo_sk:int>
+                  :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  :     :        +- *Project [ca_address_sk#0, ca_country#0, ca_county#0, ca_state#0]
+                  :     :           +- *Filter (isnotnull(ca_address_sk#0) && ca_state#0 IN (MS,IN,ND,OK,NM,VA))
+                  :     :              +- *FileScan parquet default.customer_address[ca_address_sk#0,ca_county#0,ca_state#0,ca_country#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ca_country:string>
+                  :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  :        +- *Project [d_date_sk#0]
+                  :           +- *Filter ((isnotnull(d_date_sk#0) && isnotnull(d_year#0)) && (1998 = d_year#0))
+                  :              +- *FileScan parquet default.date_dim[d_date_sk#0,d_year#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_year:int>
+                  +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                     +- *Project [i_item_sk#0, i_item_id#0]
+                        +- *Filter isnotnull(i_item_sk#0)
+                           +- *FileScan parquet default.item[i_item_sk#0,i_item_id#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,i_item_id:string>

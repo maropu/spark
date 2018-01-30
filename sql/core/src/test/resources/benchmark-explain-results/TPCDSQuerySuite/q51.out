@@ -1,0 +1,40 @@
+TakeOrderedAndProject(limit=100, orderBy=[item_sk#0 ASC NULLS FIRST,d_date#0 ASC NULLS FIRST], output=[item_sk#0,d_date#0,web_sales#0,store_sales#0,web_cumulative#0,store_cumulative#0])
++- *Filter (((web_cumulative#0 > store_cumulative#0) && isnotnull(store_cumulative#0)) && isnotnull(web_cumulative#0))
+   +- Window [max(web_sales#0) windowspecdefinition(item_sk#0, d_date#0 ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS none#0, max(store_sales#0) windowspecdefinition(item_sk#0, d_date#0 ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS none#0], [item_sk#0], [d_date#0 ASC NULLS FIRST]
+      +- *Sort [item_sk#0 ASC NULLS FIRST, d_date#0 ASC NULLS FIRST], false, 0
+         +- Exchange hashpartitioning(item_sk#0, 5)
+            +- *Project [cume_sales#0 AS none#0, cume_sales#0 AS none#0, CASE WHEN isnotnull(d_date#0) THEN d_date#0 ELSE d_date#0 END AS none#0, CASE WHEN isnotnull(item_sk#0) THEN item_sk#0 ELSE item_sk#0 END AS none#0]
+               +- SortMergeJoin [item_sk#0, d_date#0], [item_sk#0, d_date#0], FullOuter
+                  :- *Sort [item_sk#0 ASC NULLS FIRST, d_date#0 ASC NULLS FIRST], false, 0
+                  :  +- Exchange hashpartitioning(item_sk#0, d_date#0, 5)
+                  :     +- *Project [item_sk#0, cume_sales#0, d_date#0]
+                  :        +- Window [sum(_w0#0) windowspecdefinition(ws_item_sk#0, d_date#0 ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS none#0], [ws_item_sk#0], [d_date#0 ASC NULLS FIRST]
+                  :           +- *Sort [ws_item_sk#0 ASC NULLS FIRST, d_date#0 ASC NULLS FIRST], false, 0
+                  :              +- Exchange hashpartitioning(ws_item_sk#0, 5)
+                  :                 +- *HashAggregate(keys=[ws_item_sk#0, d_date#0], functions=[sum(UnscaledValue(ws_sales_price#0))])
+                  :                    +- Exchange hashpartitioning(ws_item_sk#0, d_date#0, 5)
+                  :                       +- *HashAggregate(keys=[ws_item_sk#0, d_date#0], functions=[partial_sum(UnscaledValue(ws_sales_price#0))])
+                  :                          +- *Project [d_date#0, ws_item_sk#0, ws_sales_price#0]
+                  :                             +- *BroadcastHashJoin [ws_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+                  :                                :- *Project [ws_item_sk#0, ws_sold_date_sk#0, ws_sales_price#0]
+                  :                                :  +- *Filter (isnotnull(ws_item_sk#0) && isnotnull(ws_sold_date_sk#0))
+                  :                                :     +- *FileScan parquet default.web_sales[ws_sold_date_sk#0,ws_item_sk#0,ws_sales_price#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+                  :                                +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  :                                   +- *Project [d_date_sk#0, d_date#0]
+                  :                                      +- *Filter (((isnotnull(d_date_sk#0) && (1211 >= d_month_seq#0)) && isnotnull(d_month_seq#0)) && (1200 <= d_month_seq#0))
+                  :                                         +- *FileScan parquet default.date_dim[d_date_sk#0,d_date#0,d_month_seq#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_month_seq:int>
+                  +- *Sort [item_sk#0 ASC NULLS FIRST, d_date#0 ASC NULLS FIRST], false, 0
+                     +- Exchange hashpartitioning(item_sk#0, d_date#0, 5)
+                        +- *Project [item_sk#0, cume_sales#0, d_date#0]
+                           +- Window [sum(_w0#0) windowspecdefinition(ss_item_sk#0, d_date#0 ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS none#0], [ss_item_sk#0], [d_date#0 ASC NULLS FIRST]
+                              +- *Sort [ss_item_sk#0 ASC NULLS FIRST, d_date#0 ASC NULLS FIRST], false, 0
+                                 +- Exchange hashpartitioning(ss_item_sk#0, 5)
+                                    +- *HashAggregate(keys=[ss_item_sk#0, d_date#0], functions=[sum(UnscaledValue(ss_sales_price#0))])
+                                       +- Exchange hashpartitioning(ss_item_sk#0, d_date#0, 5)
+                                          +- *HashAggregate(keys=[ss_item_sk#0, d_date#0], functions=[partial_sum(UnscaledValue(ss_sales_price#0))])
+                                             +- *Project [ss_sales_price#0, d_date#0, ss_item_sk#0]
+                                                +- *BroadcastHashJoin [ss_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+                                                   :- *Project [ss_sales_price#0, ss_item_sk#0, ss_sold_date_sk#0]
+                                                   :  +- *Filter (isnotnull(ss_item_sk#0) && isnotnull(ss_sold_date_sk#0))
+                                                   :     +- *FileScan parquet default.store_sales[ss_sold_date_sk#0,ss_item_sk#0,ss_sales_price#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+                                                   +- ReusedExchange [d_date_sk#0, d_date#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))

@@ -1,0 +1,18 @@
+TakeOrderedAndProject(limit=100, orderBy=[i_product_name#0 ASC NULLS FIRST], output=[i_product_name#0])
++- *HashAggregate(keys=[i_product_name#0], functions=[])
+   +- Exchange hashpartitioning(i_product_name#0, 5)
+      +- *HashAggregate(keys=[i_product_name#0], functions=[])
+         +- *Project [i_product_name#0]
+            +- *BroadcastHashJoin [i_manufact#0], [i_manufact#0#0], Inner, BuildRight
+               :- *Project [i_product_name#0, i_manufact#0]
+               :  +- *Filter (((isnotnull(i_manufact_id#0) && (738 <= i_manufact_id#0)) && isnotnull(i_manufact#0)) && (778 >= i_manufact_id#0))
+               :     +- *FileScan parquet default.item[i_manufact_id#0,i_manufact#0,i_product_name#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,i_product_name:string>
+               +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, true]))
+                  +- *Project [i_manufact#0#0]
+                     +- *Filter (if (isnull(alwaysTrue#0)) 0 else item_cnt#0L > 0)
+                        +- *HashAggregate(keys=[i_manufact#0], functions=[count(1)])
+                           +- Exchange hashpartitioning(i_manufact#0, 5)
+                              +- *HashAggregate(keys=[i_manufact#0], functions=[partial_count(1)])
+                                 +- *Project [i_manufact#0]
+                                    +- *Filter (isnotnull(i_manufact#0) && (((((i_category#0 = Men) && (((((i_size#0 = medium) || (i_size#0 = extra large)) && ((cornflower = i_color#0) || (i_color#0 = light))) && ((Pound = i_units#0) || (Box = i_units#0))) || ((((petite = i_size#0) || (i_size#0 = large)) && ((i_color#0 = floral) || (deep = i_color#0))) && ((Dozen = i_units#0) || (i_units#0 = N/A))))) || ((Women = i_category#0) && (((((i_size#0 = N/A) || (i_size#0 = small)) && ((i_units#0 = Dram) || (Cup = i_units#0))) && ((papaya = i_color#0) || (i_color#0 = cyan))) || ((((i_size#0 = medium) || (i_size#0 = extra large)) && ((snow = i_color#0) || (midnight = i_color#0))) && ((i_units#0 = Pallet) || (i_units#0 = Gross)))))) || ((Women = i_category#0) && (((((i_size#0 = medium) || (i_size#0 = extra large)) && ((i_units#0 = Oz) || (i_units#0 = Ounce))) && ((khaki = i_color#0) || (i_color#0 = powder))) || ((((i_size#0 = N/A) || (i_size#0 = small)) && ((Bunch = i_units#0) || (i_units#0 = Ton))) && ((i_color#0 = brown) || (i_color#0 = honeydew)))))) || ((i_category#0 = Men) && (((((i_size#0 = medium) || (i_size#0 = extra large)) && ((Lb = i_units#0) || (Bundle = i_units#0))) && ((i_color#0 = forest) || (ghost = i_color#0))) || ((((petite = i_size#0) || (i_size#0 = large)) && ((Tbl = i_units#0) || (Each = i_units#0))) && ((orange = i_color#0) || (i_color#0 = frosted)))))))
+                                       +- *FileScan parquet default.item[i_category#0,i_manufact#0,i_size#0,i_color#0,i_units#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,i_units:string>

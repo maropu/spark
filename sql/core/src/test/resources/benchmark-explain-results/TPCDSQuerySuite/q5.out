@@ -1,0 +1,75 @@
+TakeOrderedAndProject(limit=100, orderBy=[channel#0 ASC NULLS FIRST,id#0 ASC NULLS FIRST], output=[channel#0,id#0,sales#0,returns#0,profit#0])
++- *HashAggregate(keys=[channel#0, id#0, spark_grouping_id#0], functions=[sum(sales#0), sum(returns#0), sum(profit#0)])
+   +- Exchange hashpartitioning(channel#0, id#0, spark_grouping_id#0, 5)
+      +- *HashAggregate(keys=[channel#0, id#0, spark_grouping_id#0], functions=[partial_sum(sales#0), partial_sum(returns#0), partial_sum(profit#0)])
+         +- *Expand [List(sales#0, returns#0, profit#0, channel#0, id#0, 0), List(sales#0, returns#0, profit#0, channel#0, null, 1), List(sales#0, returns#0, profit#0, null, null, 3)], [sales#0, returns#0, profit#0, channel#0, id#0, spark_grouping_id#0]
+            +- Union
+               :- *HashAggregate(keys=[s_store_id#0], functions=[sum(UnscaledValue(sales_price#0)), sum(UnscaledValue(return_amt#0)), sum(UnscaledValue(profit#0)), sum(UnscaledValue(net_loss#0))])
+               :  +- Exchange hashpartitioning(s_store_id#0, 5)
+               :     +- *HashAggregate(keys=[s_store_id#0], functions=[partial_sum(UnscaledValue(sales_price#0)), partial_sum(UnscaledValue(return_amt#0)), partial_sum(UnscaledValue(profit#0)), partial_sum(UnscaledValue(net_loss#0))])
+               :        +- *Project [profit#0, return_amt#0, s_store_id#0, net_loss#0, sales_price#0]
+               :           +- *BroadcastHashJoin [store_sk#0L], [cast(s_store_sk#0 as bigint)], Inner, BuildRight
+               :              :- *Project [profit#0, return_amt#0, net_loss#0, store_sk#0L, sales_price#0]
+               :              :  +- *BroadcastHashJoin [date_sk#0L], [cast(d_date_sk#0 as bigint)], Inner, BuildRight
+               :              :     :- Union
+               :              :     :  :- *Project [ss_ext_sales_price#0 AS none#0, ss_net_profit#0 AS none#0, cast(ss_sold_date_sk#0 as bigint) AS none#0L, cast(ss_store_sk#0 as bigint) AS none#0L, 0.00 AS none#0, 0.00 AS none#0]
+               :              :     :  :  +- *Filter (isnotnull(cast(ss_sold_date_sk#0 as bigint)) && isnotnull(cast(ss_store_sk#0 as bigint)))
+               :              :     :  :     +- *FileScan parquet default.store_sales[ss_sold_date_sk#0,ss_store_sk#0,ss_ext_sales_price#0,ss_net_profit#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ss_net_profit:decimal(...
+               :              :     :  +- *Project [sr_net_loss#0 AS none#0, sr_returned_date_sk#0L AS none#0L, sr_store_sk#0L AS none#0L, sr_return_amt#0 AS none#0, 0.00 AS none#0, 0.00 AS none#0]
+               :              :     :     +- *Filter (isnotnull(sr_returned_date_sk#0L) && isnotnull(sr_store_sk#0L))
+               :              :     :        +- *FileScan parquet default.store_returns[sr_returned_date_sk#0L,sr_store_sk#0L,sr_return_amt#0,sr_net_loss#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,sr_net_loss:decim...
+               :              :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :              :        +- *Project [d_date_sk#0]
+               :              :           +- *Filter ((((2000-09-06 >= d_date#0) && isnotnull(d_date_sk#0)) && isnotnull(d_date#0)) && (2000-08-23 <= d_date#0))
+               :              :              +- *FileScan parquet default.date_dim[d_date_sk#0,d_date#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_date:string>
+               :              +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :                 +- *Project [s_store_id#0, s_store_sk#0]
+               :                    +- *Filter isnotnull(s_store_sk#0)
+               :                       +- *FileScan parquet default.store[s_store_sk#0,s_store_id#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,s_store_id:string>
+               :- *HashAggregate(keys=[cp_catalog_page_id#0], functions=[sum(UnscaledValue(sales_price#0)), sum(UnscaledValue(return_amt#0)), sum(UnscaledValue(profit#0)), sum(UnscaledValue(net_loss#0))])
+               :  +- Exchange hashpartitioning(cp_catalog_page_id#0, 5)
+               :     +- *HashAggregate(keys=[cp_catalog_page_id#0], functions=[partial_sum(UnscaledValue(sales_price#0)), partial_sum(UnscaledValue(return_amt#0)), partial_sum(UnscaledValue(profit#0)), partial_sum(UnscaledValue(net_loss#0))])
+               :        +- *Project [profit#0, return_amt#0, cp_catalog_page_id#0, net_loss#0, sales_price#0]
+               :           +- *BroadcastHashJoin [page_sk#0], [cp_catalog_page_sk#0], Inner, BuildRight
+               :              :- *Project [profit#0, return_amt#0, net_loss#0, page_sk#0, sales_price#0]
+               :              :  +- *BroadcastHashJoin [date_sk#0], [d_date_sk#0], Inner, BuildRight
+               :              :     :- Union
+               :              :     :  :- *Project [cs_sold_date_sk#0 AS none#0, cs_ext_sales_price#0 AS none#0, cs_catalog_page_sk#0 AS none#0, cs_net_profit#0 AS none#0, 0.00 AS none#0, 0.00 AS none#0]
+               :              :     :  :  +- *Filter (isnotnull(cs_sold_date_sk#0) && isnotnull(cs_catalog_page_sk#0))
+               :              :     :  :     +- *FileScan parquet default.catalog_sales[cs_sold_date_sk#0,cs_catalog_page_sk#0,cs_ext_sales_price#0,cs_net_profit#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,cs_net_profit:d...
+               :              :     :  +- *Project [cr_catalog_page_sk#0 AS none#0, cr_return_amount#0 AS none#0, cr_net_loss#0 AS none#0, cr_returned_date_sk#0 AS none#0, 0.00 AS none#0, 0.00 AS none#0]
+               :              :     :     +- *Filter (isnotnull(cr_catalog_page_sk#0) && isnotnull(cr_returned_date_sk#0))
+               :              :     :        +- *FileScan parquet default.catalog_returns[cr_returned_date_sk#0,cr_catalog_page_sk#0,cr_return_amount#0,cr_net_loss#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,cr_net_loss:d...
+               :              :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :              :        +- *Project [d_date_sk#0]
+               :              :           +- *Filter ((((2000-09-06 >= d_date#0) && isnotnull(d_date_sk#0)) && isnotnull(d_date#0)) && (2000-08-23 <= d_date#0))
+               :              :              +- *FileScan parquet default.date_dim[d_date_sk#0,d_date#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_date:string>
+               :              +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :                 +- *Project [cp_catalog_page_sk#0, cp_catalog_page_id#0]
+               :                    +- *Filter isnotnull(cp_catalog_page_sk#0)
+               :                       +- *FileScan parquet default.catalog_page[cp_catalog_page_sk#0,cp_catalog_page_id#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,cp_catalog_page_id:string>
+               +- *HashAggregate(keys=[web_site_id#0], functions=[sum(UnscaledValue(sales_price#0)), sum(UnscaledValue(return_amt#0)), sum(UnscaledValue(profit#0)), sum(UnscaledValue(net_loss#0))])
+                  +- Exchange hashpartitioning(web_site_id#0, 5)
+                     +- *HashAggregate(keys=[web_site_id#0], functions=[partial_sum(UnscaledValue(sales_price#0)), partial_sum(UnscaledValue(return_amt#0)), partial_sum(UnscaledValue(profit#0)), partial_sum(UnscaledValue(net_loss#0))])
+                        +- *Project [profit#0, return_amt#0, web_site_id#0, net_loss#0, sales_price#0]
+                           +- *BroadcastHashJoin [wsr_web_site_sk#0], [web_site_sk#0], Inner, BuildRight
+                              :- *Project [profit#0, return_amt#0, wsr_web_site_sk#0, net_loss#0, sales_price#0]
+                              :  +- *BroadcastHashJoin [date_sk#0L], [cast(d_date_sk#0 as bigint)], Inner, BuildRight
+                              :     :- Union
+                              :     :  :- *Project [cast(ws_sold_date_sk#0 as bigint) AS none#0L, ws_net_profit#0 AS none#0, ws_web_site_sk#0 AS none#0, ws_ext_sales_price#0 AS none#0, 0.00 AS none#0, 0.00 AS none#0]
+                              :     :  :  +- *Filter (isnotnull(ws_web_site_sk#0) && isnotnull(cast(ws_sold_date_sk#0 as bigint)))
+                              :     :  :     +- *FileScan parquet default.web_sales[ws_sold_date_sk#0,ws_web_site_sk#0,ws_ext_sales_price#0,ws_net_profit#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ws_net_profit:decim...
+                              :     :  +- *Project [ws_web_site_sk#0 AS none#0, wr_net_loss#0 AS none#0, wr_return_amt#0 AS none#0, wr_returned_date_sk#0L AS none#0L, 0.00 AS none#0, 0.00 AS none#0]
+                              :     :     +- *BroadcastHashJoin [wr_item_sk#0L, wr_order_number#0L], [cast(ws_item_sk#0 as bigint), cast(ws_order_number#0 as bigint)], Inner, BuildRight
+                              :     :        :- *Project [wr_returned_date_sk#0L, wr_item_sk#0L, wr_order_number#0L, wr_return_amt#0, wr_net_loss#0]
+                              :     :        :  +- *Filter isnotnull(wr_returned_date_sk#0L)
+                              :     :        :     +- *FileScan parquet default.web_returns[wr_returned_date_sk#0L,wr_item_sk#0L,wr_order_number#0L,wr_return_amt#0,wr_net_loss#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,wr_return_amt:decimal(...
+                              :     :        +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint), cast(input[2, int, true] as bigint)))
+                              :     :           +- *Project [ws_order_number#0, ws_item_sk#0, ws_web_site_sk#0]
+                              :     :              +- *Filter isnotnull(ws_web_site_sk#0)
+                              :     :                 +- *FileScan parquet default.web_sales[ws_item_sk#0,ws_web_site_sk#0,ws_order_number#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ws_order_number:int>
+                              :     +- ReusedExchange [d_date_sk#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                              +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                                 +- *Project [web_site_sk#0, web_site_id#0]
+                                    +- *Filter isnotnull(web_site_sk#0)
+                                       +- *FileScan parquet default.web_site[web_site_sk#0,web_site_id#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,web_site_id:string>

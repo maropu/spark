@@ -1,0 +1,34 @@
+TakeOrderedAndProject(limit=100, orderBy=[c_customer_id#0 ASC NULLS FIRST], output=[customer_id#0,customername#0])
++- *Project [concat(c_last_name#0, , , c_first_name#0) AS none#0, c_customer_id#0, c_customer_id#0 AS none#0]
+   +- *BroadcastHashJoin [cast(cd_demo_sk#0 as bigint)], [sr_cdemo_sk#0L], Inner, BuildRight
+      :- *Project [c_first_name#0, c_last_name#0, cd_demo_sk#0, c_customer_id#0]
+      :  +- *BroadcastHashJoin [hd_income_band_sk#0], [ib_income_band_sk#0], Inner, BuildRight
+      :     :- *Project [c_first_name#0, hd_income_band_sk#0, c_last_name#0, cd_demo_sk#0, c_customer_id#0]
+      :     :  +- *BroadcastHashJoin [c_current_hdemo_sk#0], [hd_demo_sk#0], Inner, BuildRight
+      :     :     :- *Project [c_current_hdemo_sk#0, c_first_name#0, c_last_name#0, cd_demo_sk#0, c_customer_id#0]
+      :     :     :  +- *BroadcastHashJoin [c_current_cdemo_sk#0], [cd_demo_sk#0], Inner, BuildRight
+      :     :     :     :- *Project [c_current_hdemo_sk#0, c_first_name#0, c_last_name#0, c_current_cdemo_sk#0, c_customer_id#0]
+      :     :     :     :  +- *BroadcastHashJoin [c_current_addr_sk#0], [ca_address_sk#0], Inner, BuildRight
+      :     :     :     :     :- *Project [c_current_addr_sk#0, c_current_hdemo_sk#0, c_first_name#0, c_last_name#0, c_current_cdemo_sk#0, c_customer_id#0]
+      :     :     :     :     :  +- *Filter ((isnotnull(c_current_addr_sk#0) && isnotnull(c_current_hdemo_sk#0)) && isnotnull(c_current_cdemo_sk#0))
+      :     :     :     :     :     +- *FileScan parquet default.customer[c_customer_id#0,c_current_cdemo_sk#0,c_current_hdemo_sk#0,c_current_addr_sk#0,c_first_name#0,c_last_name#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,c...
+      :     :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :     :     :     :        +- *Project [ca_address_sk#0]
+      :     :     :     :           +- *Filter ((isnotnull(ca_city#0) && isnotnull(ca_address_sk#0)) && (ca_city#0 = Edgewood))
+      :     :     :     :              +- *FileScan parquet default.customer_address[ca_address_sk#0,ca_city#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ca_city:string>
+      :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :     :     :        +- *Project [cd_demo_sk#0]
+      :     :     :           +- *Filter isnotnull(cd_demo_sk#0)
+      :     :     :              +- *FileScan parquet default.customer_demographics[cd_demo_sk#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>, ReadSchema: struct<cd_demo_sk:int>
+      :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :     :        +- *Project [hd_income_band_sk#0, hd_demo_sk#0]
+      :     :           +- *Filter (isnotnull(hd_income_band_sk#0) && isnotnull(hd_demo_sk#0))
+      :     :              +- *FileScan parquet default.household_demographics[hd_demo_sk#0,hd_income_band_sk#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,hd_income_band_sk:int>
+      :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :        +- *Project [ib_income_band_sk#0]
+      :           +- *Filter (((((38128 <= ib_lower_bound#0) && isnotnull(ib_upper_bound#0)) && isnotnull(ib_lower_bound#0)) && (ib_upper_bound#0 <= 88128)) && isnotnull(ib_income_band_sk#0))
+      :              +- *FileScan parquet default.income_band[ib_income_band_sk#0,ib_lower_bound#0,ib_upper_bound#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ib_upper_bound:int>
+      +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+         +- *Project [sr_cdemo_sk#0L]
+            +- *Filter isnotnull(sr_cdemo_sk#0L)
+               +- *FileScan parquet default.store_returns[sr_cdemo_sk#0L] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>, ReadSchema: struct<sr_cdemo_sk:bigint>

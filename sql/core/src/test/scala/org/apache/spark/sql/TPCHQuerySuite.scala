@@ -101,7 +101,9 @@ class TPCHQuerySuite extends BenchmarkQueryTest {
       classLoader = Thread.currentThread().getContextClassLoader)
     test(name) {
       // check the plans can be properly generated
-      val plan = sql(queryString).queryExecution.executedPlan
+      val df = sql(queryString)
+      val plan = df.queryExecution.executedPlan
+      checkExplainResults(df, name)
       checkGeneratedCode(plan)
     }
   }

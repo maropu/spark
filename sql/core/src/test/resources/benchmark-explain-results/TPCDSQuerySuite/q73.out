@@ -1,0 +1,33 @@
+*Sort [cnt#0L DESC NULLS LAST], true, 0
++- Exchange rangepartitioning(cnt#0L DESC NULLS LAST, 5)
+   +- *Project [c_last_name#0, ss_ticket_number#0, cnt#0L, c_preferred_cust_flag#0, c_salutation#0, c_first_name#0]
+      +- *BroadcastHashJoin [ss_customer_sk#0], [c_customer_sk#0], Inner, BuildRight
+         :- *Filter ((cnt#0L >= 1) && (cnt#0L <= 5))
+         :  +- *HashAggregate(keys=[ss_ticket_number#0, ss_customer_sk#0], functions=[count(1)])
+         :     +- Exchange hashpartitioning(ss_ticket_number#0, ss_customer_sk#0, 5)
+         :        +- *HashAggregate(keys=[ss_ticket_number#0, ss_customer_sk#0], functions=[partial_count(1)])
+         :           +- *Project [ss_ticket_number#0, ss_customer_sk#0]
+         :              +- *BroadcastHashJoin [ss_hdemo_sk#0], [hd_demo_sk#0], Inner, BuildRight
+         :                 :- *Project [ss_hdemo_sk#0, ss_ticket_number#0, ss_customer_sk#0]
+         :                 :  +- *BroadcastHashJoin [ss_store_sk#0], [s_store_sk#0], Inner, BuildRight
+         :                 :     :- *Project [ss_hdemo_sk#0, ss_ticket_number#0, ss_store_sk#0, ss_customer_sk#0]
+         :                 :     :  +- *BroadcastHashJoin [ss_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+         :                 :     :     :- *Project [ss_hdemo_sk#0, ss_ticket_number#0, ss_store_sk#0, ss_sold_date_sk#0, ss_customer_sk#0]
+         :                 :     :     :  +- *Filter (((isnotnull(ss_hdemo_sk#0) && isnotnull(ss_store_sk#0)) && isnotnull(ss_customer_sk#0)) && isnotnull(ss_sold_date_sk#0))
+         :                 :     :     :     +- *FileScan parquet default.store_sales[ss_sold_date_sk#0,ss_customer_sk#0,ss_hdemo_sk#0,ss_store_sk#0,ss_ticket_number#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ss_ticket_number:int>
+         :                 :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+         :                 :     :        +- *Project [d_date_sk#0]
+         :                 :     :           +- *Filter ((((isnotnull(d_date_sk#0) && isnotnull(d_dom#0)) && (2 >= d_dom#0)) && (1 <= d_dom#0)) && d_year#0 IN (1999,2000,2001))
+         :                 :     :              +- *FileScan parquet default.date_dim[d_date_sk#0,d_year#0,d_dom#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_dom:int>
+         :                 :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+         :                 :        +- *Project [s_store_sk#0]
+         :                 :           +- *Filter (isnotnull(s_store_sk#0) && s_county#0 IN (Williamson County,Franklin Parish,Bronx County,Orange County))
+         :                 :              +- *FileScan parquet default.store[s_store_sk#0,s_county#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,s_county:string>
+         :                 +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+         :                    +- *Project [hd_demo_sk#0]
+         :                       +- *Filter (((((1.0 < CASE WHEN (0 < hd_vehicle_count#0) THEN (cast(hd_dep_count#0 as double) / cast(hd_vehicle_count#0 as double)) ELSE null END) && ((hd_buy_potential#0 = >10000) || (hd_buy_potential#0 = unknown))) && isnotnull(hd_vehicle_count#0)) && isnotnull(hd_demo_sk#0)) && (0 < hd_vehicle_count#0))
+         :                          +- *FileScan parquet default.household_demographics[hd_demo_sk#0,hd_buy_potential#0,hd_dep_count#0,hd_vehicle_count#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,hd_vehicle_count:int>
+         +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+            +- *Project [c_first_name#0, c_last_name#0, c_customer_sk#0, c_preferred_cust_flag#0, c_salutation#0]
+               +- *Filter isnotnull(c_customer_sk#0)
+                  +- *FileScan parquet default.customer[c_customer_sk#0,c_salutation#0,c_first_name#0,c_last_name#0,c_preferred_cust_flag#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,c_preferred_c...

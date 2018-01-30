@@ -1,0 +1,23 @@
+TakeOrderedAndProject(limit=100, orderBy=[i_category#0 ASC NULLS FIRST,i_class#0 ASC NULLS FIRST,i_item_id#0 ASC NULLS FIRST,i_item_desc#0 ASC NULLS FIRST,revenueratio#0 ASC NULLS FIRST], output=[i_item_desc#0,i_category#0,i_class#0,i_current_price#0,itemrevenue#0,revenueratio#0])
++- *Project [i_current_price#0, i_category#0, i_item_desc#0, i_class#0, itemrevenue#0, CheckOverflow((promote_precision(cast(CheckOverflow((promote_precision(_w0#0) * 100.00), DecimalType(21,2)) as decimal(27,2))) / promote_precision(_we0#0)), DecimalType(38,17)) AS none#0, i_item_id#0]
+   +- Window [sum(_w1#0) windowspecdefinition(i_class#0, specifiedwindowframe(RowFrame, unboundedpreceding$(), unboundedfollowing$())) AS none#0], [i_class#0]
+      +- *Sort [i_class#0 ASC NULLS FIRST], false, 0
+         +- Exchange hashpartitioning(i_class#0, 5)
+            +- *HashAggregate(keys=[i_item_id#0, i_item_desc#0, i_category#0, i_class#0, i_current_price#0], functions=[sum(UnscaledValue(ws_ext_sales_price#0))])
+               +- Exchange hashpartitioning(i_item_id#0, i_item_desc#0, i_category#0, i_class#0, i_current_price#0, 5)
+                  +- *HashAggregate(keys=[i_item_id#0, i_item_desc#0, i_category#0, i_class#0, i_current_price#0], functions=[partial_sum(UnscaledValue(ws_ext_sales_price#0))])
+                     +- *Project [i_item_desc#0, ws_ext_sales_price#0, i_class#0, i_item_id#0, i_current_price#0, i_category#0]
+                        +- *BroadcastHashJoin [ws_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+                           :- *Project [ws_sold_date_sk#0, i_item_desc#0, ws_ext_sales_price#0, i_class#0, i_item_id#0, i_current_price#0, i_category#0]
+                           :  +- *BroadcastHashJoin [ws_item_sk#0], [i_item_sk#0], Inner, BuildRight
+                           :     :- *Project [ws_item_sk#0, ws_sold_date_sk#0, ws_ext_sales_price#0]
+                           :     :  +- *Filter (isnotnull(ws_item_sk#0) && isnotnull(ws_sold_date_sk#0))
+                           :     :     +- *FileScan parquet default.web_sales[ws_sold_date_sk#0,ws_item_sk#0,ws_ext_sales_price#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+                           :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                           :        +- *Project [i_item_sk#0, i_item_desc#0, i_class#0, i_item_id#0, i_current_price#0, i_category#0]
+                           :           +- *Filter (isnotnull(i_item_sk#0) && i_category#0 IN (Sports,Books,Home))
+                           :              +- *FileScan parquet default.item[i_item_sk#0,i_item_id#0,i_item_desc#0,i_current_price#0,i_class#0,i_category#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,i_class:str...
+                           +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                              +- *Project [d_date_sk#0]
+                                 +- *Filter ((((1999-02-22 <= d_date#0) && isnotnull(d_date_sk#0)) && isnotnull(d_date#0)) && (1999-03-24 >= d_date#0))
+                                    +- *FileScan parquet default.date_dim[d_date_sk#0,d_date#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_date:string>

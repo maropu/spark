@@ -1,0 +1,49 @@
+TakeOrderedAndProject(limit=100, orderBy=[substring(r_reason_desc, 1, 20)#0 ASC NULLS FIRST,aggOrder#0 ASC NULLS FIRST,avg(wr_refunded_cash)#0 ASC NULLS FIRST,avg(wr_fee)#0 ASC NULLS FIRST], output=[substring(r_reason_desc, 1, 20)#0,avg(ws_quantity)#0,avg(wr_refunded_cash)#0,avg(wr_fee)#0])
++- *HashAggregate(keys=[r_reason_desc#0], functions=[avg(cast(ws_quantity#0 as bigint)), avg(UnscaledValue(wr_refunded_cash#0)), avg(UnscaledValue(wr_fee#0))])
+   +- Exchange hashpartitioning(r_reason_desc#0, 5)
+      +- *HashAggregate(keys=[r_reason_desc#0], functions=[partial_avg(cast(ws_quantity#0 as bigint)), partial_avg(UnscaledValue(wr_refunded_cash#0)), partial_avg(UnscaledValue(wr_fee#0))])
+         +- *Project [wr_refunded_cash#0, wr_fee#0, r_reason_desc#0, ws_quantity#0]
+            +- *BroadcastHashJoin [wr_reason_sk#0L], [cast(r_reason_sk#0 as bigint)], Inner, BuildRight
+               :- *Project [wr_refunded_cash#0, wr_fee#0, wr_reason_sk#0L, ws_quantity#0]
+               :  +- *BroadcastHashJoin [ws_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+               :     :- *Project [wr_refunded_cash#0, wr_fee#0, ws_sold_date_sk#0, wr_reason_sk#0L, ws_quantity#0]
+               :     :  +- *BroadcastHashJoin [wr_refunded_addr_sk#0L], [cast(ca_address_sk#0 as bigint)], Inner, BuildRight, ((((ca_state#0 IN (IN,OH,NJ) && (ws_net_profit#0 >= 100.00)) && (ws_net_profit#0 <= 200.00)) || ((ca_state#0 IN (WI,CT,KY) && (ws_net_profit#0 >= 150.00)) && (ws_net_profit#0 <= 300.00))) || ((ca_state#0 IN (LA,IA,AR) && (ws_net_profit#0 >= 50.00)) && (ws_net_profit#0 <= 250.00)))
+               :     :     :- *Project [wr_refunded_cash#0, wr_fee#0, ws_sold_date_sk#0, ws_net_profit#0, wr_refunded_addr_sk#0L, wr_reason_sk#0L, ws_quantity#0]
+               :     :     :  +- *BroadcastHashJoin [wr_returning_cdemo_sk#0L, cd_marital_status#0, cd_education_status#0], [cast(cd_demo_sk#0 as bigint), cd_marital_status#0, cd_education_status#0], Inner, BuildRight
+               :     :     :     :- *Project [wr_refunded_cash#0, cd_education_status#0, wr_fee#0, wr_returning_cdemo_sk#0L, ws_sold_date_sk#0, ws_net_profit#0, wr_refunded_addr_sk#0L, wr_reason_sk#0L, ws_quantity#0, cd_marital_status#0]
+               :     :     :     :  +- *BroadcastHashJoin [wr_refunded_cdemo_sk#0L], [cast(cd_demo_sk#0 as bigint)], Inner, BuildRight, ((((((cd_marital_status#0 = M) && (cd_education_status#0 = Advanced Degree)) && (ws_sales_price#0 >= 100.00)) && (ws_sales_price#0 <= 150.00)) || ((((cd_marital_status#0 = S) && (cd_education_status#0 = College)) && (ws_sales_price#0 >= 50.00)) && (ws_sales_price#0 <= 100.00))) || ((((cd_marital_status#0 = W) && (cd_education_status#0 = 2 yr Degree)) && (ws_sales_price#0 >= 150.00)) && (ws_sales_price#0 <= 200.00)))
+               :     :     :     :     :- *Project [wr_refunded_cash#0, wr_fee#0, wr_returning_cdemo_sk#0L, wr_refunded_cdemo_sk#0L, ws_sold_date_sk#0, ws_net_profit#0, wr_refunded_addr_sk#0L, wr_reason_sk#0L, ws_quantity#0, ws_sales_price#0]
+               :     :     :     :     :  +- *BroadcastHashJoin [ws_web_page_sk#0], [wp_web_page_sk#0], Inner, BuildRight
+               :     :     :     :     :     :- *Project [wr_refunded_cash#0, wr_fee#0, wr_returning_cdemo_sk#0L, wr_refunded_cdemo_sk#0L, ws_sold_date_sk#0, ws_net_profit#0, wr_refunded_addr_sk#0L, wr_reason_sk#0L, ws_quantity#0, ws_web_page_sk#0, ws_sales_price#0]
+               :     :     :     :     :     :  +- *BroadcastHashJoin [cast(ws_item_sk#0 as bigint), cast(ws_order_number#0 as bigint)], [wr_item_sk#0L, wr_order_number#0L], Inner, BuildRight
+               :     :     :     :     :     :     :- *Project [ws_order_number#0, ws_item_sk#0, ws_sold_date_sk#0, ws_net_profit#0, ws_quantity#0, ws_web_page_sk#0, ws_sales_price#0]
+               :     :     :     :     :     :     :  +- *Filter (((isnotnull(ws_web_page_sk#0) && isnotnull(ws_item_sk#0)) && isnotnull(ws_order_number#0)) && isnotnull(ws_sold_date_sk#0))
+               :     :     :     :     :     :     :     +- *FileScan parquet default.web_sales[ws_sold_date_sk#0,ws_item_sk#0,ws_web_page_sk#0,ws_order_number#0,ws_quantity#0,ws_sales_price#0,ws_net_profit#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,...
+               :     :     :     :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true], input[5, bigint, true]))
+               :     :     :     :     :     :        +- *Project [wr_refunded_cash#0, wr_fee#0, wr_returning_cdemo_sk#0L, wr_refunded_cdemo_sk#0L, wr_refunded_addr_sk#0L, wr_reason_sk#0L, wr_item_sk#0L, wr_order_number#0L]
+               :     :     :     :     :     :           +- *Filter (((((isnotnull(wr_returning_cdemo_sk#0L) && isnotnull(wr_item_sk#0L)) && isnotnull(wr_reason_sk#0L)) && isnotnull(wr_order_number#0L)) && isnotnull(wr_refunded_addr_sk#0L)) && isnotnull(wr_refunded_cdemo_sk#0L))
+               :     :     :     :     :     :              +- *FileScan parquet default.web_returns[wr_item_sk#0L,wr_refunded_cdemo_sk#0L,wr_refunded_addr_sk#0L,wr_returning_cdemo_sk#0L,wr_reason_sk#0L,wr_order_number#0L,wr_fee#0,wr_refunded_cash#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,wr_returning_cdem...
+               :     :     :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :     :     :     :     :        +- *Project [wp_web_page_sk#0]
+               :     :     :     :     :           +- *Filter isnotnull(wp_web_page_sk#0)
+               :     :     :     :     :              +- *FileScan parquet default.web_page[wp_web_page_sk#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>, ReadSchema: struct<wp_web_page_sk:int>
+               :     :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :     :     :     :        +- *Project [cd_education_status#0, cd_marital_status#0, cd_demo_sk#0]
+               :     :     :     :           +- *Filter ((isnotnull(cd_education_status#0) && isnotnull(cd_demo_sk#0)) && isnotnull(cd_marital_status#0))
+               :     :     :     :              +- *FileScan parquet default.customer_demographics[cd_demo_sk#0,cd_marital_status#0,cd_education_status#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,cd_education_status:string>
+               :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint), input[1, string, true], input[2, string, true]))
+               :     :     :        +- *Project [cd_education_status#0, cd_marital_status#0, cd_demo_sk#0]
+               :     :     :           +- *Filter ((isnotnull(cd_education_status#0) && isnotnull(cd_marital_status#0)) && isnotnull(cd_demo_sk#0))
+               :     :     :              +- *FileScan parquet default.customer_demographics[cd_demo_sk#0,cd_marital_status#0,cd_education_status#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,cd_education_status:string>
+               :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :     :        +- *Project [ca_address_sk#0, ca_state#0]
+               :     :           +- *Filter ((isnotnull(ca_address_sk#0) && isnotnull(ca_country#0)) && (United States = ca_country#0))
+               :     :              +- *FileScan parquet default.customer_address[ca_address_sk#0,ca_state#0,ca_country#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ca_country:string>
+               :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :        +- *Project [d_date_sk#0]
+               :           +- *Filter ((isnotnull(d_date_sk#0) && isnotnull(d_year#0)) && (2000 = d_year#0))
+               :              +- *FileScan parquet default.date_dim[d_date_sk#0,d_year#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_year:int>
+               +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  +- *Project [r_reason_sk#0, r_reason_desc#0]
+                     +- *Filter isnotnull(r_reason_sk#0)
+                        +- *FileScan parquet default.reason[r_reason_sk#0,r_reason_desc#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,r_reason_desc:string>

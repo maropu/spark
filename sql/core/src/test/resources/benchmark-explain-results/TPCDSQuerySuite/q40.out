@@ -1,0 +1,29 @@
+TakeOrderedAndProject(limit=100, orderBy=[w_state#0 ASC NULLS FIRST,i_item_id#0 ASC NULLS FIRST], output=[w_state#0,i_item_id#0,sales_before#0,sales_after#0])
++- *HashAggregate(keys=[w_state#0, i_item_id#0], functions=[sum(CASE WHEN (cast(d_date#0 as date) < 11027) THEN CheckOverflow((promote_precision(cast(cs_sales_price#0 as decimal(13,2))) - promote_precision(cast(coalesce(cast(cr_refunded_cash#0 as decimal(12,2)), 0.00) as decimal(13,2)))), DecimalType(13,2)) ELSE 0.00 END), sum(CASE WHEN (cast(d_date#0 as date) >= 11027) THEN CheckOverflow((promote_precision(cast(cs_sales_price#0 as decimal(13,2))) - promote_precision(cast(coalesce(cast(cr_refunded_cash#0 as decimal(12,2)), 0.00) as decimal(13,2)))), DecimalType(13,2)) ELSE 0.00 END)])
+   +- Exchange hashpartitioning(w_state#0, i_item_id#0, 5)
+      +- *HashAggregate(keys=[w_state#0, i_item_id#0], functions=[partial_sum(CASE WHEN (cast(d_date#0 as date) < 11027) THEN CheckOverflow((promote_precision(cast(cs_sales_price#0 as decimal(13,2))) - promote_precision(cast(coalesce(cast(cr_refunded_cash#0 as decimal(12,2)), 0.00) as decimal(13,2)))), DecimalType(13,2)) ELSE 0.00 END), partial_sum(CASE WHEN (cast(d_date#0 as date) >= 11027) THEN CheckOverflow((promote_precision(cast(cs_sales_price#0 as decimal(13,2))) - promote_precision(cast(coalesce(cast(cr_refunded_cash#0 as decimal(12,2)), 0.00) as decimal(13,2)))), DecimalType(13,2)) ELSE 0.00 END)])
+         +- *Project [d_date#0, cr_refunded_cash#0, w_state#0, i_item_id#0, cs_sales_price#0]
+            +- *BroadcastHashJoin [cs_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+               :- *Project [cr_refunded_cash#0, w_state#0, i_item_id#0, cs_sales_price#0, cs_sold_date_sk#0]
+               :  +- *BroadcastHashJoin [cs_item_sk#0], [i_item_sk#0], Inner, BuildRight
+               :     :- *Project [cr_refunded_cash#0, w_state#0, cs_sales_price#0, cs_sold_date_sk#0, cs_item_sk#0]
+               :     :  +- *BroadcastHashJoin [cs_warehouse_sk#0], [w_warehouse_sk#0], Inner, BuildRight
+               :     :     :- *Project [cr_refunded_cash#0, cs_sales_price#0, cs_warehouse_sk#0, cs_sold_date_sk#0, cs_item_sk#0]
+               :     :     :  +- *BroadcastHashJoin [cs_order_number#0, cs_item_sk#0], [cr_order_number#0, cr_item_sk#0], LeftOuter, BuildRight
+               :     :     :     :- *Project [cs_sales_price#0, cs_order_number#0, cs_warehouse_sk#0, cs_sold_date_sk#0, cs_item_sk#0]
+               :     :     :     :  +- *Filter ((isnotnull(cs_warehouse_sk#0) && isnotnull(cs_sold_date_sk#0)) && isnotnull(cs_item_sk#0))
+               :     :     :     :     +- *FileScan parquet default.catalog_sales[cs_sold_date_sk#0,cs_warehouse_sk#0,cs_item_sk#0,cs_order_number#0,cs_sales_price#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,cs_sales_price:...
+               :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List((shiftleft(cast(input[1, int, true] as bigint), 32) | (cast(input[0, int, true] as bigint) & 4294967295))))
+               :     :     :        +- *FileScan parquet default.catalog_returns[cr_item_sk#0,cr_order_number#0,cr_refunded_cash#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+               :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :     :        +- *Project [w_warehouse_sk#0, w_state#0]
+               :     :           +- *Filter isnotnull(w_warehouse_sk#0)
+               :     :              +- *FileScan parquet default.warehouse[w_warehouse_sk#0,w_state#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,w_state:string>
+               :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :        +- *Project [i_item_sk#0, i_item_id#0]
+               :           +- *Filter ((((i_current_price#0 >= 0.99) && isnotnull(i_item_sk#0)) && (i_current_price#0 <= 1.49)) && isnotnull(i_current_price#0))
+               :              +- *FileScan parquet default.item[i_item_sk#0,i_item_id#0,i_current_price#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+               +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  +- *Project [d_date_sk#0, d_date#0]
+                     +- *Filter ((((d_date#0 <= 2000-04-10) && isnotnull(d_date_sk#0)) && isnotnull(d_date#0)) && (2000-02-10 <= d_date#0))
+                        +- *FileScan parquet default.date_dim[d_date_sk#0,d_date#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_date:string>

@@ -88,6 +88,19 @@ case class ScalarSubquery(
     require(updated, s"$this has not finished")
     Literal.create(result, dataType).doGenCode(ctx, ev)
   }
+
+  override def equals(other: Any): Boolean = other match {
+    case is: InSubquery => dataType == is.dataType && nullable == is.nullable && exprId == is.exprId
+    case _ => false
+  }
+
+  override def hashCode: Int = {
+    var h = 17
+    h = h * 37 + dataType.hashCode()
+    h = h * 37 + nullable.hashCode()
+    h = h * 37 + exprId.hashCode()
+    h
+  }
 }
 
 /**
@@ -130,6 +143,19 @@ case class InSubquery(
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
     require(updated, s"$this has not finished")
     InSet(child, result.toSet).doGenCode(ctx, ev)
+  }
+
+  override def equals(other: Any): Boolean = other match {
+    case is: InSubquery => dataType == is.dataType && nullable == is.nullable && exprId == is.exprId
+    case _ => false
+  }
+
+  override def hashCode: Int = {
+    var h = 17
+    h = h * 37 + dataType.hashCode()
+    h = h * 37 + nullable.hashCode()
+    h = h * 37 + exprId.hashCode()
+    h
   }
 }
 

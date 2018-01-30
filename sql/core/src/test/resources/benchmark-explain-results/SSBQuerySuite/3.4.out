@@ -1,0 +1,26 @@
+*Sort [d_year#0 ASC NULLS FIRST, revenue#0L DESC NULLS LAST], true, 0
++- Exchange rangepartitioning(d_year#0 ASC NULLS FIRST, revenue#0L DESC NULLS LAST, 5)
+   +- *HashAggregate(keys=[c_city#0, s_city#0, d_year#0], functions=[sum(cast(lo_revenue#0 as bigint))])
+      +- Exchange hashpartitioning(c_city#0, s_city#0, d_year#0, 5)
+         +- *HashAggregate(keys=[c_city#0, s_city#0, d_year#0], functions=[partial_sum(cast(lo_revenue#0 as bigint))])
+            +- *Project [s_city#0, d_year#0, c_city#0, lo_revenue#0]
+               +- *BroadcastHashJoin [lo_orderdate#0], [d_datekey#0], Inner, BuildRight
+                  :- *Project [s_city#0, c_city#0, lo_revenue#0, lo_orderdate#0]
+                  :  +- *BroadcastHashJoin [lo_suppkey#0], [s_suppkey#0], Inner, BuildRight
+                  :     :- *Project [c_city#0, lo_suppkey#0, lo_revenue#0, lo_orderdate#0]
+                  :     :  +- *BroadcastHashJoin [c_custkey#0], [lo_custkey#0], Inner, BuildRight
+                  :     :     :- *Project [c_custkey#0, c_city#0]
+                  :     :     :  +- *Filter (((isnotnull(c_nation#0) && (c_nation#0 = UNITED KINGDOM)) && isnotnull(c_custkey#0)) && ((c_city#0 = UNITED KI5) || (UNITED KI1 = c_city#0)))
+                  :     :     :     +- *FileScan parquet default.customer[c_custkey#0,c_city#0,c_nation#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,c_nation:string>
+                  :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  :     :        +- *Project [lo_suppkey#0, lo_revenue#0, lo_custkey#0, lo_orderdate#0]
+                  :     :           +- *Filter ((isnotnull(lo_orderdate#0) && isnotnull(lo_custkey#0)) && isnotnull(lo_suppkey#0))
+                  :     :              +- *FileScan parquet default.lineorder[lo_custkey#0,lo_suppkey#0,lo_orderdate#0,lo_revenue#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,lo_revenue:int>
+                  :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  :        +- *Project [s_city#0, s_suppkey#0]
+                  :           +- *Filter (((((UNITED KI5 = s_city#0) || (UNITED KI1 = s_city#0)) && isnotnull(s_nation#0)) && (UNITED KINGDOM = s_nation#0)) && isnotnull(s_suppkey#0))
+                  :              +- *FileScan parquet default.supplier[s_suppkey#0,s_city#0,s_nation#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,s_nation:string>
+                  +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                     +- *Project [d_year#0, d_datekey#0]
+                        +- *Filter ((isnotnull(d_yearmonth#0) && isnotnull(d_datekey#0)) && (Dec1997 = d_yearmonth#0))
+                           +- *FileScan parquet default.date[d_datekey#0,d_year#0,d_yearmonth#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_yearmonth:string>

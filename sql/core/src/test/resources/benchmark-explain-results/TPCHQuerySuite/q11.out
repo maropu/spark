@@ -1,0 +1,42 @@
+*Sort [value#0 DESC NULLS LAST], true, 0
++- Exchange rangepartitioning(value#0 DESC NULLS LAST, 5)
+   +- *Project [ps_partkey#0L, value#0]
+      +- *Filter ((Subquery none < cast(sum(CheckOverflow((promote_precision(cast(ps_supplycost#0 as decimal(10,0))) * promote_precision(cast(cast(ps_availqty#0 as decimal(10,0)) as decimal(10,0)))), DecimalType(21,0)))#0 as decimal(38,6))) && isnotnull(sum(CheckOverflow((promote_precision(cast(ps_supplycost#0 as decimal(10,0))) * promote_precision(cast(cast(ps_availqty#0 as decimal(10,0)) as decimal(10,0)))), DecimalType(21,0)))#0))
+         :  +- Subquery none
+         :     +- Subquery none
+         :        +- *HashAggregate(keys=[], functions=[sum(CheckOverflow((promote_precision(ps_supplycost#0) * promote_precision(cast(ps_availqty#0 as decimal(10,0)))), DecimalType(21,0)))])
+         :           +- Exchange SinglePartition
+         :              +- *HashAggregate(keys=[], functions=[partial_sum(CheckOverflow((promote_precision(ps_supplycost#0) * promote_precision(cast(ps_availqty#0 as decimal(10,0)))), DecimalType(21,0)))])
+         :                 +- *Project [ps_availqty#0, ps_supplycost#0]
+         :                    +- *BroadcastHashJoin [s_nationkey#0L], [n_nationkey#0L], Inner, BuildRight
+         :                       :- *Project [ps_availqty#0, s_nationkey#0L, ps_supplycost#0]
+         :                       :  +- *BroadcastHashJoin [ps_suppkey#0L], [s_suppkey#0L], Inner, BuildRight
+         :                       :     :- *Project [ps_availqty#0, ps_supplycost#0, ps_suppkey#0L]
+         :                       :     :  +- *Filter isnotnull(ps_suppkey#0L)
+         :                       :     :     +- *FileScan parquet default.partsupp[ps_suppkey#0L,ps_availqty#0,ps_supplycost#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,0)>
+         :                       :     +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+         :                       :        +- *Project [s_suppkey#0L, s_nationkey#0L]
+         :                       :           +- *Filter (isnotnull(s_suppkey#0L) && isnotnull(s_nationkey#0L))
+         :                       :              +- *FileScan parquet default.supplier[s_suppkey#0L,s_nationkey#0L] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,s_nationkey:bigint>
+         :                       +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+         :                          +- *Project [n_nationkey#0L]
+         :                             +- *Filter ((isnotnull(n_name#0) && isnotnull(n_nationkey#0L)) && (n_name#0 = GERMANY))
+         :                                +- *FileScan parquet default.nation[n_nationkey#0L,n_name#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,n_name:string>
+         +- *HashAggregate(keys=[ps_partkey#0L], functions=[sum(CheckOverflow((promote_precision(ps_supplycost#0) * promote_precision(cast(ps_availqty#0 as decimal(10,0)))), DecimalType(21,0)))])
+            +- Exchange hashpartitioning(ps_partkey#0L, 5)
+               +- *HashAggregate(keys=[ps_partkey#0L], functions=[partial_sum(CheckOverflow((promote_precision(ps_supplycost#0) * promote_precision(cast(ps_availqty#0 as decimal(10,0)))), DecimalType(21,0)))])
+                  +- *Project [ps_availqty#0, ps_supplycost#0, ps_partkey#0L]
+                     +- *BroadcastHashJoin [s_nationkey#0L], [n_nationkey#0L], Inner, BuildRight
+                        :- *Project [ps_availqty#0, s_nationkey#0L, ps_supplycost#0, ps_partkey#0L]
+                        :  +- *BroadcastHashJoin [ps_suppkey#0L], [s_suppkey#0L], Inner, BuildRight
+                        :     :- *Project [ps_availqty#0, ps_supplycost#0, ps_partkey#0L, ps_suppkey#0L]
+                        :     :  +- *Filter isnotnull(ps_suppkey#0L)
+                        :     :     +- *FileScan parquet default.partsupp[ps_partkey#0L,ps_suppkey#0L,ps_availqty#0,ps_supplycost#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,0)>
+                        :     +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+                        :        +- *Project [s_suppkey#0L, s_nationkey#0L]
+                        :           +- *Filter (isnotnull(s_suppkey#0L) && isnotnull(s_nationkey#0L))
+                        :              +- *FileScan parquet default.supplier[s_suppkey#0L,s_nationkey#0L] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,s_nationkey:bigint>
+                        +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+                           +- *Project [n_nationkey#0L]
+                              +- *Filter ((isnotnull(n_name#0) && isnotnull(n_nationkey#0L)) && (n_name#0 = GERMANY))
+                                 +- *FileScan parquet default.nation[n_nationkey#0L,n_name#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,n_name:string>

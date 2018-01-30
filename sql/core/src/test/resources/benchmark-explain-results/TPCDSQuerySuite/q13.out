@@ -1,0 +1,36 @@
+*HashAggregate(keys=[], functions=[avg(cast(ss_quantity#0 as bigint)), avg(UnscaledValue(ss_ext_sales_price#0)), avg(UnscaledValue(ss_ext_wholesale_cost#0)), sum(UnscaledValue(ss_ext_wholesale_cost#0))])
++- Exchange SinglePartition
+   +- *HashAggregate(keys=[], functions=[partial_avg(cast(ss_quantity#0 as bigint)), partial_avg(UnscaledValue(ss_ext_sales_price#0)), partial_avg(UnscaledValue(ss_ext_wholesale_cost#0)), partial_sum(UnscaledValue(ss_ext_wholesale_cost#0))])
+      +- *Project [ss_quantity#0, ss_ext_wholesale_cost#0, ss_ext_sales_price#0]
+         +- *BroadcastHashJoin [ss_hdemo_sk#0], [hd_demo_sk#0], Inner, BuildRight, (((((((cd_marital_status#0 = M) && (cd_education_status#0 = Advanced Degree)) && (ss_sales_price#0 >= 100.00)) && (ss_sales_price#0 <= 150.00)) && (hd_dep_count#0 = 3)) || (((((cd_marital_status#0 = S) && (cd_education_status#0 = College)) && (ss_sales_price#0 >= 50.00)) && (ss_sales_price#0 <= 100.00)) && (hd_dep_count#0 = 1))) || (((((cd_marital_status#0 = W) && (cd_education_status#0 = 2 yr Degree)) && (ss_sales_price#0 >= 150.00)) && (ss_sales_price#0 <= 200.00)) && (hd_dep_count#0 = 1)))
+            :- *Project [ss_sales_price#0, ss_quantity#0, cd_education_status#0, ss_hdemo_sk#0, cd_marital_status#0, ss_ext_wholesale_cost#0, ss_ext_sales_price#0]
+            :  +- *BroadcastHashJoin [ss_cdemo_sk#0], [cd_demo_sk#0], Inner, BuildRight
+            :     :- *Project [ss_sales_price#0, ss_quantity#0, ss_hdemo_sk#0, ss_cdemo_sk#0, ss_ext_wholesale_cost#0, ss_ext_sales_price#0]
+            :     :  +- *BroadcastHashJoin [ss_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+            :     :     :- *Project [ss_sales_price#0, ss_quantity#0, ss_hdemo_sk#0, ss_cdemo_sk#0, ss_sold_date_sk#0, ss_ext_wholesale_cost#0, ss_ext_sales_price#0]
+            :     :     :  +- *BroadcastHashJoin [ss_addr_sk#0], [ca_address_sk#0], Inner, BuildRight, ((((ca_state#0 IN (TX,OH) && (ss_net_profit#0 >= 100.00)) && (ss_net_profit#0 <= 200.00)) || ((ca_state#0 IN (OR,NM,KY) && (ss_net_profit#0 >= 150.00)) && (ss_net_profit#0 <= 300.00))) || ((ca_state#0 IN (VA,TX,MS) && (ss_net_profit#0 >= 50.00)) && (ss_net_profit#0 <= 250.00)))
+            :     :     :     :- *Project [ss_sales_price#0, ss_quantity#0, ss_hdemo_sk#0, ss_cdemo_sk#0, ss_sold_date_sk#0, ss_net_profit#0, ss_addr_sk#0, ss_ext_wholesale_cost#0, ss_ext_sales_price#0]
+            :     :     :     :  +- *BroadcastHashJoin [ss_store_sk#0], [s_store_sk#0], Inner, BuildRight
+            :     :     :     :     :- *Project [ss_sales_price#0, ss_quantity#0, ss_hdemo_sk#0, ss_cdemo_sk#0, ss_store_sk#0, ss_sold_date_sk#0, ss_net_profit#0, ss_addr_sk#0, ss_ext_wholesale_cost#0, ss_ext_sales_price#0]
+            :     :     :     :     :  +- *Filter ((((isnotnull(ss_hdemo_sk#0) && isnotnull(ss_cdemo_sk#0)) && isnotnull(ss_store_sk#0)) && isnotnull(ss_sold_date_sk#0)) && isnotnull(ss_addr_sk#0))
+            :     :     :     :     :     +- *FileScan parquet default.store_sales[ss_sold_date_sk#0,ss_cdemo_sk#0,ss_hdemo_sk#0,ss_addr_sk#0,ss_store_sk#0,ss_quantity#0,ss_sales_price#0,ss_ext_sales_price#0,ss_ext_wholesale_cost#0,ss_net_profit#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ss_quan...
+            :     :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+            :     :     :     :        +- *Project [s_store_sk#0]
+            :     :     :     :           +- *Filter isnotnull(s_store_sk#0)
+            :     :     :     :              +- *FileScan parquet default.store[s_store_sk#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>, ReadSchema: struct<s_store_sk:int>
+            :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+            :     :     :        +- *Project [ca_address_sk#0, ca_state#0]
+            :     :     :           +- *Filter ((isnotnull(ca_address_sk#0) && isnotnull(ca_country#0)) && (United States = ca_country#0))
+            :     :     :              +- *FileScan parquet default.customer_address[ca_address_sk#0,ca_state#0,ca_country#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ca_country:string>
+            :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+            :     :        +- *Project [d_date_sk#0]
+            :     :           +- *Filter ((isnotnull(d_date_sk#0) && (2001 = d_year#0)) && isnotnull(d_year#0))
+            :     :              +- *FileScan parquet default.date_dim[d_date_sk#0,d_year#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_year:int>
+            :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+            :        +- *Project [cd_education_status#0, cd_marital_status#0, cd_demo_sk#0]
+            :           +- *Filter isnotnull(cd_demo_sk#0)
+            :              +- *FileScan parquet default.customer_demographics[cd_demo_sk#0,cd_marital_status#0,cd_education_status#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,cd_education_status:string>
+            +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               +- *Project [hd_dep_count#0, hd_demo_sk#0]
+                  +- *Filter isnotnull(hd_demo_sk#0)
+                     +- *FileScan parquet default.household_demographics[hd_demo_sk#0,hd_dep_count#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,hd_dep_count:int>

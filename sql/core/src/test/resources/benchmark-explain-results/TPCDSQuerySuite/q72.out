@@ -1,0 +1,63 @@
+TakeOrderedAndProject(limit=100, orderBy=[total_cnt#0L DESC NULLS LAST,i_item_desc#0 ASC NULLS FIRST,w_warehouse_name#0 ASC NULLS FIRST,d_week_seq#0 ASC NULLS FIRST], output=[i_item_desc#0,w_warehouse_name#0,d_week_seq#0,no_promo#0L,promo#0L,total_cnt#0L])
++- *HashAggregate(keys=[i_item_desc#0, w_warehouse_name#0, d_week_seq#0], functions=[count(1)])
+   +- Exchange hashpartitioning(i_item_desc#0, w_warehouse_name#0, d_week_seq#0, 5)
+      +- *HashAggregate(keys=[i_item_desc#0, w_warehouse_name#0, d_week_seq#0], functions=[partial_count(1)])
+         +- *Project [d_week_seq#0, i_item_desc#0, w_warehouse_name#0]
+            +- *BroadcastHashJoin [cs_item_sk#0, cs_order_number#0], [cr_item_sk#0, cr_order_number#0], LeftOuter, BuildRight
+               :- *Project [d_week_seq#0, i_item_desc#0, cs_order_number#0, cs_item_sk#0, w_warehouse_name#0]
+               :  +- *BroadcastHashJoin [cs_promo_sk#0], [p_promo_sk#0], LeftOuter, BuildRight
+               :     :- *Project [d_week_seq#0, i_item_desc#0, cs_order_number#0, cs_promo_sk#0, cs_item_sk#0, w_warehouse_name#0]
+               :     :  +- *BroadcastHashJoin [cs_ship_date_sk#0], [d_date_sk#0], Inner, BuildRight, (d_date#0 > cast(cast(cast(cast(d_date#0 as date) as timestamp) + interval 5 days as date) as string))
+               :     :     :- *Project [d_date#0, d_week_seq#0, i_item_desc#0, cs_order_number#0, cs_promo_sk#0, cs_item_sk#0, w_warehouse_name#0, cs_ship_date_sk#0]
+               :     :     :  +- *BroadcastHashJoin [d_week_seq#0, inv_date_sk#0], [d_week_seq#0, d_date_sk#0], Inner, BuildRight
+               :     :     :     :- *Project [d_date#0, d_week_seq#0, i_item_desc#0, cs_order_number#0, inv_date_sk#0, cs_promo_sk#0, cs_item_sk#0, w_warehouse_name#0, cs_ship_date_sk#0]
+               :     :     :     :  +- *BroadcastHashJoin [cs_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+               :     :     :     :     :- *Project [i_item_desc#0, cs_order_number#0, inv_date_sk#0, cs_promo_sk#0, cs_sold_date_sk#0, cs_item_sk#0, w_warehouse_name#0, cs_ship_date_sk#0]
+               :     :     :     :     :  +- *BroadcastHashJoin [cs_bill_hdemo_sk#0], [hd_demo_sk#0], Inner, BuildRight
+               :     :     :     :     :     :- *Project [cs_bill_hdemo_sk#0, i_item_desc#0, cs_order_number#0, inv_date_sk#0, cs_promo_sk#0, cs_sold_date_sk#0, cs_item_sk#0, w_warehouse_name#0, cs_ship_date_sk#0]
+               :     :     :     :     :     :  +- *BroadcastHashJoin [cs_bill_cdemo_sk#0], [cd_demo_sk#0], Inner, BuildRight
+               :     :     :     :     :     :     :- *Project [cs_bill_hdemo_sk#0, cs_bill_cdemo_sk#0, i_item_desc#0, cs_order_number#0, inv_date_sk#0, cs_promo_sk#0, cs_sold_date_sk#0, cs_item_sk#0, w_warehouse_name#0, cs_ship_date_sk#0]
+               :     :     :     :     :     :     :  +- *BroadcastHashJoin [cs_item_sk#0], [i_item_sk#0], Inner, BuildRight
+               :     :     :     :     :     :     :     :- *Project [cs_bill_hdemo_sk#0, cs_bill_cdemo_sk#0, cs_order_number#0, inv_date_sk#0, cs_promo_sk#0, cs_sold_date_sk#0, cs_item_sk#0, w_warehouse_name#0, cs_ship_date_sk#0]
+               :     :     :     :     :     :     :     :  +- *BroadcastHashJoin [inv_warehouse_sk#0], [w_warehouse_sk#0], Inner, BuildRight
+               :     :     :     :     :     :     :     :     :- *Project [cs_bill_hdemo_sk#0, cs_bill_cdemo_sk#0, cs_order_number#0, inv_warehouse_sk#0, inv_date_sk#0, cs_promo_sk#0, cs_sold_date_sk#0, cs_item_sk#0, cs_ship_date_sk#0]
+               :     :     :     :     :     :     :     :     :  +- *BroadcastHashJoin [cs_item_sk#0], [inv_item_sk#0], Inner, BuildRight, (inv_quantity_on_hand#0 < cs_quantity#0)
+               :     :     :     :     :     :     :     :     :     :- *Project [cs_bill_hdemo_sk#0, cs_quantity#0, cs_bill_cdemo_sk#0, cs_order_number#0, cs_promo_sk#0, cs_sold_date_sk#0, cs_item_sk#0, cs_ship_date_sk#0]
+               :     :     :     :     :     :     :     :     :     :  +- *Filter (((((isnotnull(cs_bill_cdemo_sk#0) && isnotnull(cs_sold_date_sk#0)) && isnotnull(cs_quantity#0)) && isnotnull(cs_ship_date_sk#0)) && isnotnull(cs_bill_hdemo_sk#0)) && isnotnull(cs_item_sk#0))
+               :     :     :     :     :     :     :     :     :     :     +- *FileScan parquet default.catalog_sales[cs_sold_date_sk#0,cs_ship_date_sk#0,cs_bill_cdemo_sk#0,cs_bill_hdemo_sk#0,cs_item_sk#0,cs_promo_sk#0,cs_order_number#0,cs_quantity#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,cs_item_...
+               :     :     :     :     :     :     :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[1, int, true] as bigint)))
+               :     :     :     :     :     :     :     :     :        +- *Project [inv_item_sk#0, inv_warehouse_sk#0, inv_date_sk#0, inv_quantity_on_hand#0]
+               :     :     :     :     :     :     :     :     :           +- *Filter (((isnotnull(inv_date_sk#0) && isnotnull(inv_item_sk#0)) && isnotnull(inv_warehouse_sk#0)) && isnotnull(inv_quantity_on_hand#0))
+               :     :     :     :     :     :     :     :     :              +- *FileScan parquet default.inventory[inv_date_sk#0,inv_item_sk#0,inv_warehouse_sk#0,inv_quantity_on_hand#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,inv_quantity_on_hand:int>
+               :     :     :     :     :     :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :     :     :     :     :     :     :     :        +- *Project [w_warehouse_sk#0, w_warehouse_name#0]
+               :     :     :     :     :     :     :     :           +- *Filter isnotnull(w_warehouse_sk#0)
+               :     :     :     :     :     :     :     :              +- *FileScan parquet default.warehouse[w_warehouse_sk#0,w_warehouse_name#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,w_warehouse_name:string>
+               :     :     :     :     :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :     :     :     :     :     :     :        +- *Project [i_item_sk#0, i_item_desc#0]
+               :     :     :     :     :     :     :           +- *Filter isnotnull(i_item_sk#0)
+               :     :     :     :     :     :     :              +- *FileScan parquet default.item[i_item_sk#0,i_item_desc#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,i_item_desc:string>
+               :     :     :     :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :     :     :     :     :     :        +- *Project [cd_demo_sk#0]
+               :     :     :     :     :     :           +- *Filter (((D = cd_marital_status#0) && isnotnull(cd_marital_status#0)) && isnotnull(cd_demo_sk#0))
+               :     :     :     :     :     :              +- *FileScan parquet default.customer_demographics[cd_demo_sk#0,cd_marital_status#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,cd_marital_status:string>
+               :     :     :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :     :     :     :     :        +- *Project [hd_demo_sk#0]
+               :     :     :     :     :           +- *Filter ((isnotnull(hd_buy_potential#0) && (hd_buy_potential#0 = >10000)) && isnotnull(hd_demo_sk#0))
+               :     :     :     :     :              +- *FileScan parquet default.household_demographics[hd_demo_sk#0,hd_buy_potential#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,hd_buy_potential:string>
+               :     :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :     :     :     :        +- *Project [d_date_sk#0, d_date#0, d_week_seq#0]
+               :     :     :     :           +- *Filter (((isnotnull(d_year#0) && isnotnull(d_week_seq#0)) && isnotnull(d_date_sk#0)) && (1999 = d_year#0))
+               :     :     :     :              +- *FileScan parquet default.date_dim[d_date_sk#0,d_date#0,d_week_seq#0,d_year#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_year:int>
+               :     :     :     +- BroadcastExchange HashedRelationBroadcastMode(List((shiftleft(cast(input[1, int, true] as bigint), 32) | (cast(input[0, int, true] as bigint) & 4294967295))))
+               :     :     :        +- *Project [d_date_sk#0, d_week_seq#0]
+               :     :     :           +- *Filter (isnotnull(d_week_seq#0) && isnotnull(d_date_sk#0))
+               :     :     :              +- *FileScan parquet default.date_dim[d_date_sk#0,d_week_seq#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_week_seq:int>
+               :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :     :        +- *Project [d_date_sk#0, d_date#0]
+               :     :           +- *Filter (isnotnull(d_date#0) && isnotnull(d_date_sk#0))
+               :     :              +- *FileScan parquet default.date_dim[d_date_sk#0,d_date#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_date:string>
+               :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :        +- *FileScan parquet default.promotion[p_promo_sk#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>, ReadSchema: struct<p_promo_sk:int>
+               +- BroadcastExchange HashedRelationBroadcastMode(List((shiftleft(cast(input[0, int, true] as bigint), 32) | (cast(input[1, int, true] as bigint) & 4294967295))))
+                  +- *FileScan parquet default.catalog_returns[cr_item_sk#0,cr_order_number#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,cr_order_number:int>

@@ -1,0 +1,12 @@
+*HashAggregate(keys=[], functions=[sum(CASE WHEN StartsWith(p_type#0, PROMO) THEN CheckOverflow((promote_precision(cast(l_extendedprice#0 as decimal(11,0))) * promote_precision(CheckOverflow((1 - promote_precision(cast(l_discount#0 as decimal(11,0)))), DecimalType(11,0)))), DecimalType(22,0)) ELSE 0 END), sum(CheckOverflow((promote_precision(cast(l_extendedprice#0 as decimal(11,0))) * promote_precision(CheckOverflow((1 - promote_precision(cast(l_discount#0 as decimal(11,0)))), DecimalType(11,0)))), DecimalType(22,0)))])
++- Exchange SinglePartition
+   +- *HashAggregate(keys=[], functions=[partial_sum(CASE WHEN StartsWith(p_type#0, PROMO) THEN CheckOverflow((promote_precision(cast(l_extendedprice#0 as decimal(11,0))) * promote_precision(CheckOverflow((1 - promote_precision(cast(l_discount#0 as decimal(11,0)))), DecimalType(11,0)))), DecimalType(22,0)) ELSE 0 END), partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#0 as decimal(11,0))) * promote_precision(CheckOverflow((1 - promote_precision(cast(l_discount#0 as decimal(11,0)))), DecimalType(11,0)))), DecimalType(22,0)))])
+      +- *Project [l_discount#0, p_type#0, l_extendedprice#0]
+         +- *BroadcastHashJoin [l_partkey#0L], [p_partkey#0L], Inner, BuildRight
+            :- *Project [l_partkey#0L, l_discount#0, l_extendedprice#0]
+            :  +- *Filter (((isnotnull(l_shipdate#0) && isnotnull(l_partkey#0L)) && (l_shipdate#0 >= 9374)) && (l_shipdate#0 < 9404))
+            :     +- *FileScan parquet default.lineitem[l_partkey#0L,l_extendedprice#0,l_discount#0,l_shipdate#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,l_shipdate:date>
+            +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+               +- *Project [p_partkey#0L, p_type#0]
+                  +- *Filter isnotnull(p_partkey#0L)
+                     +- *FileScan parquet default.part[p_partkey#0L,p_type#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,p_type:string>

@@ -1,0 +1,25 @@
+TakeOrderedAndProject(limit=100, orderBy=[count(1)#0L ASC NULLS FIRST], output=[count(1)#0L])
++- *HashAggregate(keys=[], functions=[count(1)])
+   +- Exchange SinglePartition
+      +- *HashAggregate(keys=[], functions=[partial_count(1)])
+         +- *Project
+            +- *BroadcastHashJoin [ss_store_sk#0], [s_store_sk#0], Inner, BuildRight
+               :- *Project [ss_store_sk#0]
+               :  +- *BroadcastHashJoin [ss_sold_time_sk#0], [t_time_sk#0], Inner, BuildRight
+               :     :- *Project [ss_sold_time_sk#0, ss_store_sk#0]
+               :     :  +- *BroadcastHashJoin [ss_hdemo_sk#0], [hd_demo_sk#0], Inner, BuildRight
+               :     :     :- *Project [ss_sold_time_sk#0, ss_hdemo_sk#0, ss_store_sk#0]
+               :     :     :  +- *Filter ((isnotnull(ss_hdemo_sk#0) && isnotnull(ss_store_sk#0)) && isnotnull(ss_sold_time_sk#0))
+               :     :     :     +- *FileScan parquet default.store_sales[ss_sold_time_sk#0,ss_hdemo_sk#0,ss_store_sk#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ss_store_sk:int>
+               :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :     :        +- *Project [hd_demo_sk#0]
+               :     :           +- *Filter (((hd_dep_count#0 = 7) && isnotnull(hd_demo_sk#0)) && isnotnull(hd_dep_count#0))
+               :     :              +- *FileScan parquet default.household_demographics[hd_demo_sk#0,hd_dep_count#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,hd_dep_count:int>
+               :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :        +- *Project [t_time_sk#0]
+               :           +- *Filter (((((30 <= t_minute#0) && isnotnull(t_hour#0)) && isnotnull(t_minute#0)) && isnotnull(t_time_sk#0)) && (t_hour#0 = 20))
+               :              +- *FileScan parquet default.time_dim[t_time_sk#0,t_hour#0,t_minute#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,t_minute:int>
+               +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  +- *Project [s_store_sk#0]
+                     +- *Filter ((isnotnull(s_store_name#0) && (s_store_name#0 = ese)) && isnotnull(s_store_sk#0))
+                        +- *FileScan parquet default.store[s_store_sk#0,s_store_name#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,s_store_name:string>

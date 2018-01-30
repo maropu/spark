@@ -1,0 +1,34 @@
+TakeOrderedAndProject(limit=100, orderBy=[numwait#0L DESC NULLS LAST,s_name#0 ASC NULLS FIRST], output=[s_name#0,numwait#0L])
++- *HashAggregate(keys=[s_name#0], functions=[count(1)])
+   +- Exchange hashpartitioning(s_name#0, 5)
+      +- *HashAggregate(keys=[s_name#0], functions=[partial_count(1)])
+         +- *Project [s_name#0]
+            +- *BroadcastHashJoin [s_nationkey#0L], [n_nationkey#0L], Inner, BuildRight
+               :- *Project [s_name#0, s_nationkey#0L]
+               :  +- *BroadcastHashJoin [l_orderkey#0L], [o_orderkey#0L], Inner, BuildRight
+               :     :- *Project [s_name#0, s_nationkey#0L, l_orderkey#0L]
+               :     :  +- *BroadcastHashJoin [s_suppkey#0L], [l_suppkey#0L], Inner, BuildRight
+               :     :     :- *Project [s_name#0, s_suppkey#0L, s_nationkey#0L]
+               :     :     :  +- *Filter (isnotnull(s_suppkey#0L) && isnotnull(s_nationkey#0L))
+               :     :     :     +- *FileScan parquet default.supplier[s_suppkey#0L,s_name#0,s_nationkey#0L] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,s_nationkey:bigint>
+               :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(input[1, bigint, true]))
+               :     :        +- *BroadcastHashJoin [l_orderkey#0L], [l_orderkey#0L#0L], LeftAnti, BuildRight, NOT (l_suppkey#0L#0L = l_suppkey#0L)
+               :     :           :- *BroadcastHashJoin [l_orderkey#0L], [l_orderkey#0L#0L], LeftSemi, BuildRight, NOT (l_suppkey#0L#0L = l_suppkey#0L)
+               :     :           :  :- *Project [l_suppkey#0L, l_orderkey#0L]
+               :     :           :  :  +- *Filter ((((isnotnull(l_commitdate#0) && (l_receiptdate#0 > l_commitdate#0)) && isnotnull(l_orderkey#0L)) && isnotnull(l_receiptdate#0)) && isnotnull(l_suppkey#0L))
+               :     :           :  :     +- *FileScan parquet default.lineitem[l_orderkey#0L,l_suppkey#0L,l_commitdate#0,l_receiptdate#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,l_receiptdate:date>
+               :     :           :  +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+               :     :           :     +- *Project [l_orderkey#0L AS none#0L, l_suppkey#0L AS none#0L]
+               :     :           :        +- *FileScan parquet default.lineitem[l_orderkey#0L,l_suppkey#0L] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,l_suppkey:bigint>
+               :     :           +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+               :     :              +- *Project [l_orderkey#0L AS none#0L, l_suppkey#0L AS none#0L]
+               :     :                 +- *Filter (((l_commitdate#0 < l_receiptdate#0) && isnotnull(l_receiptdate#0)) && isnotnull(l_commitdate#0))
+               :     :                    +- *FileScan parquet default.lineitem[l_orderkey#0L,l_suppkey#0L,l_commitdate#0,l_receiptdate#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,l_receiptdate:date>
+               :     +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+               :        +- *Project [o_orderkey#0L]
+               :           +- *Filter (((F = o_orderstatus#0) && isnotnull(o_orderstatus#0)) && isnotnull(o_orderkey#0L))
+               :              +- *FileScan parquet default.orders[o_orderkey#0L,o_orderstatus#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,o_orderstatus:string>
+               +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+                  +- *Project [n_nationkey#0L]
+                     +- *Filter ((isnotnull(n_name#0) && isnotnull(n_nationkey#0L)) && (n_name#0 = SAUDI ARABIA))
+                        +- *FileScan parquet default.nation[n_nationkey#0L,n_name#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,n_name:string>

@@ -58,7 +58,7 @@ object Canonicalize {
     gatherCommutative(e, f).sortBy(_.hashCode())
 
   /** Rearrange expressions that are commutative or associative. */
-  private def expressionReorder(e: Expression): Expression = e match {
+  private[sql] def expressionReorder(e: Expression): Expression = e match {
     case a: Add => orderCommutative(a, { case Add(l, r) => Seq(l, r) }).reduce(Add)
     case m: Multiply => orderCommutative(m, { case Multiply(l, r) => Seq(l, r) }).reduce(Multiply)
 

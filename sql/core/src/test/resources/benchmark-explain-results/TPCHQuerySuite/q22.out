@@ -1,0 +1,28 @@
+*Sort [cntrycode#0 ASC NULLS FIRST], true, 0
++- Exchange rangepartitioning(cntrycode#0 ASC NULLS FIRST, 5)
+   +- *HashAggregate(keys=[cntrycode#0], functions=[count(1), sum(c_acctbal#0)])
+      +- Exchange hashpartitioning(cntrycode#0, 5)
+         +- *HashAggregate(keys=[cntrycode#0], functions=[partial_count(1), partial_sum(c_acctbal#0)])
+            +- *Project [c_acctbal#0, substring(c_phone#0, 1, 2) AS none#0]
+               +- *BroadcastHashJoin [c_custkey#0L], [o_custkey#0L], LeftAnti, BuildRight
+                  :- *Project [c_custkey#0L, c_phone#0, c_acctbal#0]
+                  :  +- *Filter (((Subquery none < cast(c_acctbal#0 as decimal(14,4))) && isnotnull(c_acctbal#0)) && substring(c_phone#0, 1, 2) IN (13,31,23,29,30,18,17))
+                  :     :  +- Subquery none
+                  :     :     +- Subquery none
+                  :     :        +- *HashAggregate(keys=[], functions=[avg(UnscaledValue(c_acctbal#0))])
+                  :     :           +- Exchange SinglePartition
+                  :     :              +- *HashAggregate(keys=[], functions=[partial_avg(UnscaledValue(c_acctbal#0))])
+                  :     :                 +- *Project [c_acctbal#0]
+                  :     :                    +- *Filter (((cast(c_acctbal#0 as decimal(12,2)) > 0.00) && isnotnull(c_acctbal#0)) && substring(c_phone#0, 1, 2) IN (13,31,23,29,30,18,17))
+                  :     :                       +- *FileScan parquet default.customer[c_phone#0,c_acctbal#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,0)>
+                  :     +- *FileScan parquet default.customer[c_custkey#0L,c_phone#0,c_acctbal#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,0)>
+                  :           +- Subquery none
+                  :              +- Subquery none
+                  :                 +- *HashAggregate(keys=[], functions=[avg(UnscaledValue(c_acctbal#0))])
+                  :                    +- Exchange SinglePartition
+                  :                       +- *HashAggregate(keys=[], functions=[partial_avg(UnscaledValue(c_acctbal#0))])
+                  :                          +- *Project [c_acctbal#0]
+                  :                             +- *Filter (((cast(c_acctbal#0 as decimal(12,2)) > 0.00) && isnotnull(c_acctbal#0)) && substring(c_phone#0, 1, 2) IN (13,31,23,29,30,18,17))
+                  :                                +- *FileScan parquet default.customer[c_phone#0,c_acctbal#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,0)>
+                  +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+                     +- *FileScan parquet default.orders[o_custkey#0L] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>, ReadSchema: struct<o_custkey:bigint>

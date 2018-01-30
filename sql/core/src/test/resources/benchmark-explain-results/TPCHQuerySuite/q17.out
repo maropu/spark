@@ -1,0 +1,22 @@
+*HashAggregate(keys=[], functions=[sum(l_extendedprice#0)])
++- Exchange SinglePartition
+   +- *HashAggregate(keys=[], functions=[partial_sum(l_extendedprice#0)])
+      +- *Project [l_extendedprice#0]
+         +- *BroadcastHashJoin [p_partkey#0L], [l_partkey#0L#0L], Inner, BuildRight, (cast(l_quantity#0 as decimal(16,5)) < (CAST(0.2 AS DECIMAL(14,4)) * CAST(avg(l_quantity) AS DECIMAL(14,4)))#0)
+            :- *Project [l_quantity#0, p_partkey#0L, l_extendedprice#0]
+            :  +- *BroadcastHashJoin [l_partkey#0L], [p_partkey#0L], Inner, BuildRight
+            :     :- *Project [l_partkey#0L, l_quantity#0, l_extendedprice#0]
+            :     :  +- *Filter (isnotnull(l_quantity#0) && isnotnull(l_partkey#0L))
+            :     :     +- *FileScan parquet default.lineitem[l_partkey#0L,l_quantity#0,l_extendedprice#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,0)>
+            :     +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+            :        +- *Project [p_partkey#0L]
+            :           +- *Filter (((((p_container#0 = MED BOX) && (p_brand#0 = Brand#23)) && isnotnull(p_brand#0)) && isnotnull(p_container#0)) && isnotnull(p_partkey#0L))
+            :              +- *FileScan parquet default.part[p_partkey#0L,p_brand#0,p_container#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,p_container:string>
+            +- BroadcastExchange HashedRelationBroadcastMode(List(input[1, bigint, true]))
+               +- *Filter isnotnull((CAST(0.2 AS DECIMAL(14,4)) * CAST(avg(l_quantity) AS DECIMAL(14,4)))#0)
+                  +- *HashAggregate(keys=[l_partkey#0L], functions=[avg(UnscaledValue(l_quantity#0))])
+                     +- Exchange hashpartitioning(l_partkey#0L, 5)
+                        +- *HashAggregate(keys=[l_partkey#0L], functions=[partial_avg(UnscaledValue(l_quantity#0))])
+                           +- *Project [l_partkey#0L, l_quantity#0]
+                              +- *Filter isnotnull(l_partkey#0L)
+                                 +- *FileScan parquet default.lineitem[l_partkey#0L,l_quantity#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,0)>

@@ -1,0 +1,14 @@
+*Sort [l_shipmode#0 ASC NULLS FIRST], true, 0
++- Exchange rangepartitioning(l_shipmode#0 ASC NULLS FIRST, 5)
+   +- *HashAggregate(keys=[l_shipmode#0], functions=[sum(cast(CASE WHEN ((o_orderpriority#0 = 1-URGENT) || (o_orderpriority#0 = 2-HIGH)) THEN 1 ELSE 0 END as bigint)), sum(cast(CASE WHEN (NOT (o_orderpriority#0 = 1-URGENT) && NOT (o_orderpriority#0 = 2-HIGH)) THEN 1 ELSE 0 END as bigint))])
+      +- Exchange hashpartitioning(l_shipmode#0, 5)
+         +- *HashAggregate(keys=[l_shipmode#0], functions=[partial_sum(cast(CASE WHEN ((o_orderpriority#0 = 1-URGENT) || (o_orderpriority#0 = 2-HIGH)) THEN 1 ELSE 0 END as bigint)), partial_sum(cast(CASE WHEN (NOT (o_orderpriority#0 = 1-URGENT) && NOT (o_orderpriority#0 = 2-HIGH)) THEN 1 ELSE 0 END as bigint))])
+            +- *Project [l_shipmode#0, o_orderpriority#0]
+               +- *BroadcastHashJoin [o_orderkey#0L], [l_orderkey#0L], Inner, BuildRight
+                  :- *Project [o_orderkey#0L, o_orderpriority#0]
+                  :  +- *Filter isnotnull(o_orderkey#0L)
+                  :     +- *FileScan parquet default.orders[o_orderkey#0L,o_orderpriority#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,o_orderpriority:string>
+                  +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+                     +- *Project [l_shipmode#0, l_orderkey#0L]
+                        +- *Filter (((((((((l_shipdate#0 < l_commitdate#0) && (l_receiptdate#0 >= 8766)) && isnotnull(l_shipdate#0)) && isnotnull(l_commitdate#0)) && isnotnull(l_orderkey#0L)) && (l_receiptdate#0 > l_commitdate#0)) && l_shipmode#0 IN (MAIL,SHIP)) && isnotnull(l_receiptdate#0)) && (l_receiptdate#0 < 9131))
+                           +- *FileScan parquet default.lineitem[l_orderkey#0L,l_shipdate#0,l_commitdate#0,l_receiptdate#0,l_shipmode#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,l_shipmode:string>

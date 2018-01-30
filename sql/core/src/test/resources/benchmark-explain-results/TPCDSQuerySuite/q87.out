@@ -1,0 +1,53 @@
+*HashAggregate(keys=[], functions=[count(1)])
++- Exchange SinglePartition
+   +- *HashAggregate(keys=[], functions=[partial_count(1)])
+      +- *HashAggregate(keys=[c_last_name#0, c_first_name#0, d_date#0], functions=[])
+         +- *HashAggregate(keys=[c_last_name#0, c_first_name#0, d_date#0], functions=[])
+            +- *BroadcastHashJoin [coalesce(c_last_name#0, ), coalesce(c_first_name#0, ), coalesce(d_date#0, )], [coalesce(c_last_name#0, ), coalesce(c_first_name#0, ), coalesce(d_date#0, )], LeftAnti, BuildRight, (((c_last_name#0 <=> c_last_name#0) && (c_first_name#0 <=> c_first_name#0)) && (d_date#0 <=> d_date#0))
+               :- *HashAggregate(keys=[c_last_name#0, c_first_name#0, d_date#0], functions=[])
+               :  +- *HashAggregate(keys=[c_last_name#0, c_first_name#0, d_date#0], functions=[])
+               :     +- *BroadcastHashJoin [coalesce(c_last_name#0, ), coalesce(c_first_name#0, ), coalesce(d_date#0, )], [coalesce(c_last_name#0, ), coalesce(c_first_name#0, ), coalesce(d_date#0, )], LeftAnti, BuildRight, (((c_last_name#0 <=> c_last_name#0) && (c_first_name#0 <=> c_first_name#0)) && (d_date#0 <=> d_date#0))
+               :        :- *HashAggregate(keys=[c_last_name#0, c_first_name#0, d_date#0], functions=[])
+               :        :  +- Exchange hashpartitioning(c_last_name#0, c_first_name#0, d_date#0, 5)
+               :        :     +- *HashAggregate(keys=[c_last_name#0, c_first_name#0, d_date#0], functions=[])
+               :        :        +- *Project [c_last_name#0, d_date#0, c_first_name#0]
+               :        :           +- *BroadcastHashJoin [ss_customer_sk#0], [c_customer_sk#0], Inner, BuildRight
+               :        :              :- *Project [d_date#0, ss_customer_sk#0]
+               :        :              :  +- *BroadcastHashJoin [ss_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+               :        :              :     :- *Project [ss_sold_date_sk#0, ss_customer_sk#0]
+               :        :              :     :  +- *Filter (isnotnull(ss_customer_sk#0) && isnotnull(ss_sold_date_sk#0))
+               :        :              :     :     +- *FileScan parquet default.store_sales[ss_sold_date_sk#0,ss_customer_sk#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ss_customer_sk:int>
+               :        :              :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :        :              :        +- *Project [d_date_sk#0, d_date#0]
+               :        :              :           +- *Filter (((isnotnull(d_date_sk#0) && (1211 >= d_month_seq#0)) && isnotnull(d_month_seq#0)) && (1200 <= d_month_seq#0))
+               :        :              :              +- *FileScan parquet default.date_dim[d_date_sk#0,d_date#0,d_month_seq#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_month_seq:int>
+               :        :              +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :        :                 +- *Project [c_first_name#0, c_last_name#0, c_customer_sk#0]
+               :        :                    +- *Filter isnotnull(c_customer_sk#0)
+               :        :                       +- *FileScan parquet default.customer[c_customer_sk#0,c_first_name#0,c_last_name#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,c_last_name:string>
+               :        +- BroadcastExchange HashedRelationBroadcastMode(List(coalesce(input[0, string, true], ), coalesce(input[1, string, true], ), coalesce(input[2, string, true], )))
+               :           +- *HashAggregate(keys=[c_last_name#0, c_first_name#0, d_date#0], functions=[])
+               :              +- Exchange hashpartitioning(c_last_name#0, c_first_name#0, d_date#0, 5)
+               :                 +- *HashAggregate(keys=[c_last_name#0, c_first_name#0, d_date#0], functions=[])
+               :                    +- *Project [c_last_name#0, d_date#0, c_first_name#0]
+               :                       +- *BroadcastHashJoin [cs_bill_customer_sk#0], [c_customer_sk#0], Inner, BuildRight
+               :                          :- *Project [d_date#0, cs_bill_customer_sk#0]
+               :                          :  +- *BroadcastHashJoin [cs_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+               :                          :     :- *Project [cs_bill_customer_sk#0, cs_sold_date_sk#0]
+               :                          :     :  +- *Filter (isnotnull(cs_sold_date_sk#0) && isnotnull(cs_bill_customer_sk#0))
+               :                          :     :     +- *FileScan parquet default.catalog_sales[cs_sold_date_sk#0,cs_bill_customer_sk#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,cs_bill_customer_sk:int>
+               :                          :     +- ReusedExchange [d_date_sk#0, d_date#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :                          +- ReusedExchange [c_customer_sk#0, c_first_name#0, c_last_name#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               +- BroadcastExchange HashedRelationBroadcastMode(List(coalesce(input[0, string, true], ), coalesce(input[1, string, true], ), coalesce(input[2, string, true], )))
+                  +- *HashAggregate(keys=[c_last_name#0, c_first_name#0, d_date#0], functions=[])
+                     +- Exchange hashpartitioning(c_last_name#0, c_first_name#0, d_date#0, 5)
+                        +- *HashAggregate(keys=[c_last_name#0, c_first_name#0, d_date#0], functions=[])
+                           +- *Project [c_last_name#0, d_date#0, c_first_name#0]
+                              +- *BroadcastHashJoin [ws_bill_customer_sk#0], [c_customer_sk#0], Inner, BuildRight
+                                 :- *Project [d_date#0, ws_bill_customer_sk#0]
+                                 :  +- *BroadcastHashJoin [ws_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+                                 :     :- *Project [ws_bill_customer_sk#0, ws_sold_date_sk#0]
+                                 :     :  +- *Filter (isnotnull(ws_sold_date_sk#0) && isnotnull(ws_bill_customer_sk#0))
+                                 :     :     +- *FileScan parquet default.web_sales[ws_sold_date_sk#0,ws_bill_customer_sk#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ws_bill_customer_sk:int>
+                                 :     +- ReusedExchange [d_date_sk#0, d_date#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                                 +- ReusedExchange [c_customer_sk#0, c_first_name#0, c_last_name#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))

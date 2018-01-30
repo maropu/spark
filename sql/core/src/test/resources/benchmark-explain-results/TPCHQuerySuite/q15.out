@@ -1,0 +1,26 @@
+*Sort [s_suppkey#0L ASC NULLS FIRST], true, 0
++- Exchange rangepartitioning(s_suppkey#0L ASC NULLS FIRST, 5)
+   +- *Project [total_revenue#0, s_phone#0, s_address#0, s_name#0, s_suppkey#0L]
+      +- *BroadcastHashJoin [s_suppkey#0L], [supplier_no#0L], Inner, BuildRight
+         :- *Project [s_address#0, s_name#0, s_suppkey#0L, s_phone#0]
+         :  +- *Filter isnotnull(s_suppkey#0L)
+         :     +- *FileScan parquet default.supplier[s_suppkey#0L,s_name#0,s_address#0,s_phone#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,s_phone:string>
+         +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true]))
+            +- *Filter ((total_revenue#0 = Subquery none) && isnotnull(total_revenue#0))
+               :  +- Subquery none
+               :     +- Subquery none
+               :        +- *HashAggregate(keys=[], functions=[max(total_revenue#0)])
+               :           +- Exchange SinglePartition
+               :              +- *HashAggregate(keys=[], functions=[partial_max(total_revenue#0)])
+               :                 +- *HashAggregate(keys=[l_suppkey#0L], functions=[sum(CheckOverflow((promote_precision(cast(l_extendedprice#0 as decimal(11,0))) * promote_precision(CheckOverflow(CheckOverflow((1 - promote_precision(cast(promote_precision(cast(l_discount#0 as decimal(11,0))) as decimal(12,0)))), DecimalType(12,0)), DecimalType(11,0)))), DecimalType(22,0)))])
+               :                    +- Exchange hashpartitioning(l_suppkey#0L, 5)
+               :                       +- *HashAggregate(keys=[l_suppkey#0L], functions=[partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#0 as decimal(11,0))) * promote_precision(CheckOverflow(CheckOverflow((1 - promote_precision(cast(promote_precision(cast(l_discount#0 as decimal(11,0))) as decimal(12,0)))), DecimalType(12,0)), DecimalType(11,0)))), DecimalType(22,0)))])
+               :                          +- *Project [l_discount#0, l_suppkey#0L, l_extendedprice#0]
+               :                             +- *Filter ((isnotnull(l_shipdate#0) && (l_shipdate#0 >= 9496)) && (l_shipdate#0 < 9587))
+               :                                +- *FileScan parquet default.lineitem[l_suppkey#0L,l_extendedprice#0,l_discount#0,l_shipdate#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,l_shipdate:date>
+               +- *HashAggregate(keys=[l_suppkey#0L], functions=[sum(CheckOverflow((promote_precision(cast(l_extendedprice#0 as decimal(11,0))) * promote_precision(CheckOverflow((1 - promote_precision(cast(l_discount#0 as decimal(11,0)))), DecimalType(11,0)))), DecimalType(22,0)))])
+                  +- Exchange hashpartitioning(l_suppkey#0L, 5)
+                     +- *HashAggregate(keys=[l_suppkey#0L], functions=[partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#0 as decimal(11,0))) * promote_precision(CheckOverflow((1 - promote_precision(cast(l_discount#0 as decimal(11,0)))), DecimalType(11,0)))), DecimalType(22,0)))])
+                        +- *Project [l_discount#0, l_suppkey#0L, l_extendedprice#0]
+                           +- *Filter (((isnotnull(l_shipdate#0) && (l_shipdate#0 >= 9496)) && isnotnull(l_suppkey#0L)) && (l_shipdate#0 < 9587))
+                              +- *FileScan parquet default.lineitem[l_suppkey#0L,l_extendedprice#0,l_discount#0,l_shipdate#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,l_shipdate:date>

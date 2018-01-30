@@ -1,0 +1,19 @@
+TakeOrderedAndProject(limit=100, orderBy=[ext_price#0 DESC NULLS LAST,brand_id#0 ASC NULLS FIRST], output=[brand_id#0,brand#0,ext_price#0])
++- *HashAggregate(keys=[i_brand#0, i_brand_id#0], functions=[sum(UnscaledValue(ss_ext_sales_price#0))])
+   +- Exchange hashpartitioning(i_brand#0, i_brand_id#0, 5)
+      +- *HashAggregate(keys=[i_brand#0, i_brand_id#0], functions=[partial_sum(UnscaledValue(ss_ext_sales_price#0))])
+         +- *Project [i_brand#0, i_brand_id#0, ss_ext_sales_price#0]
+            +- *BroadcastHashJoin [ss_item_sk#0], [i_item_sk#0], Inner, BuildRight
+               :- *Project [ss_item_sk#0, ss_ext_sales_price#0]
+               :  +- *BroadcastHashJoin [d_date_sk#0], [ss_sold_date_sk#0], Inner, BuildRight
+               :     :- *Project [d_date_sk#0]
+               :     :  +- *Filter ((((isnotnull(d_date_sk#0) && isnotnull(d_moy#0)) && isnotnull(d_year#0)) && (1999 = d_year#0)) && (d_moy#0 = 11))
+               :     :     +- *FileScan parquet default.date_dim[d_date_sk#0,d_year#0,d_moy#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_moy:int>
+               :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :        +- *Project [ss_item_sk#0, ss_sold_date_sk#0, ss_ext_sales_price#0]
+               :           +- *Filter (isnotnull(ss_item_sk#0) && isnotnull(ss_sold_date_sk#0))
+               :              +- *FileScan parquet default.store_sales[ss_sold_date_sk#0,ss_item_sk#0,ss_ext_sales_price#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+               +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  +- *Project [i_brand#0, i_item_sk#0, i_brand_id#0]
+                     +- *Filter ((isnotnull(i_item_sk#0) && (28 = i_manager_id#0)) && isnotnull(i_manager_id#0))
+                        +- *FileScan parquet default.item[i_item_sk#0,i_brand_id#0,i_brand#0,i_manager_id#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,i_manager_id:int>

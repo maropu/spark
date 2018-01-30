@@ -1,0 +1,51 @@
+TakeOrderedAndProject(limit=100, orderBy=[CheckOverflow((promote_precision(cast(sum_sales#0 as decimal(22,6))) - promote_precision(cast(avg_monthly_sales#0 as decimal(22,6)))), DecimalType(22,6)) ASC NULLS FIRST,s_store_name#0 ASC NULLS FIRST], output=[i_category#0,i_brand#0,s_store_name#0,s_company_name#0,d_year#0,d_moy#0,avg_monthly_sales#0,sum_sales#0,psum#0,nsum#0])
++- *Project [sum_sales#0 AS none#0, d_moy#0, sum_sales#0, avg_monthly_sales#0, s_company_name#0, s_store_name#0, i_category#0, sum_sales#0 AS none#0, i_brand#0, d_year#0]
+   +- *BroadcastHashJoin [i_category#0, i_brand#0, s_store_name#0, s_company_name#0, rn#0], [i_category#0, i_brand#0, s_store_name#0, s_company_name#0, (rn#0 - 1)], Inner, BuildRight
+      :- *Project [d_moy#0, i_category#0, i_brand#0, rn#0, sum_sales#0, sum_sales#0, d_year#0, avg_monthly_sales#0, s_company_name#0, s_store_name#0]
+      :  +- *BroadcastHashJoin [i_category#0, i_brand#0, s_store_name#0, s_company_name#0, rn#0], [i_category#0, i_brand#0, s_store_name#0, s_company_name#0, (rn#0 + 1)], Inner, BuildRight
+      :     :- *Filter ((((((avg_monthly_sales#0 > 0.000000) && isnotnull(d_year#0)) && isnotnull(rn#0)) && (CASE WHEN (avg_monthly_sales#0 > 0.000000) THEN CheckOverflow((promote_precision(abs(CheckOverflow((promote_precision(cast(sum_sales#0 as decimal(22,6))) - promote_precision(cast(avg_monthly_sales#0 as decimal(22,6)))), DecimalType(22,6)))) / promote_precision(cast(avg_monthly_sales#0 as decimal(22,6)))), DecimalType(38,16)) ELSE null END > 0.1000000000000000)) && (d_year#0 = 1999)) && isnotnull(avg_monthly_sales#0))
+      :     :  +- Window [rank(d_year#0, d_moy#0) windowspecdefinition(i_category#0, i_brand#0, s_store_name#0, s_company_name#0, d_year#0 ASC NULLS FIRST, d_moy#0 ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS none#0], [i_category#0, i_brand#0, s_store_name#0, s_company_name#0], [d_year#0 ASC NULLS FIRST, d_moy#0 ASC NULLS FIRST]
+      :     :     +- *Sort [i_category#0 ASC NULLS FIRST, i_brand#0 ASC NULLS FIRST, s_store_name#0 ASC NULLS FIRST, s_company_name#0 ASC NULLS FIRST, d_year#0 ASC NULLS FIRST, d_moy#0 ASC NULLS FIRST], false, 0
+      :     :        +- Exchange hashpartitioning(i_category#0, i_brand#0, s_store_name#0, s_company_name#0, 5)
+      :     :           +- *Project [d_moy#0, i_category#0, i_brand#0, sum_sales#0, d_year#0, avg_monthly_sales#0, s_company_name#0, s_store_name#0]
+      :     :              +- Window [avg(_w0#0) windowspecdefinition(i_category#0, i_brand#0, s_store_name#0, s_company_name#0, d_year#0, specifiedwindowframe(RowFrame, unboundedpreceding$(), unboundedfollowing$())) AS none#0], [i_category#0, i_brand#0, s_store_name#0, s_company_name#0, d_year#0]
+      :     :                 +- *Sort [i_category#0 ASC NULLS FIRST, i_brand#0 ASC NULLS FIRST, s_store_name#0 ASC NULLS FIRST, s_company_name#0 ASC NULLS FIRST, d_year#0 ASC NULLS FIRST], false, 0
+      :     :                    +- Exchange hashpartitioning(i_category#0, i_brand#0, s_store_name#0, s_company_name#0, d_year#0, 5)
+      :     :                       +- *HashAggregate(keys=[i_category#0, i_brand#0, s_store_name#0, s_company_name#0, d_year#0, d_moy#0], functions=[sum(UnscaledValue(ss_sales_price#0))])
+      :     :                          +- Exchange hashpartitioning(i_category#0, i_brand#0, s_store_name#0, s_company_name#0, d_year#0, d_moy#0, 5)
+      :     :                             +- *HashAggregate(keys=[i_category#0, i_brand#0, s_store_name#0, s_company_name#0, d_year#0, d_moy#0], functions=[partial_sum(UnscaledValue(ss_sales_price#0))])
+      :     :                                +- *Project [ss_sales_price#0, i_brand#0, d_year#0, d_moy#0, s_company_name#0, s_store_name#0, i_category#0]
+      :     :                                   +- *BroadcastHashJoin [ss_store_sk#0], [s_store_sk#0], Inner, BuildRight
+      :     :                                      :- *Project [ss_sales_price#0, i_brand#0, d_year#0, d_moy#0, ss_store_sk#0, i_category#0]
+      :     :                                      :  +- *BroadcastHashJoin [ss_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+      :     :                                      :     :- *Project [ss_sales_price#0, i_brand#0, ss_store_sk#0, ss_sold_date_sk#0, i_category#0]
+      :     :                                      :     :  +- *BroadcastHashJoin [i_item_sk#0], [ss_item_sk#0], Inner, BuildRight
+      :     :                                      :     :     :- *Project [i_brand#0, i_item_sk#0, i_category#0]
+      :     :                                      :     :     :  +- *Filter ((isnotnull(i_item_sk#0) && isnotnull(i_brand#0)) && isnotnull(i_category#0))
+      :     :                                      :     :     :     +- *FileScan parquet default.item[i_item_sk#0,i_brand#0,i_category#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,i_category:string>
+      :     :                                      :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[1, int, true] as bigint)))
+      :     :                                      :     :        +- *Project [ss_sales_price#0, ss_item_sk#0, ss_store_sk#0, ss_sold_date_sk#0]
+      :     :                                      :     :           +- *Filter ((isnotnull(ss_item_sk#0) && isnotnull(ss_store_sk#0)) && isnotnull(ss_sold_date_sk#0))
+      :     :                                      :     :              +- *FileScan parquet default.store_sales[ss_sold_date_sk#0,ss_item_sk#0,ss_store_sk#0,ss_sales_price#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+      :     :                                      :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :     :                                      :        +- *Project [d_date_sk#0, d_year#0, d_moy#0]
+      :     :                                      :           +- *Filter (isnotnull(d_date_sk#0) && ((((d_moy#0 = 1) && (2000 = d_year#0)) || ((d_moy#0 = 12) && (1998 = d_year#0))) || (1999 = d_year#0)))
+      :     :                                      :              +- *FileScan parquet default.date_dim[d_date_sk#0,d_year#0,d_moy#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_moy:int>
+      :     :                                      +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :     :                                         +- *Project [s_store_sk#0, s_company_name#0, s_store_name#0]
+      :     :                                            +- *Filter ((isnotnull(s_store_sk#0) && isnotnull(s_company_name#0)) && isnotnull(s_store_name#0))
+      :     :                                               +- *FileScan parquet default.store[s_store_sk#0,s_store_name#0,s_company_name#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,s_company_name:string>
+      :     +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, true], input[1, string, true], input[2, string, true], input[3, string, true], (input[5, int, true] + 1)))
+      :        +- *Project [i_category#0, i_brand#0, rn#0, sum_sales#0, s_company_name#0, s_store_name#0]
+      :           +- *Filter isnotnull(rn#0)
+      :              +- Window [rank(d_year#0, d_moy#0) windowspecdefinition(i_category#0, i_brand#0, s_store_name#0, s_company_name#0, d_year#0 ASC NULLS FIRST, d_moy#0 ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS none#0], [i_category#0, i_brand#0, s_store_name#0, s_company_name#0], [d_year#0 ASC NULLS FIRST, d_moy#0 ASC NULLS FIRST]
+      :                 +- *Sort [i_category#0 ASC NULLS FIRST, i_brand#0 ASC NULLS FIRST, s_store_name#0 ASC NULLS FIRST, s_company_name#0 ASC NULLS FIRST, d_year#0 ASC NULLS FIRST, d_moy#0 ASC NULLS FIRST], false, 0
+      :                    +- Exchange hashpartitioning(i_category#0, i_brand#0, s_store_name#0, s_company_name#0, 5)
+      :                       +- *HashAggregate(keys=[i_category#0, i_brand#0, s_store_name#0, s_company_name#0, d_year#0, d_moy#0], functions=[sum(UnscaledValue(ss_sales_price#0))])
+      :                          +- ReusedExchange [i_category#0, i_brand#0, s_store_name#0, s_company_name#0, d_year#0, d_moy#0, sum#0L], Exchange hashpartitioning(i_category#422, i_brand#418, s_store_name#82, s_company_name#94, d_year#54, d_moy#56, 5)
+      +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, true], input[1, string, true], input[2, string, true], input[3, string, true], (input[5, int, true] - 1)))
+         +- *Project [i_category#0, i_brand#0, rn#0, sum_sales#0, s_company_name#0, s_store_name#0]
+            +- *Filter isnotnull(rn#0)
+               +- Window [rank(d_year#0, d_moy#0) windowspecdefinition(i_category#0, i_brand#0, s_store_name#0, s_company_name#0, d_year#0 ASC NULLS FIRST, d_moy#0 ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS none#0], [i_category#0, i_brand#0, s_store_name#0, s_company_name#0], [d_year#0 ASC NULLS FIRST, d_moy#0 ASC NULLS FIRST]
+                  +- *Sort [i_category#0 ASC NULLS FIRST, i_brand#0 ASC NULLS FIRST, s_store_name#0 ASC NULLS FIRST, s_company_name#0 ASC NULLS FIRST, d_year#0 ASC NULLS FIRST, d_moy#0 ASC NULLS FIRST], false, 0
+                     +- ReusedExchange [i_category#0, i_brand#0, s_store_name#0, s_company_name#0, d_year#0, d_moy#0, sum_sales#0], Exchange hashpartitioning(i_category#5302, i_brand#5298, s_store_name#5459, s_company_name#5471, 5)

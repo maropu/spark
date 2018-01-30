@@ -1,0 +1,49 @@
+TakeOrderedAndProject(limit=100, orderBy=[s_store_name1#0 ASC NULLS FIRST,s_store_id1#0 ASC NULLS FIRST,d_week_seq1#0 ASC NULLS FIRST], output=[s_store_name1#0,s_store_id1#0,d_week_seq1#0,(sun_sales1 / sun_sales2)#0,(mon_sales1 / mon_sales2)#0,(tue_sales1 / tue_sales1)#0,(wed_sales1 / wed_sales2)#0,(thu_sales1 / thu_sales2)#0,(fri_sales1 / fri_sales2)#0,(sat_sales1 / sat_sales2)#0])
++- *Project [CheckOverflow((promote_precision(mon_sales1#0) / promote_precision(mon_sales2#0)), DecimalType(37,20)) AS none#0, s_store_id1#0, d_week_seq1#0, CheckOverflow((promote_precision(thu_sales1#0) / promote_precision(thu_sales2#0)), DecimalType(37,20)) AS none#0, s_store_name1#0, CheckOverflow((promote_precision(sat_sales1#0) / promote_precision(sat_sales2#0)), DecimalType(37,20)) AS none#0, CheckOverflow((promote_precision(tue_sales1#0) / promote_precision(tue_sales1#0)), DecimalType(37,20)) AS none#0, CheckOverflow((promote_precision(sun_sales1#0) / promote_precision(sun_sales2#0)), DecimalType(37,20)) AS none#0, CheckOverflow((promote_precision(wed_sales1#0) / promote_precision(wed_sales2#0)), DecimalType(37,20)) AS none#0, CheckOverflow((promote_precision(fri_sales1#0) / promote_precision(fri_sales2#0)), DecimalType(37,20)) AS none#0]
+   +- *BroadcastHashJoin [s_store_id1#0, d_week_seq1#0], [s_store_id2#0, (d_week_seq2#0 - 52)], Inner, BuildRight
+      :- *Project [fri_sales#0 AS none#0, s_store_id#0 AS none#0, sat_sales#0 AS none#0, sun_sales#0 AS none#0, s_store_name#0 AS none#0, d_week_seq#0 AS none#0, wed_sales#0 AS none#0, tue_sales#0 AS none#0, mon_sales#0 AS none#0, thu_sales#0 AS none#0]
+      :  +- *BroadcastHashJoin [d_week_seq#0], [d_week_seq#0], Inner, BuildRight
+      :     :- *Project [sun_sales#0, mon_sales#0, s_store_id#0, thu_sales#0, fri_sales#0, tue_sales#0, wed_sales#0, d_week_seq#0, sat_sales#0, s_store_name#0]
+      :     :  +- *BroadcastHashJoin [ss_store_sk#0], [s_store_sk#0], Inner, BuildRight
+      :     :     :- *HashAggregate(keys=[d_week_seq#0, ss_store_sk#0], functions=[sum(UnscaledValue(CASE WHEN (d_day_name#0 = Sunday) THEN ss_sales_price#0 ELSE null END)), sum(UnscaledValue(CASE WHEN (d_day_name#0 = Monday) THEN ss_sales_price#0 ELSE null END)), sum(UnscaledValue(CASE WHEN (d_day_name#0 = Tuesday) THEN ss_sales_price#0 ELSE null END)), sum(UnscaledValue(CASE WHEN (d_day_name#0 = Wednesday) THEN ss_sales_price#0 ELSE null END)), sum(UnscaledValue(CASE WHEN (d_day_name#0 = Thursday) THEN ss_sales_price#0 ELSE null END)), sum(UnscaledValue(CASE WHEN (d_day_name#0 = Friday) THEN ss_sales_price#0 ELSE null END)), sum(UnscaledValue(CASE WHEN (d_day_name#0 = Saturday) THEN ss_sales_price#0 ELSE null END))])
+      :     :     :  +- Exchange hashpartitioning(d_week_seq#0, ss_store_sk#0, 5)
+      :     :     :     +- *HashAggregate(keys=[d_week_seq#0, ss_store_sk#0], functions=[partial_sum(UnscaledValue(CASE WHEN (d_day_name#0 = Sunday) THEN ss_sales_price#0 ELSE null END)), partial_sum(UnscaledValue(CASE WHEN (d_day_name#0 = Monday) THEN ss_sales_price#0 ELSE null END)), partial_sum(UnscaledValue(CASE WHEN (d_day_name#0 = Tuesday) THEN ss_sales_price#0 ELSE null END)), partial_sum(UnscaledValue(CASE WHEN (d_day_name#0 = Wednesday) THEN ss_sales_price#0 ELSE null END)), partial_sum(UnscaledValue(CASE WHEN (d_day_name#0 = Thursday) THEN ss_sales_price#0 ELSE null END)), partial_sum(UnscaledValue(CASE WHEN (d_day_name#0 = Friday) THEN ss_sales_price#0 ELSE null END)), partial_sum(UnscaledValue(CASE WHEN (d_day_name#0 = Saturday) THEN ss_sales_price#0 ELSE null END))])
+      :     :     :        +- *Project [d_day_name#0, ss_sales_price#0, d_week_seq#0, ss_store_sk#0]
+      :     :     :           +- *BroadcastHashJoin [ss_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+      :     :     :              :- *Project [ss_sales_price#0, ss_store_sk#0, ss_sold_date_sk#0]
+      :     :     :              :  +- *Filter (isnotnull(ss_store_sk#0) && isnotnull(ss_sold_date_sk#0))
+      :     :     :              :     +- *FileScan parquet default.store_sales[ss_sold_date_sk#0,ss_store_sk#0,ss_sales_price#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+      :     :     :              +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :     :     :                 +- *Project [d_date_sk#0, d_day_name#0, d_week_seq#0]
+      :     :     :                    +- *Filter (isnotnull(d_date_sk#0) && isnotnull(d_week_seq#0))
+      :     :     :                       +- *FileScan parquet default.date_dim[d_date_sk#0,d_week_seq#0,d_day_name#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_day_name:string>
+      :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :     :        +- *Project [s_store_id#0, s_store_sk#0, s_store_name#0]
+      :     :           +- *Filter (isnotnull(s_store_sk#0) && isnotnull(s_store_id#0))
+      :     :              +- *FileScan parquet default.store[s_store_sk#0,s_store_id#0,s_store_name#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,s_store_name:string>
+      :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :        +- *Project [d_week_seq#0]
+      :           +- *Filter ((((1185 <= d_month_seq#0) && isnotnull(d_month_seq#0)) && (1196 >= d_month_seq#0)) && isnotnull(d_week_seq#0))
+      :              +- *FileScan parquet default.date_dim[d_month_seq#0,d_week_seq#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_week_seq:int>
+      +- BroadcastExchange HashedRelationBroadcastMode(List(input[1, string, true], (input[0, int, true] - 52)))
+         +- *Project [fri_sales#0 AS none#0, s_store_id#0 AS none#0, sat_sales#0 AS none#0, sun_sales#0 AS none#0, d_week_seq#0 AS none#0, wed_sales#0 AS none#0, mon_sales#0 AS none#0, thu_sales#0 AS none#0]
+            +- *BroadcastHashJoin [d_week_seq#0], [d_week_seq#0], Inner, BuildRight
+               :- *Project [sun_sales#0, mon_sales#0, s_store_id#0, thu_sales#0, fri_sales#0, wed_sales#0, d_week_seq#0, sat_sales#0]
+               :  +- *BroadcastHashJoin [ss_store_sk#0], [s_store_sk#0], Inner, BuildRight
+               :     :- *HashAggregate(keys=[d_week_seq#0, ss_store_sk#0], functions=[sum(UnscaledValue(CASE WHEN (d_day_name#0 = Sunday) THEN ss_sales_price#0 ELSE null END)), sum(UnscaledValue(CASE WHEN (d_day_name#0 = Monday) THEN ss_sales_price#0 ELSE null END)), sum(UnscaledValue(CASE WHEN (d_day_name#0 = Wednesday) THEN ss_sales_price#0 ELSE null END)), sum(UnscaledValue(CASE WHEN (d_day_name#0 = Thursday) THEN ss_sales_price#0 ELSE null END)), sum(UnscaledValue(CASE WHEN (d_day_name#0 = Friday) THEN ss_sales_price#0 ELSE null END)), sum(UnscaledValue(CASE WHEN (d_day_name#0 = Saturday) THEN ss_sales_price#0 ELSE null END))])
+               :     :  +- Exchange hashpartitioning(d_week_seq#0, ss_store_sk#0, 5)
+               :     :     +- *HashAggregate(keys=[d_week_seq#0, ss_store_sk#0], functions=[partial_sum(UnscaledValue(CASE WHEN (d_day_name#0 = Sunday) THEN ss_sales_price#0 ELSE null END)), partial_sum(UnscaledValue(CASE WHEN (d_day_name#0 = Monday) THEN ss_sales_price#0 ELSE null END)), partial_sum(UnscaledValue(CASE WHEN (d_day_name#0 = Wednesday) THEN ss_sales_price#0 ELSE null END)), partial_sum(UnscaledValue(CASE WHEN (d_day_name#0 = Thursday) THEN ss_sales_price#0 ELSE null END)), partial_sum(UnscaledValue(CASE WHEN (d_day_name#0 = Friday) THEN ss_sales_price#0 ELSE null END)), partial_sum(UnscaledValue(CASE WHEN (d_day_name#0 = Saturday) THEN ss_sales_price#0 ELSE null END))])
+               :     :        +- *Project [d_day_name#0, ss_sales_price#0, d_week_seq#0, ss_store_sk#0]
+               :     :           +- *BroadcastHashJoin [ss_sold_date_sk#0], [d_date_sk#0], Inner, BuildRight
+               :     :              :- *Project [ss_sales_price#0, ss_store_sk#0, ss_sold_date_sk#0]
+               :     :              :  +- *Filter (isnotnull(ss_store_sk#0) && isnotnull(ss_sold_date_sk#0))
+               :     :              :     +- *FileScan parquet default.store_sales[ss_sold_date_sk#0,ss_store_sk#0,ss_sales_price#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+               :     :              +- ReusedExchange [d_date_sk#0, d_week_seq#0, d_day_name#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+               :        +- *Project [s_store_id#0, s_store_sk#0]
+               :           +- *Filter (isnotnull(s_store_sk#0) && isnotnull(s_store_id#0))
+               :              +- *FileScan parquet default.store[s_store_sk#0,s_store_id#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,s_store_id:string>
+               +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  +- *Project [d_week_seq#0]
+                     +- *Filter (((isnotnull(d_month_seq#0) && (1197 <= d_month_seq#0)) && isnotnull(d_week_seq#0)) && (1208 >= d_month_seq#0))
+                        +- *FileScan parquet default.date_dim[d_month_seq#0,d_week_seq#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_week_seq:int>

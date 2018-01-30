@@ -1,0 +1,26 @@
+TakeOrderedAndProject(limit=100, orderBy=[w_warehouse_name#0 ASC NULLS FIRST,i_item_id#0 ASC NULLS FIRST], output=[w_warehouse_name#0,i_item_id#0,inv_before#0L,inv_after#0L])
++- *Filter ((CASE WHEN (inv_before#0L > 0) THEN (cast(inv_after#0L as double) / cast(inv_before#0L as double)) ELSE null END <= 1.5) && (0.666667 <= CASE WHEN (inv_before#0L > 0) THEN (cast(inv_after#0L as double) / cast(inv_before#0L as double)) ELSE null END))
+   +- *HashAggregate(keys=[w_warehouse_name#0, i_item_id#0], functions=[sum(cast(CASE WHEN (cast(d_date#0 as date) < 11027) THEN inv_quantity_on_hand#0 ELSE 0 END as bigint)), sum(cast(CASE WHEN (cast(d_date#0 as date) >= 11027) THEN inv_quantity_on_hand#0 ELSE 0 END as bigint))])
+      +- Exchange hashpartitioning(w_warehouse_name#0, i_item_id#0, 5)
+         +- *HashAggregate(keys=[w_warehouse_name#0, i_item_id#0], functions=[partial_sum(cast(CASE WHEN (cast(d_date#0 as date) < 11027) THEN inv_quantity_on_hand#0 ELSE 0 END as bigint)), partial_sum(cast(CASE WHEN (cast(d_date#0 as date) >= 11027) THEN inv_quantity_on_hand#0 ELSE 0 END as bigint))])
+            +- *Project [d_date#0, i_item_id#0, inv_quantity_on_hand#0, w_warehouse_name#0]
+               +- *BroadcastHashJoin [inv_date_sk#0], [d_date_sk#0], Inner, BuildRight
+                  :- *Project [i_item_id#0, inv_date_sk#0, inv_quantity_on_hand#0, w_warehouse_name#0]
+                  :  +- *BroadcastHashJoin [inv_item_sk#0], [i_item_sk#0], Inner, BuildRight
+                  :     :- *Project [inv_item_sk#0, inv_date_sk#0, inv_quantity_on_hand#0, w_warehouse_name#0]
+                  :     :  +- *BroadcastHashJoin [inv_warehouse_sk#0], [w_warehouse_sk#0], Inner, BuildRight
+                  :     :     :- *Project [inv_item_sk#0, inv_warehouse_sk#0, inv_date_sk#0, inv_quantity_on_hand#0]
+                  :     :     :  +- *Filter ((isnotnull(inv_date_sk#0) && isnotnull(inv_item_sk#0)) && isnotnull(inv_warehouse_sk#0))
+                  :     :     :     +- *FileScan parquet default.inventory[inv_date_sk#0,inv_item_sk#0,inv_warehouse_sk#0,inv_quantity_on_hand#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,inv_quantity_on_hand:int>
+                  :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  :     :        +- *Project [w_warehouse_sk#0, w_warehouse_name#0]
+                  :     :           +- *Filter isnotnull(w_warehouse_sk#0)
+                  :     :              +- *FileScan parquet default.warehouse[w_warehouse_sk#0,w_warehouse_name#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,w_warehouse_name:string>
+                  :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  :        +- *Project [i_item_sk#0, i_item_id#0]
+                  :           +- *Filter ((((i_current_price#0 >= 0.99) && isnotnull(i_item_sk#0)) && (i_current_price#0 <= 1.49)) && isnotnull(i_current_price#0))
+                  :              +- *FileScan parquet default.item[i_item_sk#0,i_item_id#0,i_current_price#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+                  +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                     +- *Project [d_date_sk#0, d_date#0]
+                        +- *Filter ((((d_date#0 <= 2000-04-10) && isnotnull(d_date_sk#0)) && isnotnull(d_date#0)) && (2000-02-10 <= d_date#0))
+                           +- *FileScan parquet default.date_dim[d_date_sk#0,d_date#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,d_date:string>

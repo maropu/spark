@@ -1,0 +1,51 @@
+TakeOrderedAndProject(limit=100, orderBy=[rnk#0 ASC NULLS FIRST], output=[rnk#0,best_performing#0,worst_performing#0])
++- *Project [rnk#0, i_product_name#0 AS none#0, i_product_name#0 AS none#0]
+   +- *BroadcastHashJoin [item_sk#0], [i_item_sk#0], Inner, BuildRight
+      :- *Project [i_product_name#0, rnk#0, item_sk#0]
+      :  +- *BroadcastHashJoin [item_sk#0], [i_item_sk#0], Inner, BuildRight
+      :     :- *Project [item_sk#0, rnk#0, item_sk#0]
+      :     :  +- *BroadcastHashJoin [rnk#0], [rnk#0], Inner, BuildRight
+      :     :     :- *Project [item_sk#0, rnk#0]
+      :     :     :  +- *Filter ((isnotnull(item_sk#0) && (rnk#0 < 11)) && isnotnull(rnk#0))
+      :     :     :     +- Window [rank(rank_col#0) windowspecdefinition(rank_col#0 ASC NULLS FIRST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS none#0], [rank_col#0 ASC NULLS FIRST]
+      :     :     :        +- *Sort [rank_col#0 ASC NULLS FIRST], false, 0
+      :     :     :           +- Exchange SinglePartition
+      :     :     :              +- *Project [item_sk#0, rank_col#0]
+      :     :     :                 +- *Filter (isnotnull(avg(ss_net_profit#0)#0) && (CheckOverflow((promote_precision(Subquery none) * 0.900000), DecimalType(13,7)) < cast(avg(ss_net_profit#0)#0 as decimal(13,7))))
+      :     :     :                    :  +- Subquery none
+      :     :     :                    :     +- Subquery none
+      :     :     :                    :        +- *HashAggregate(keys=[ss_store_sk#0], functions=[avg(UnscaledValue(ss_net_profit#0))])
+      :     :     :                    :           +- Exchange hashpartitioning(ss_store_sk#0, 5)
+      :     :     :                    :              +- *HashAggregate(keys=[ss_store_sk#0], functions=[partial_avg(UnscaledValue(ss_net_profit#0))])
+      :     :     :                    :                 +- *Project [ss_store_sk#0, ss_net_profit#0]
+      :     :     :                    :                    +- *Filter ((isnotnull(ss_store_sk#0) && (ss_store_sk#0 = 4)) && isnull(ss_addr_sk#0))
+      :     :     :                    :                       +- *FileScan parquet default.store_sales[ss_addr_sk#0,ss_store_sk#0,ss_net_profit#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+      :     :     :                    +- *HashAggregate(keys=[ss_item_sk#0], functions=[avg(UnscaledValue(ss_net_profit#0))])
+      :     :     :                       +- Exchange hashpartitioning(ss_item_sk#0, 5)
+      :     :     :                          +- *HashAggregate(keys=[ss_item_sk#0], functions=[partial_avg(UnscaledValue(ss_net_profit#0))])
+      :     :     :                             +- *Project [ss_item_sk#0, ss_net_profit#0]
+      :     :     :                                +- *Filter (isnotnull(ss_store_sk#0) && (ss_store_sk#0 = 4))
+      :     :     :                                   +- *FileScan parquet default.store_sales[ss_item_sk#0,ss_store_sk#0,ss_net_profit#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+      :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[1, int, true] as bigint)))
+      :     :        +- *Project [item_sk#0, rnk#0]
+      :     :           +- *Filter (((11 > rnk#0) && isnotnull(rnk#0)) && isnotnull(item_sk#0))
+      :     :              +- Window [rank(rank_col#0) windowspecdefinition(rank_col#0 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS none#0], [rank_col#0 DESC NULLS LAST]
+      :     :                 +- *Sort [rank_col#0 DESC NULLS LAST], false, 0
+      :     :                    +- Exchange SinglePartition
+      :     :                       +- *Project [item_sk#0, rank_col#0]
+      :     :                          +- *Filter (isnotnull(avg(ss_net_profit#0)#0) && (CheckOverflow((promote_precision(Subquery none) * 0.900000), DecimalType(13,7)) < cast(avg(ss_net_profit#0)#0 as decimal(13,7))))
+      :     :                             :  +- Subquery none
+      :     :                             :     +- Subquery none
+      :     :                             :        +- *HashAggregate(keys=[ss_store_sk#0], functions=[avg(UnscaledValue(ss_net_profit#0))])
+      :     :                             :           +- Exchange hashpartitioning(ss_store_sk#0, 5)
+      :     :                             :              +- *HashAggregate(keys=[ss_store_sk#0], functions=[partial_avg(UnscaledValue(ss_net_profit#0))])
+      :     :                             :                 +- *Project [ss_store_sk#0, ss_net_profit#0]
+      :     :                             :                    +- *Filter ((isnotnull(ss_store_sk#0) && (ss_store_sk#0 = 4)) && isnull(ss_addr_sk#0))
+      :     :                             :                       +- *FileScan parquet default.store_sales[ss_addr_sk#0,ss_store_sk#0,ss_net_profit#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,2)>
+      :     :                             +- *HashAggregate(keys=[ss_item_sk#0], functions=[avg(UnscaledValue(ss_net_profit#0))])
+      :     :                                +- ReusedExchange [ss_item_sk#0, sum#0, count#0L], Exchange hashpartitioning(ss_item_sk#389, 5)
+      :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+      :        +- *Project [i_product_name#0, i_item_sk#0]
+      :           +- *Filter isnotnull(i_item_sk#0)
+      :              +- *FileScan parquet default.item[i_item_sk#0,i_product_name#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,i_product_name:string>
+      +- ReusedExchange [i_item_sk#0, i_product_name#0], BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))

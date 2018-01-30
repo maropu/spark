@@ -1,0 +1,17 @@
+TakeOrderedAndProject(limit=100, orderBy=[sumsales#0 ASC NULLS FIRST,ss_customer_sk#0 ASC NULLS FIRST], output=[ss_customer_sk#0,sumsales#0])
++- *HashAggregate(keys=[ss_customer_sk#0], functions=[sum(act_sales#0)])
+   +- Exchange hashpartitioning(ss_customer_sk#0, 5)
+      +- *HashAggregate(keys=[ss_customer_sk#0], functions=[partial_sum(act_sales#0)])
+         +- *Project [ss_customer_sk#0, CASE WHEN isnotnull(sr_return_quantity#0L) THEN CheckOverflow((promote_precision(cast(cast((cast(ss_quantity#0 as bigint) - sr_return_quantity#0L) as decimal(20,0)) as decimal(22,2))) * promote_precision(cast(ss_sales_price#0 as decimal(22,2)))), DecimalType(28,2)) ELSE cast(CheckOverflow((promote_precision(cast(cast(ss_quantity#0 as decimal(10,0)) as decimal(12,2))) * promote_precision(cast(ss_sales_price#0 as decimal(12,2)))), DecimalType(18,2)) as decimal(28,2)) END AS none#0]
+            +- *BroadcastHashJoin [sr_reason_sk#0L], [cast(r_reason_sk#0 as bigint)], Inner, BuildRight
+               :- *Project [ss_sales_price#0, ss_quantity#0, sr_return_quantity#0L, sr_reason_sk#0L, ss_customer_sk#0]
+               :  +- *BroadcastHashJoin [cast(ss_item_sk#0 as bigint), cast(ss_ticket_number#0 as bigint)], [sr_item_sk#0L, sr_ticket_number#0L], Inner, BuildRight
+               :     :- *FileScan parquet default.store_sales[ss_item_sk#0,ss_customer_sk#0,ss_ticket_number#0,ss_quantity#0,ss_sales_price#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,ss_sales_price:deci...
+               :     +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, true], input[2, bigint, true]))
+               :        +- *Project [sr_item_sk#0L, sr_ticket_number#0L, sr_return_quantity#0L, sr_reason_sk#0L]
+               :           +- *Filter isnotnull(sr_reason_sk#0L)
+               :              +- *FileScan parquet default.store_returns[sr_item_sk#0L,sr_reason_sk#0L,sr_ticket_number#0L,sr_return_quantity#0L] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,sr_return_quantity:bigint>
+               +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)))
+                  +- *Project [r_reason_sk#0]
+                     +- *Filter ((isnotnull(r_reason_sk#0) && isnotnull(r_reason_desc#0)) && (reason 28 = r_reason_desc#0))
+                        +- *FileScan parquet default.reason[r_reason_sk#0,r_reason_desc#0] Batched: true, Format: Parquet, Location: InMemoryFileIndex[<PATH>,r_reason_desc:string>
