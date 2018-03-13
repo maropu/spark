@@ -54,7 +54,7 @@ object ReorderJoin extends Rule[LogicalPlan] with PredicateHelper {
         case (Inner, Inner) => Inner
         case (_, _) => Cross
       }
-      val join = Join(left, right, innerJoinType, joinConditions.reduceLeftOption(And))
+      val join = OrderedJoin(left, right, innerJoinType, joinConditions.reduceLeftOption(And))
       if (others.nonEmpty) {
         Filter(others.reduceLeft(And), join)
       } else {
@@ -77,27 +77,33 @@ object ReorderJoin extends Rule[LogicalPlan] with PredicateHelper {
       val joinedRefs = left.outputSet ++ right.outputSet
       val (joinConditions, others) = conditions.partition(
         e => e.references.subsetOf(joinedRefs) && canEvaluateWithinJoin(e))
-      val joined = Join(left, right, innerJoinType, joinConditions.reduceLeftOption(And))
+      val joined = OrderedJoin(left, right, innerJoinType, joinConditions.reduceLeftOption(And))
 
       // should not have reference to same logical plan
       createOrderedJoin(Seq((joined, Inner)) ++ rest.filterNot(_._1 eq right), others)
     }
   }
 
-  def apply(plan: LogicalPlan): LogicalPlan = plan transform {
-    case ExtractFiltersAndInnerJoins(input, conditions)
+  def apply(plan: LogicalPlan): LogicalPlan = {
+    val result = plan transform {
+      case ExtractFiltersAndInnerJoins(input, conditions)
         if input.size > 2 && conditions.nonEmpty =>
-      if (SQLConf.get.starSchemaDetection && !SQLConf.get.cboEnabled) {
-        val starJoinPlan = StarSchemaDetection.reorderStarJoins(input, conditions)
-        if (starJoinPlan.nonEmpty) {
-          val rest = input.filterNot(starJoinPlan.contains(_))
-          createOrderedJoin(starJoinPlan ++ rest, conditions)
+        if (SQLConf.get.starSchemaDetection && !SQLConf.get.cboEnabled) {
+          val starJoinPlan = StarSchemaDetection.reorderStarJoins(input, conditions)
+          if (starJoinPlan.nonEmpty) {
+            val rest = input.filterNot(starJoinPlan.contains(_))
+            createOrderedJoin(starJoinPlan ++ rest, conditions)
+          } else {
+            createOrderedJoin(input, conditions)
+          }
         } else {
           createOrderedJoin(input, conditions)
         }
-      } else {
-        createOrderedJoin(input, conditions)
-      }
+    }
+    // After reordering is finished, convert OrderedJoin back to Join
+    result transformDown {
+      case OrderedJoin(left, right, jt, cond) => Join(left, right, jt, cond)
+    }
   }
 }
 
