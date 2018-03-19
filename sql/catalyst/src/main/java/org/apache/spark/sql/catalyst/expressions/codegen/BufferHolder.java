@@ -35,12 +35,10 @@ import org.apache.spark.unsafe.array.ByteArrayMethods;
  * the size of the result row, after writing a record to the buffer. However, we can skip this step
  * if the fields of row are all fixed-length, as the size of result row is also fixed.
  */
-public class BufferHolder {
+public class BufferHolder extends GrowableBuffer {
 
   private static final int ARRAY_MAX = ByteArrayMethods.MAX_ROUNDED_ARRAY_LENGTH;
 
-  public byte[] buffer;
-  public int cursor = Platform.BYTE_ARRAY_OFFSET;
   private final UnsafeRow row;
   private final int fixedSize;
 
@@ -59,38 +57,22 @@ public class BufferHolder {
     this.buffer = new byte[fixedSize + initialSize];
     this.row = row;
     this.row.pointTo(buffer, buffer.length);
+    grow(fixedSize + initialSize);
   }
 
   /**
    * Grows the buffer by at least neededSize and points the row to the buffer.
    */
-  public void grow(int neededSize) {
-    if (neededSize > ARRAY_MAX - totalSize()) {
-      throw new UnsupportedOperationException(
-        "Cannot grow BufferHolder by size " + neededSize + " because the size after growing " +
-          "exceeds size limitation " + ARRAY_MAX);
-    }
-    final int length = totalSize() + neededSize;
-    if (buffer.length < length) {
-      // This will not happen frequently, because the buffer is re-used.
-      int newLength = length < ARRAY_MAX / 2 ? length * 2 : ARRAY_MAX;
-      final byte[] tmp = new byte[newLength];
-      Platform.copyMemory(
-        buffer,
-        Platform.BYTE_ARRAY_OFFSET,
-        tmp,
-        Platform.BYTE_ARRAY_OFFSET,
-        totalSize());
-      buffer = tmp;
+  @Override
+  public boolean grow(int neededSize) {
+    final boolean growed = super.grow(neededSize);
+    if (growed) {
       row.pointTo(buffer, buffer.length);
     }
+    return growed;
   }
 
   public void reset() {
     cursor = Platform.BYTE_ARRAY_OFFSET + fixedSize;
-  }
-
-  public int totalSize() {
-    return cursor - Platform.BYTE_ARRAY_OFFSET;
   }
 }

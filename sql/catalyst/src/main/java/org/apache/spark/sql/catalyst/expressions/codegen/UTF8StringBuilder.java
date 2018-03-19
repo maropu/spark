@@ -17,49 +17,17 @@
 
 package org.apache.spark.sql.catalyst.expressions.codegen;
 
-import org.apache.spark.unsafe.Platform;
-import org.apache.spark.unsafe.array.ByteArrayMethods;
 import org.apache.spark.unsafe.types.UTF8String;
 
 /**
  * A helper class to write {@link UTF8String}s to an internal buffer and build the concatenated
  * {@link UTF8String} at the end.
  */
-public class UTF8StringBuilder {
-
-  private static final int ARRAY_MAX = ByteArrayMethods.MAX_ROUNDED_ARRAY_LENGTH;
-
-  private byte[] buffer;
-  private int cursor = Platform.BYTE_ARRAY_OFFSET;
+public class UTF8StringBuilder extends GrowableBuffer {
 
   public UTF8StringBuilder() {
     // Since initial buffer size is 16 in `StringBuilder`, we set the same size here
-    this.buffer = new byte[16];
-  }
-
-  // Grows the buffer by at least `neededSize`
-  private void grow(int neededSize) {
-    if (neededSize > ARRAY_MAX - totalSize()) {
-      throw new UnsupportedOperationException(
-        "Cannot grow internal buffer by size " + neededSize + " because the size after growing " +
-          "exceeds size limitation " + ARRAY_MAX);
-    }
-    final int length = totalSize() + neededSize;
-    if (buffer.length < length) {
-      int newLength = length < ARRAY_MAX / 2 ? length * 2 : ARRAY_MAX;
-      final byte[] tmp = new byte[newLength];
-      Platform.copyMemory(
-        buffer,
-        Platform.BYTE_ARRAY_OFFSET,
-        tmp,
-        Platform.BYTE_ARRAY_OFFSET,
-        totalSize());
-      buffer = tmp;
-    }
-  }
-
-  private int totalSize() {
-    return cursor - Platform.BYTE_ARRAY_OFFSET;
+    super(16);
   }
 
   public void append(UTF8String value) {
