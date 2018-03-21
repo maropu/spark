@@ -141,7 +141,7 @@ object ExtractEquiJoinKeys extends Logging with PredicateHelper {
 }
 
 /**
- * A pattern that collects the filter and inner joins (and skip projections in plan sub-trees).
+ * A pattern that collects the filter and inner joins and skip projections with attributes only.
  *
  *          Filter
  *            |
@@ -174,9 +174,9 @@ object ExtractFiltersAndInnerJoins extends PredicateHelper {
     case Filter(filterCondition, j @ Join(left, right, _: InnerLike, joinCondition)) =>
       val (plans, conditions) = flattenJoin(j)
       (plans, conditions ++ splitConjunctivePredicates(filterCondition))
-    case p @ Project(_, j @ Join(left, right, _: InnerLike, joinCondition)) =>
-      // Keep flattening joins when projects having attributes only
-      if (p.outputSet.subsetOf(j.outputSet)) {
+    case p @ Project(_, j @ Join(_, _, _: InnerLike, _)) =>
+      // Keep flattening joins when the project has attributes only
+      if (p.projectList.forall(_.isInstanceOf[Attribute])) {
         flattenJoin(j)
       } else {
         (Seq((plan, parentJoinType)), Seq.empty)
