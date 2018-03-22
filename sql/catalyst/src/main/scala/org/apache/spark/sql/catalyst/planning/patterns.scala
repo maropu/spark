@@ -174,13 +174,10 @@ object ExtractFiltersAndInnerJoins extends PredicateHelper {
     case Filter(filterCondition, j @ Join(left, right, _: InnerLike, joinCondition)) =>
       val (plans, conditions) = flattenJoin(j)
       (plans, conditions ++ splitConjunctivePredicates(filterCondition))
-    case p @ Project(_, j @ Join(_, _, _: InnerLike, _)) =>
-      // Keep flattening joins when the project has attributes only
-      if (p.projectList.forall(_.isInstanceOf[Attribute])) {
-        flattenJoin(j)
-      } else {
-        (Seq((plan, parentJoinType)), Seq.empty)
-      }
+    case p @ Project(_, j @ Join(_, _, _: InnerLike, _))
+        // Keep flattening joins when the project has attributes only
+        if p.projectList.forall(_.isInstanceOf[Attribute]) =>
+      flattenJoin(j)
     case _ => (Seq((plan, parentJoinType)), Seq.empty)
   }
 
