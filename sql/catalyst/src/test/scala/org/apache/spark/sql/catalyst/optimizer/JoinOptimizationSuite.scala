@@ -88,9 +88,9 @@ class JoinOptimizationSuite extends PlanTest {
     testExtract(x.join(y).join(z), Some((Seq(x, y, z), Seq())))
     testExtract(x.join(y).where("x.b".attr === "y.d".attr).join(z),
       Some((Seq(x, y, z), Seq("x.b".attr === "y.d".attr))))
-    testExtract(x.join(y).join(x.join(z)), Some((Seq(x, y, x.join(z)), Seq())))
+    testExtract(x.join(y).join(x.join(z)), Some((Seq(x, y, x, z), Seq())))
     testExtract(x.join(y).join(x.join(z)).where("x.b".attr === "y.d".attr),
-      Some((Seq(x, y, x.join(z)), Seq("x.b".attr === "y.d".attr))))
+      Some((Seq(x, y, x, z), Seq("x.b".attr === "y.d".attr))))
 
     testExtractInnerJoins(x.join(y, Cross), Some((Seq((x, Cross), (y, Cross)), Seq())))
     testExtractInnerJoins(x.join(y, Cross).join(z, Cross),

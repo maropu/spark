@@ -21,6 +21,7 @@ import scala.collection.mutable
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeSet, Expression, PredicateHelper}
+import org.apache.spark.sql.catalyst.planning.ExtractFiltersAndInnerJoins
 import org.apache.spark.sql.catalyst.plans.{Inner, InnerLike, JoinType}
 import org.apache.spark.sql.catalyst.plans.logical.{BinaryNode, Join, LogicalPlan, Project}
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -56,16 +57,18 @@ object CostBasedJoinReorder extends Rule[LogicalPlan] with PredicateHelper {
   }
 
   private def reorder(plan: LogicalPlan, output: Seq[Attribute]): LogicalPlan = {
-    val (items, conditions) = extractInnerJoins(plan)
-    val result =
-      // Do reordering if the number of items is appropriate and join conditions exist.
-      // We also need to check if costs of all items can be evaluated.
-      if (items.size > 2 && items.size <= conf.joinReorderDPThreshold && conditions.nonEmpty &&
-          items.forall(_.stats.rowCount.isDefined)) {
-        JoinReorderDP.search(conf, items, conditions, output)
-      } else {
-        plan
-      }
+    val result = plan match {
+      case p @ ExtractFiltersAndInnerJoins(items, conditions) =>
+        // Do reordering if the number of items is appropriate and join conditions exist.
+        // We also need to check if costs of all items can be evaluated.
+        if (items.size > 2 && items.size <= conf.joinReorderDPThreshold && conditions.nonEmpty &&
+            items.map(_._1).forall(_.stats.rowCount.isDefined)) {
+          JoinReorderDP.search(conf, items.map(_._1), conditions.toSet, output)
+        } else {
+          plan
+        }
+    }
+
     // Set consecutive join nodes ordered.
     replaceWithOrderedJoin(result)
   }

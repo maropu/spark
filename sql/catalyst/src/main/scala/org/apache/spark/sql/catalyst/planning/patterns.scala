@@ -168,10 +168,11 @@ object ExtractFiltersAndInnerJoins extends PredicateHelper {
   def flattenJoin(plan: LogicalPlan, parentJoinType: InnerLike = Inner)
       : (Seq[(LogicalPlan, InnerLike)], Seq[Expression]) = plan match {
     case Join(left, right, joinType: InnerLike, cond) =>
-      val (plans, conditions) = flattenJoin(left, joinType)
-      (plans ++ Seq((right, joinType)), conditions ++
-        cond.toSeq.flatMap(splitConjunctivePredicates))
-    case Filter(filterCondition, j @ Join(left, right, _: InnerLike, joinCondition)) =>
+      val (leftPlans, leftConditions) = flattenJoin(left, joinType)
+      val (rightPlans, rightConditions) = flattenJoin(right, joinType)
+      (leftPlans ++ rightPlans,
+        cond.toSeq.flatMap(splitConjunctivePredicates) ++ leftConditions ++ rightConditions)
+    case Filter(filterCondition, j @ Join(_, _, _: InnerLike, _)) =>
       val (plans, conditions) = flattenJoin(j)
       (plans, conditions ++ splitConjunctivePredicates(filterCondition))
     case p @ Project(_, j @ Join(_, _, _: InnerLike, _))
