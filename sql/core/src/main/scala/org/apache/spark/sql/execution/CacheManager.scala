@@ -71,7 +71,7 @@ class CacheManager extends Logging {
 
   /** Clears all cached tables. */
   def clearCache(): Unit = writeLock {
-    cachedData.asScala.foreach(_.cachedRepresentation.cachedColumnBuffers.unpersist())
+    cachedData.asScala.foreach(_.cachedRepresentation.clearCache())
     cachedData.clear()
   }
 
@@ -100,6 +100,7 @@ class CacheManager extends Logging {
         sparkSession.sessionState.executePlan(planToCache).executedPlan,
         tableName,
         planToCache)
+
       cachedData.add(CachedData(planToCache, inMemoryRelation))
     }
   }
@@ -119,7 +120,7 @@ class CacheManager extends Logging {
     while (it.hasNext) {
       val cd = it.next()
       if (cd.plan.find(_.sameResult(plan)).isDefined) {
-        cd.cachedRepresentation.cachedColumnBuffers.unpersist(blocking)
+        cd.cachedRepresentation.clearCache(blocking)
         it.remove()
       }
     }
@@ -138,7 +139,7 @@ class CacheManager extends Logging {
     while (it.hasNext) {
       val cd = it.next()
       if (condition(cd.plan)) {
-        cd.cachedRepresentation.cachedColumnBuffers.unpersist()
+        cd.cachedRepresentation.clearCache()
         // Remove the cache entry before we create a new one, so that we can have a different
         // physical plan.
         it.remove()

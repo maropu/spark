@@ -98,13 +98,11 @@ case class InMemoryRelation(
     }
   }
 
-  // If the cached column buffers were not passed in, we calculate them in the constructor.
-  // As in Spark, the actual work of caching is lazy.
-  if (_cachedColumnBuffers == null) {
-    buildBuffers()
+  def clearCache(blocking: Boolean = true): Unit = if (_cachedColumnBuffers != null) {
+   _cachedColumnBuffers.unpersist(blocking)
   }
 
-  private def buildBuffers(): Unit = {
+  private def buildBuffers(): RDD[CachedBatch] = {
     val output = child.output
     val cached = child.execute().mapPartitionsInternal { rowIterator =>
       new Iterator[CachedBatch] {
@@ -155,7 +153,7 @@ case class InMemoryRelation(
     cached.setName(
       tableName.map(n => s"In-memory table $n")
         .getOrElse(StringUtils.abbreviate(child.toString, 1024)))
-    _cachedColumnBuffers = cached
+    cached
   }
 
   def withOutput(newOutput: Seq[Attribute]): InMemoryRelation = {
@@ -178,7 +176,16 @@ case class InMemoryRelation(
         outputOrdering).asInstanceOf[this.type]
   }
 
-  def cachedColumnBuffers: RDD[CachedBatch] = _cachedColumnBuffers
+  def cachedColumnBuffers: RDD[CachedBatch] = {
+    if (_cachedColumnBuffers == null) {
+      synchronized {
+        if (_cachedColumnBuffers == null) {
+          _cachedColumnBuffers = buildBuffers()
+        }
+      }
+    }
+    _cachedColumnBuffers
+  }
 
   override protected def otherCopyArgs: Seq[AnyRef] =
     Seq(_cachedColumnBuffers, sizeInBytesStats, statsOfPlanToCache)
