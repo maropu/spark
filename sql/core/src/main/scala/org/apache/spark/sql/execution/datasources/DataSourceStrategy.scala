@@ -452,6 +452,10 @@ object DataSourceStrategy {
     predicate match {
       case expressions.EqualTo(a: Attribute, Literal(v, t)) =>
         Some(sources.EqualTo(a.name, convertToScala(v, t)))
+      case expressions.EqualTo(Cast(a: Attribute, _, _), lit @ Literal(_, t))
+          if Cast.canCast(t, a.dataType) =>
+        val c = Cast(lit, a.dataType).eval()
+        Some(sources.EqualTo(a.name, convertToScala(c, a.dataType)))
       case expressions.EqualTo(Literal(v, t), a: Attribute) =>
         Some(sources.EqualTo(a.name, convertToScala(v, t)))
 
