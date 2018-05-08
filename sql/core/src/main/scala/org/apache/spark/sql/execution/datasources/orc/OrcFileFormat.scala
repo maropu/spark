@@ -89,6 +89,8 @@ class OrcFileFormat
       job: Job,
       options: Map[String, String],
       dataSchema: StructType): OutputWriterFactory = {
+    OrcSerializer.verifySchema(dataSchema)
+
     val orcOptions = new OrcOptions(options, sparkSession.sessionState.conf)
 
     val conf = job.getConfiguration

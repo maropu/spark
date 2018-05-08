@@ -226,3 +226,32 @@ class OrcSerializer(dataSchema: StructType) {
     OrcStruct.createValue(TypeDescription.fromString(dataType.catalogString))
   }
 }
+
+object OrcSerializer {
+
+  /**
+   * Verify if the schema is supported in ORC datasource.
+   */
+  def verifySchema(schema: StructType): Unit = {
+    def verifyType(dataType: DataType): Unit = dataType match {
+      case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType | DoubleType |
+           StringType | BinaryType | DateType | TimestampType | _: DecimalType =>
+
+      case st: StructType => st.foreach { f => verifyType(f.dataType) }
+
+      case ArrayType(elementType, _) => verifyType(elementType)
+
+      case MapType(keyType, valueType, _) =>
+        verifyType(keyType)
+        verifyType(valueType)
+
+      case udt: UserDefinedType[_] => verifyType(udt.sqlType)
+
+      case _ =>
+        throw new UnsupportedOperationException(
+          s"ORC data source does not support ${dataType.simpleString} data type.")
+    }
+
+    schema.foreach(field => verifyType(field.dataType))
+  }
+}
