@@ -163,8 +163,15 @@ private[sql] trait SQLTestUtilsBase
   }
 
   protected override def withSQLConf(pairs: (String, String)*)(f: => Unit): Unit = {
-    SparkSession.setActiveSession(spark)
-    super.withSQLConf(pairs: _*)(f)
+    withClue(s"(SQL configs: ${pairs.map(kv => s"${kv._1}->${kv._2}").mkString(",")})") {
+      SparkSession.setActiveSession(spark)
+      try {
+        super.withSQLConf(pairs: _*)(f)
+      } catch {
+        case t: Throwable =>
+          fail(Utils.exceptionString(t))
+      }
+    }
   }
 
   /**

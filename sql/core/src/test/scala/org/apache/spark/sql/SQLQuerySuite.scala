@@ -2792,4 +2792,16 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
       }
     }
   }
+
+  test("withClue test") {
+    withSQLConf("spark.sql.c1" -> "1", "spark.sql.c2" -> "2") {
+      throw new RuntimeException("test exception")
+    }
+    // - withClue test *** FAILED ***
+    // (SQL configs: spark.sql.c1->1,spark.sql.c2->2) java.lang.RuntimeException: test exception
+    //   at org.apache.spark.sql.SQLQuerySuite$$anonfun$139$$anonfun$apply$mcV$sp$318.apply(SQLQuerySuite.scala:2798)
+    // at org.apache.spark.sql.SQLQuerySuite$$anonfun$139$$anonfun$apply$mcV$sp$318.apply(SQLQuerySuite.scala:2798)
+    // at scala.Function0$class.apply$mcV$sp(Function0.scala:34)
+    // ...
+  }
 }
