@@ -76,7 +76,7 @@ trait BaseLimitExec extends UnaryExecNode with CodegenSupport {
 
     ctx.addNewFunction("stopEarly", s"""
       @Override
-      protected boolean stopEarly() {
+      public boolean stopEarly() {
         return $stopEarly;
       }
     """, inlineToOuterClass = true)

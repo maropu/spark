@@ -17,35 +17,27 @@
 
 package org.apache.spark.sql.catalyst.expressions.codegen
 
-import java.io.ByteArrayInputStream
-import java.util.{Map => JavaMap}
-
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.language.existentials
-import scala.util.control.NonFatal
 
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.google.common.util.concurrent.{ExecutionError, UncheckedExecutionException}
-import org.codehaus.commons.compiler.CompileException
-import org.codehaus.janino.{ByteArrayClassLoader, ClassBodyEvaluator, InternalCompilerException, SimpleCompiler}
-import org.codehaus.janino.util.ClassFile
 
-import org.apache.spark.{SparkEnv, TaskContext, TaskKilledException}
-import org.apache.spark.executor.InputMetrics
+import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.metrics.source.CodegenMetrics
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.Block._
+import org.apache.spark.sql.catalyst.expressions.codegen.compiler.{CompilerBase, JaninoCompiler, JdkCompiler}
 import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.Platform
 import org.apache.spark.unsafe.array.ByteArrayMethods
 import org.apache.spark.unsafe.types._
-import org.apache.spark.util.{ParentClassLoader, Utils}
+import org.apache.spark.util.Utils
 
 /**
  * Java source for evaluating an [[Expression]] given a [[InternalRow]] of input.
@@ -133,7 +125,7 @@ class CodegenContext {
   def addReferenceObj(objName: String, obj: Any, className: String = null): String = {
     val idx = references.length
     references += obj
-    val clsName = Option(className).getOrElse(obj.getClass.getName)
+    val clsName = Option(className).getOrElse(obj.getClass.getCanonicalName)
     s"(($clsName) references[$idx] /* $objName */)"
   }
 
@@ -1209,8 +1201,10 @@ abstract class GeneratedClass {
 /**
  * A wrapper for the source code to be compiled by [[CodeGenerator]].
  */
-class CodeAndComment(val body: String, val comment: collection.Map[String, String])
-  extends Serializable {
+class CodeAndComment(
+    val body: String,
+    val comment: collection.Map[String, String],
+    val otherImports: Seq[String] = Seq.empty) extends Serializable {
   override def equals(that: Any): Boolean = that match {
     case t: CodeAndComment if t.body == body => true
     case _ => false
@@ -1227,6 +1221,18 @@ class CodeAndComment(val body: String, val comment: collection.Map[String, Strin
 abstract class CodeGenerator[InType <: AnyRef, OutType <: AnyRef] extends Logging {
 
   protected val genericMutableRowType: String = classOf[GenericInternalRow].getName
+
+  // In janino, `Scala.Function1` needs a method definition below. But, name clashes happen in
+  // JDK Java compilers because of type erasure. This seems to be related to a topic below;
+  //  - https://stackoverflow.com/questions/12206181/generic-class-compiles-in-java-6-but-not-java-7
+  protected lazy val janinoCompatibilityCode = if (SQLConf.get.codegenJavaCompiler == "janino") {
+    s"""public java.lang.Object apply(java.lang.Object row) {
+       |  return apply((InternalRow) row);
+       |}
+     """.stripMargin
+  } else {
+    ""
+  }
 
   /**
    * Generates a class for a given input expression.  Called when there is not cached code
@@ -1286,6 +1292,11 @@ object CodeGenerator extends Logging {
   // bytecode instruction
   final val MUTABLESTATEARRAY_SIZE_LIMIT = 32768
 
+  private val compilerImpl: CompilerBase = SQLConf.get.codegenJavaCompiler match {
+    case "janino" => JaninoCompiler
+    case "jdk" => JdkCompiler
+  }
+
   /**
    * Compile the Java source code into a Java class, using Janino.
    *
@@ -1305,104 +1316,7 @@ object CodeGenerator extends Logging {
    * Compile the Java source code into a Java class, using Janino.
    */
   private[this] def doCompile(code: CodeAndComment): (GeneratedClass, Int) = {
-    val evaluator = new ClassBodyEvaluator()
-
-    // A special classloader used to wrap the actual parent classloader of
-    // [[org.codehaus.janino.ClassBodyEvaluator]] (see CodeGenerator.doCompile). This classloader
-    // does not throw a ClassNotFoundException with a cause set (i.e. exception.getCause returns
-    // a null). This classloader is needed because janino will throw the exception directly if
-    // the parent classloader throws a ClassNotFoundException with cause set instead of trying to
-    // find other possible classes (see org.codehaus.janinoClassLoaderIClassLoader's
-    // findIClass method). Please also see https://issues.apache.org/jira/browse/SPARK-15622 and
-    // https://issues.apache.org/jira/browse/SPARK-11636.
-    val parentClassLoader = new ParentClassLoader(Utils.getContextOrSparkClassLoader)
-    evaluator.setParentClassLoader(parentClassLoader)
-    // Cannot be under package codegen, or fail with java.lang.InstantiationException
-    evaluator.setClassName("org.apache.spark.sql.catalyst.expressions.GeneratedClass")
-    evaluator.setDefaultImports(Array(
-      classOf[Platform].getName,
-      classOf[InternalRow].getName,
-      classOf[UnsafeRow].getName,
-      classOf[UTF8String].getName,
-      classOf[Decimal].getName,
-      classOf[CalendarInterval].getName,
-      classOf[ArrayData].getName,
-      classOf[UnsafeArrayData].getName,
-      classOf[MapData].getName,
-      classOf[UnsafeMapData].getName,
-      classOf[Expression].getName,
-      classOf[TaskContext].getName,
-      classOf[TaskKilledException].getName,
-      classOf[InputMetrics].getName
-    ))
-    evaluator.setExtendedClass(classOf[GeneratedClass])
-
-    logDebug({
-      // Only add extra debugging info to byte code when we are going to print the source code.
-      evaluator.setDebuggingInformation(true, true, false)
-      s"\n${CodeFormatter.format(code)}"
-    })
-
-    val maxCodeSize = try {
-      evaluator.cook("generated.java", code.body)
-      updateAndGetCompilationStats(evaluator)
-    } catch {
-      case e: InternalCompilerException =>
-        val msg = s"failed to compile: $e"
-        logError(msg, e)
-        val maxLines = SQLConf.get.loggingMaxLinesForCodegen
-        logInfo(s"\n${CodeFormatter.format(code, maxLines)}")
-        throw new InternalCompilerException(msg, e)
-      case e: CompileException =>
-        val msg = s"failed to compile: $e"
-        logError(msg, e)
-        val maxLines = SQLConf.get.loggingMaxLinesForCodegen
-        logInfo(s"\n${CodeFormatter.format(code, maxLines)}")
-        throw new CompileException(msg, e.getLocation)
-    }
-
-    (evaluator.getClazz().newInstance().asInstanceOf[GeneratedClass], maxCodeSize)
-  }
-
-  /**
-   * Returns the max bytecode size of the generated functions by inspecting janino private fields.
-   * Also, this method updates the metrics information.
-   */
-  private def updateAndGetCompilationStats(evaluator: ClassBodyEvaluator): Int = {
-    // First retrieve the generated classes.
-    val classes = {
-      val resultField = classOf[SimpleCompiler].getDeclaredField("result")
-      resultField.setAccessible(true)
-      val loader = resultField.get(evaluator).asInstanceOf[ByteArrayClassLoader]
-      val classesField = loader.getClass.getDeclaredField("classes")
-      classesField.setAccessible(true)
-      classesField.get(loader).asInstanceOf[JavaMap[String, Array[Byte]]].asScala
-    }
-
-    // Then walk the classes to get at the method bytecode.
-    val codeAttr = Utils.classForName("org.codehaus.janino.util.ClassFile$CodeAttribute")
-    val codeAttrField = codeAttr.getDeclaredField("code")
-    codeAttrField.setAccessible(true)
-    val codeSizes = classes.flatMap { case (_, classBytes) =>
-      CodegenMetrics.METRIC_GENERATED_CLASS_BYTECODE_SIZE.update(classBytes.length)
-      try {
-        val cf = new ClassFile(new ByteArrayInputStream(classBytes))
-        val stats = cf.methodInfos.asScala.flatMap { method =>
-          method.getAttributes().filter(_.getClass.getName == codeAttr.getName).map { a =>
-            val byteCodeSize = codeAttrField.get(a).asInstanceOf[Array[Byte]].length
-            CodegenMetrics.METRIC_GENERATED_METHOD_BYTECODE_SIZE.update(byteCodeSize)
-            byteCodeSize
-          }
-        }
-        Some(stats)
-      } catch {
-        case NonFatal(e) =>
-          logWarning("Error calculating stats of compiled class.", e)
-          None
-      }
-    }.flatten
-
-    codeSizes.max
+    compilerImpl.compile(code)
   }
 
   /**
@@ -1608,7 +1522,7 @@ object CodeGenerator extends Logging {
     case _: MapType => "MapData"
     case udt: UserDefinedType[_] => javaType(udt.sqlType)
     case ObjectType(cls) if cls.isArray => s"${javaType(ObjectType(cls.getComponentType))}[]"
-    case ObjectType(cls) => cls.getName
+    case ObjectType(cls) => cls.getCanonicalName
     case _ => "Object"
   }
 

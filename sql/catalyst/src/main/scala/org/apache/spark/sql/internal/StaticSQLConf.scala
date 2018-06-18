@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.internal
 
+import java.util.Locale
+
 import org.apache.spark.util.Utils
 
 
@@ -65,6 +67,15 @@ object StaticSQLConf {
       .intConf
       .checkValue(cacheSize => cacheSize >= 0, "The maximum size of the cache must not be negative")
       .createWithDefault(1000)
+
+  val CODEGEN_JAVA_COMPILER =
+    buildStaticConf("spark.sql.codegen.javaCompiler")
+      .internal()
+      .doc("The java compiler to compile generated code for operations and expressions.")
+      .stringConf
+      .transform(_.toLowerCase(Locale.ROOT))
+      .checkValue(Seq("janino", "jdk").contains, "The java compiler name must be janino or jdk")
+      .createWithDefault("jdk") // For testing
 
   val CODEGEN_CACHE_MAX_ENTRIES = buildStaticConf("spark.sql.codegen.cache.maxEntries")
       .internal()

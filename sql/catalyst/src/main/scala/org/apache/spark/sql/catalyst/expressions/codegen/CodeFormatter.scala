@@ -87,7 +87,7 @@ object CodeFormatter {
 
       lastLine = line
     }
-    new CodeAndComment(code.result().trim(), map)
+    new CodeAndComment(code.result().trim(), map, codeAndComment.otherImports)
   }
 
   def stripExtraNewLinesAndComments(input: String): String = {

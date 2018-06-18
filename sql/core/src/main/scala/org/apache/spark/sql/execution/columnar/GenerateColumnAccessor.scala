@@ -29,6 +29,30 @@ import org.apache.spark.sql.types._
 abstract class ColumnarIterator extends Iterator[InternalRow] {
   def initialize(input: Iterator[CachedBatch], columnTypes: Array[DataType],
     columnIndexes: Array[Int]): Unit
+
+  // TODO: In JDK Java compilers, gen'd code causes compilation errors below when extending
+  // this abstract class;
+  //
+  // org.codehaus.commons.compiler.CompileException: failed to compile:
+  // (Line 35, Column 1) GeneratedIterator.SpecificColumnarIterator is not abstract and does not
+  // override abstract method
+  // <B>minBy(scala.Function1<org.apache.spark.sql.catalyst.InternalRow,B>,scala.math.Ordering<B>)
+  // in scala.collection.TraversableOnce
+  //   at o.a.s.s.catalyst.expressions.codegen.compiler.JdkCompiler$.compile(JdkCompiler.scala:221)
+  //   at o.a.s.s.catalyst.expressions.codegen.compiler.JdkCompiler$.compile(JdkCompiler.scala:164)
+  //   ...
+  override def maxBy[B](f: InternalRow => B)(implicit cmp: Ordering[B]): InternalRow = {
+    super.maxBy(f)(cmp)
+  }
+  override def minBy[B](f: InternalRow => B)(implicit cmp: Ordering[B]): InternalRow = {
+    super.minBy(f)(cmp)
+  }
+  override def max[B >: InternalRow](implicit cmp: Ordering[B]): InternalRow = {
+    super.max(cmp)
+  }
+  override def min[B >: InternalRow](implicit cmp: Ordering[B]): InternalRow = {
+    super.min(cmp)
+  }
 }
 
 /**
@@ -148,15 +172,16 @@ object GenerateColumnAccessor extends CodeGenerator[Seq[DataType], ColumnarItera
          extractorNames.map { extractorName => s"$extractorName();"}.mkString("\n"))
       }
 
-    val codeBody = s"""
-      import java.nio.ByteBuffer;
-      import java.nio.ByteOrder;
-      import scala.collection.Iterator;
-      import org.apache.spark.sql.types.DataType;
-      import org.apache.spark.sql.catalyst.expressions.codegen.BufferHolder;
-      import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter;
-      import org.apache.spark.sql.execution.columnar.MutableUnsafeRow;
+    val otherImports = Seq(
+      "java.nio.ByteBuffer",
+      "java.nio.ByteOrder",
+      "scala.collection.Iterator",
+      "org.apache.spark.sql.types.DataType",
+      "org.apache.spark.sql.catalyst.expressions.codegen.BufferHolder",
+      "org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter",
+      "org.apache.spark.sql.execution.columnar.MutableUnsafeRow")
 
+    val codeBody = s"""
       public SpecificColumnarIterator generate(Object[] references) {
         return new SpecificColumnarIterator();
       }
@@ -220,7 +245,7 @@ object GenerateColumnAccessor extends CodeGenerator[Seq[DataType], ColumnarItera
       }"""
 
     val code = CodeFormatter.stripOverlappingComments(
-      new CodeAndComment(codeBody, ctx.getPlaceHolderToComments()))
+      new CodeAndComment(codeBody, ctx.getPlaceHolderToComments(), otherImports))
     logDebug(s"Generated ColumnarIterator:\n${CodeFormatter.format(code)}")
 
     val (clazz, _) = CodeGenerator.compile(code)

@@ -34,4 +34,7 @@ private[spark] class ParentClassLoader(parent: ClassLoader) extends ClassLoader(
     super.loadClass(name, resolve)
   }
 
+  def loadClass(name: String, b: Array[Byte], off: Int, length: Int): Class[_] = {
+    super.defineClass(name, b, off, length)
+  }
 }
