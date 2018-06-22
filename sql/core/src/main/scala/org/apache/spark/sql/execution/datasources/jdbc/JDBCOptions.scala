@@ -68,35 +68,50 @@ class JDBCOptions(
 
   // a JDBC URL
   val url = parameters(JDBC_URL)
-  val tableName = parameters.get(JDBC_TABLE_NAME)
-  val query = parameters.get(JDBC_QUERY_STRING)
+
+  // val tableName = parameters.get(JDBC_TABLE_NAME)
+  // val query = parameters.get(JDBC_QUERY_STRING)
+
+
   // Following two conditions make sure that :
   // 1. One of the option (dbtable or query) must be specified.
   // 2. Both of them can not be specified at the same time as they are conflicting in nature.
-  require(
-    tableName.isDefined || query.isDefined,
-    s"Option '$JDBC_TABLE_NAME' or '${JDBC_QUERY_STRING}' is required."
-  )
+  // require(
+  //   tableName.isDefined || query.isDefined,
+  //   s"Option '$JDBC_TABLE_NAME' or '${JDBC_QUERY_STRING}' is required."
+  // )
+  // require(
+  //   !(tableName.isDefined && query.isDefined),
+  //   s"Both '$JDBC_TABLE_NAME' and '$JDBC_QUERY_STRING' can not be specified."
+  // )
 
-  require(
-    !(tableName.isDefined && query.isDefined),
-    s"Both '$JDBC_TABLE_NAME' and '$JDBC_QUERY_STRING' can not be specified."
-  )
-
-  // table name or a table expression.
-  val tableOrQuery = tableName.map(_.trim).getOrElse {
+  // Table name or a table expression for reading
+  lazy val tableOrQuery = parameters.get(JDBC_TABLE_NAME).map(_.trim).getOrElse {
     // We have ensured in the code above that either dbtable or query is specified.
-    query.get match {
-      case subQuery if subQuery.nonEmpty => s"(${subQuery}) spark_gen_${curId.getAndIncrement()}"
-      case subQuery => subQuery
+    parameters.get(JDBC_QUERY_STRING) match {
+      case Some(subQuery) => s"($subQuery)"
+      case _ =>
+        // Error handling for read path
+        throw new IllegalArgumentException("Empty string is not allowed in either " +
+          s"'$JDBC_TABLE_NAME' or '${JDBC_QUERY_STRING}' options")
     }
   }
 
-  require(tableOrQuery.nonEmpty,
-    s"Empty string is not allowed in either '$JDBC_TABLE_NAME' or '${JDBC_QUERY_STRING}' options"
-  )
+  // require(tableOrQuery.nonEmpty,
+  //   s"Empty string is not allowed in either '$JDBC_TABLE_NAME' or '${JDBC_QUERY_STRING}' options"
+  // )
+
+  // Table name or a table expression for writing
+  lazy val outputTable = parameters.get(JDBC_TABLE_NAME) match {
+    case Some(tableName) => tableName
+    case _ =>
+      // Error handling for write path
+      throw new IllegalArgumentException(
+        s"You should defined an output table name in `$JDBC_TABLE_NAME`")
+  }
 
 
+  // ------------------------------------------------------------
   // Optional parameters
   // ------------------------------------------------------------
   val driverClass = {
