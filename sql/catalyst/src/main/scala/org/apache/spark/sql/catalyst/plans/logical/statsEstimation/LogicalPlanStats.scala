@@ -24,19 +24,25 @@ import org.apache.spark.sql.catalyst.plans.logical._
  */
 trait LogicalPlanStats { self: LogicalPlan =>
 
+  private def computePlanStats() = if (conf.cboEnabled) {
+    BasicStatsPlanVisitor.visit(self)
+  } else {
+    SizeInBytesOnlyStatsPlanVisitor.visit(self)
+  }
+
   /**
    * Returns the estimated statistics for the current logical plan node. Under the hood, this
    * method caches the return value, which is computed based on the configuration passed in the
    * first time. If the configuration changes, the cache can be invalidated by calling
    * [[invalidateStatsCache()]].
    */
-  def stats: Statistics = statsCache.getOrElse {
-    if (conf.cboEnabled) {
-      statsCache = Option(BasicStatsPlanVisitor.visit(self))
-    } else {
-      statsCache = Option(SizeInBytesOnlyStatsPlanVisitor.visit(self))
+  def stats: Statistics = if (conf.planStatsCacheEnabled) {
+    statsCache.getOrElse {
+      statsCache = Some(computePlanStats())
+      statsCache.get
     }
-    statsCache.get
+  } else {
+    computePlanStats()
   }
 
   /** A cache for the estimated statistics, such that it will only be computed once. */

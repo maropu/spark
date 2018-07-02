@@ -16,6 +16,9 @@
  */
 package org.apache.spark.sql.execution.datasources
 
+import scala.util.control.NonFatal
+
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.analysis.MultiInstanceRelation
 import org.apache.spark.sql.catalyst.catalog.CatalogTable
 import org.apache.spark.sql.catalyst.expressions.{AttributeMap, AttributeReference}
@@ -40,9 +43,30 @@ case class LogicalRelation(
     catalogTable = None)
 
   override def computeStats(): Statistics = {
-    catalogTable
-      .flatMap(_.stats.map(_.toPlanStats(output, conf.cboEnabled)))
-      .getOrElse(Statistics(sizeInBytes = relation.sizeInBytes))
+    def getPlanStats(catalogTab: Option[CatalogTable]): Statistics = {
+      catalogTab.flatMap(_.stats.map(_.toPlanStats(output, conf.cboEnabled)))
+        .getOrElse(Statistics(sizeInBytes = relation.sizeInBytes))
+    }
+    val stat = getPlanStats(catalogTable)
+    if (!conf.planStatsCacheEnabled) {
+      catalogTable.map { tab =>
+        SparkSession.getActiveSession.map { spark =>
+          try {
+            val curCatalogTable = spark.sessionState.catalog.getTableMetadata(tab.identifier)
+            val curStat = getPlanStats(Some(curCatalogTable))
+            if (curStat != stat) {
+              curStat
+            } else {
+              stat
+            }
+          } catch {
+            case NonFatal(_) => stat
+          }
+        }.getOrElse(stat)
+      }.getOrElse(stat)
+    } else {
+      stat
+    }
   }
 
   /** Used to lookup original attribute capitalization */

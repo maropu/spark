@@ -383,6 +383,32 @@ class StatisticsCollectionSuite extends StatisticsCollectionTestBase with Shared
     }
   }
 
+  test("SPARK-XXXXX reflects data stats updates in analyzed logical plans") {
+    withTable("t") {
+      withTempDir { dir =>
+        val path = dir.getAbsolutePath
+
+        withSQLConf(
+            SQLConf.CBO_ENABLED.key -> "true",
+            SQLConf.AUTO_SIZE_UPDATE_ENABLED.key -> "true",
+            SQLConf.PLAN_STATS_CACHE_ENABLED.key -> "false") {
+
+          spark.range(10).selectExpr("id AS c").write.mode("overwrite").parquet(path)
+          spark.read.parquet(path).write.saveAsTable("t")
+          val dfBeforeAnalyze = spark.table("t")
+          def getCurrentRowCount(): Option[BigInt] = {
+            dfBeforeAnalyze.queryExecution.analyzed.collectLeaves().head.stats.rowCount
+          }
+          assert(getCurrentRowCount() === None)
+          sql("ANALYZE TABLE t COMPUTE STATISTICS")
+          assert(getCurrentRowCount() === Some(10))
+          sql("TRUNCATE TABLE t")
+          assert(getCurrentRowCount() === Some(0))
+        }
+      }
+    }
+  }
+
   test("Simple queries must be working, if CBO is turned on") {
     withSQLConf(SQLConf.CBO_ENABLED.key -> "true") {
       withTable("TBL1", "TBL") {

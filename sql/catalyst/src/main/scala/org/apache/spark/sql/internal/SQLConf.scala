@@ -1024,6 +1024,11 @@ object SQLConf {
       .booleanConf
       .createWithDefault(false)
 
+  val PLAN_STATS_CACHE_ENABLED =
+    buildConf("spark.sql.cbo.planStats.cacheEnabled")
+      .booleanConf
+      .createWithDefault(true)
+
   val JOIN_REORDER_ENABLED =
     buildConf("spark.sql.cbo.joinReorder.enabled")
       .doc("Enables join reorder in CBO.")
@@ -1641,6 +1646,8 @@ class SQLConf extends Serializable with Logging {
   def percentileAccuracy: Int = getConf(PERCENTILE_ACCURACY)
 
   def cboEnabled: Boolean = getConf(SQLConf.CBO_ENABLED)
+
+  def planStatsCacheEnabled: Boolean = getConf(SQLConf.PLAN_STATS_CACHE_ENABLED)
 
   def autoSizeUpdateEnabled: Boolean = getConf(SQLConf.AUTO_SIZE_UPDATE_ENABLED)
 
