@@ -3758,7 +3758,10 @@ case class ArrayUnion(left: Expression, right: Expression) extends ArraySetLike 
       } else {
         val arrayUnion = classOf[ArrayUnion].getName
         val et = ctx.addReferenceObj("elementTypeUnion", elementType)
-        val order = ctx.addReferenceObj("orderingUnion", ordering)
+        // Some data types (e.g., `BinaryType`) have anonymous classes for ordering and
+        // `getCanonicalName` returns null in these classes. Therefore, we need to
+        // explicitly set `className` here.
+        val order = ctx.addReferenceObj("orderingUnion", ordering, "scala.math.Ordering<Object>")
         val method = "unionOrdering"
         s"${ev.value} = $arrayUnion$$.MODULE$$.$method($array1, $array2, $et, $order);"
       }

@@ -1522,7 +1522,7 @@ object CodeGenerator extends Logging {
     case _: MapType => "MapData"
     case udt: UserDefinedType[_] => javaType(udt.sqlType)
     case ObjectType(cls) if cls.isArray => s"${javaType(ObjectType(cls.getComponentType))}[]"
-    case ObjectType(cls) => cls.getCanonicalName
+    case ObjectType(cls) => Option(cls.getCanonicalName).getOrElse(cls.getName)
     case _ => "Object"
   }
 

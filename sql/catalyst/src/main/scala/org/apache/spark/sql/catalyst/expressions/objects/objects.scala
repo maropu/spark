@@ -1585,6 +1585,9 @@ case class InitializeJavaBean(beanInstance: Expression, setters: Map[String, Exp
   }
 
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+    // Resolves setters before compilation
+    require(resolvedSetters.nonEmpty)
+
     val instanceGen = beanInstance.genCode(ctx)
 
     val javaBeanInstance = ctx.freshName("javaBean")

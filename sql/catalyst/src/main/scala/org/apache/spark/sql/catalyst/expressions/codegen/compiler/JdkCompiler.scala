@@ -163,7 +163,7 @@ object JdkCompiler extends CompilerBase {
 
   override def compile(code: CodeAndComment): (GeneratedClass, Int) = {
     val packageName = "org.apache.spark.sql.catalyst.expressions"
-    val className = "GeneratedIterator"
+    val className = "GeneratedClass"
     // `Class.getName` uses `$` for separators like below;
     // org.apache.spark.util.collection.unsafe.sort.PrefixComparators$StringPrefixComparator
     // This causes compile errors, so we need to use `getCanonicalName()` instead.
