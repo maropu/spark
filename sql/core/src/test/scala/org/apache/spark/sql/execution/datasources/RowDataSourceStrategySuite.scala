@@ -23,10 +23,11 @@ import java.util.Properties
 import org.scalatest.BeforeAndAfter
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.{DataFrame, Row}
-import org.apache.spark.sql.sources._
+import org.apache.spark.sql.execution.QueryExecution
+import org.apache.spark.sql.execution.columnar.InMemoryRelation
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.test.SharedSQLContext
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.util.QueryExecutionListener
 import org.apache.spark.util.Utils
 
 class RowDataSourceStrategySuite extends SparkFunSuite with BeforeAndAfter with SharedSQLContext {
@@ -68,5 +69,35 @@ class RowDataSourceStrategySuite extends SparkFunSuite with BeforeAndAfter with 
     val df2 = df.groupBy("a").agg("c" -> "min")
     val res = df1.union(df2)
     assert(res.distinct().count() == 2)  // would be 1 if the exchange was incorrectly reused
+  }
+
+  test("SPARK-24869 SaveIntoDataSourceCommand's input Dataset should use Cached Data") {
+    var numTotalCachedHit = 0
+    val listener = new QueryExecutionListener {
+
+      override def onFailure(f: String, qe: QueryExecution, e: Exception): Unit = {}
+
+      override def onSuccess(funcName: String, qe: QueryExecution, duration: Long): Unit = {
+        qe.analyzed match {
+          case c: SaveIntoDataSourceCommand =>
+            c.executedPlan.foreach {
+              case p if p.isInstanceOf[InMemoryRelation] =>
+                numTotalCachedHit += 1
+              case _ =>
+            }
+          case _ =>
+        }
+      }
+    }
+    spark.listenerManager.register(listener)
+
+    val testUdf = udf({ (x: Int, y: Int) => x + y })
+    val df = spark.range(0, 3).toDF("a").withColumn("b", testUdf(col("a"), lit(10))).cache
+
+    val properties = new Properties()
+    properties.setProperty("user", "testUser")
+    properties.setProperty("password", "testPass")
+    df.write.mode("overwrite").jdbc(url, "TEST.CACHETEST", properties)
+    assert(numTotalCachedHit == 1)
   }
 }

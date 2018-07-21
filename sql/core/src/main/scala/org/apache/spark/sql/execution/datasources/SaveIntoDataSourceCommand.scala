@@ -39,17 +39,21 @@ case class SaveIntoDataSourceCommand(
     options: Map[String, String],
     mode: SaveMode) extends RunnableCommand {
 
-  override protected def innerChildren: Seq[QueryPlan[_]] = Seq(query)
+  private[datasources] var executedPlan: Option[LogicalPlan] = None
+
+  override protected def innerChildren: Seq[QueryPlan[_]] = executedPlan.getOrElse(query) :: Nil
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
-    dataSource.createRelation(
-      sparkSession.sqlContext, mode, options, Dataset.ofRows(sparkSession, query))
+    val data = Dataset.ofRows(sparkSession, query)
+    // Stores the actual plan that was executed for saving the results
+    executedPlan = Some(data.queryExecution.withCachedData)
+    dataSource.createRelation(sparkSession.sqlContext, mode, options, data)
 
     Seq.empty[Row]
   }
 
   override def simpleString: String = {
     val redacted = SQLConf.get.redactOptions(options)
-    s"SaveIntoDataSourceCommand ${dataSource}, ${redacted}, ${mode}"
+    s"SaveIntoDataSourceCommand $dataSource, $redacted, $mode"
   }
 }
