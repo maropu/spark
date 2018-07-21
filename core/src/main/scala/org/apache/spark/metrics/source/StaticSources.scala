@@ -63,6 +63,31 @@ object CodegenMetrics extends Source {
 
 /**
  * :: Experimental ::
+ * Metrics for query execution.
+ */
+@Experimental
+object QueryExecutionMetrics extends Source {
+  override val sourceName: String = "QueryExecution"
+  override val metricRegistry: MetricRegistry = new MetricRegistry()
+
+  /**
+   * Tracks the total number of logical plan replacements from the query result cache.
+   */
+  val METRIC_LOGICAL_PLAN_CACHE_HITS =
+    metricRegistry.counter(MetricRegistry.name("logicalPlanCacheHit"))
+
+  /**
+   * Resets the values of all metrics to zero. This is useful in tests.
+   */
+  def reset(): Unit = {
+    METRIC_LOGICAL_PLAN_CACHE_HITS.dec(METRIC_LOGICAL_PLAN_CACHE_HITS.getCount())
+  }
+
+  def incrementFileCacheHits(n: Int): Unit = METRIC_LOGICAL_PLAN_CACHE_HITS.inc(n)
+}
+
+/**
+ * :: Experimental ::
  * Metrics for access to the hive external catalog.
  */
 @Experimental

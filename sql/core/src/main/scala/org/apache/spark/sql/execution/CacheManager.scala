@@ -24,6 +24,7 @@ import scala.collection.JavaConverters._
 import org.apache.hadoop.fs.{FileSystem, Path}
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.metrics.source.QueryExecutionMetrics
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.SubqueryExpression
 import org.apache.spark.sql.catalyst.plans.logical.{AnalysisBarrier, LogicalPlan, ResolvedHint}
@@ -206,8 +207,10 @@ class CacheManager extends Logging {
 
       case currentFragment =>
         lookupCachedData(currentFragment)
-          .map(_.cachedRepresentation.withOutput(currentFragment.output))
-          .getOrElse(currentFragment)
+          .map { cacheData =>
+            QueryExecutionMetrics.incrementFileCacheHits(1)
+            cacheData.cachedRepresentation.withOutput(currentFragment.output)
+          }.getOrElse(currentFragment)
     }
 
     newPlan transformAllExpressions {
