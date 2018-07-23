@@ -26,6 +26,7 @@ import org.apache.spark.{MapOutputStatistics, ShuffleDependency, SimpleFutureAct
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.errors._
 import org.apache.spark.sql.execution.{ShuffledRowRDD, SparkPlan}
 
 /**
@@ -89,11 +90,11 @@ class ExchangeCoordinator(
   extends Logging {
 
   // The registered Exchange operators.
-  private[this] val exchanges = ArrayBuffer[ShuffleExchangeExec]()
+  private[this] val exchanges = ArrayBuffer[CoordinatorSupport]()
 
   // This map is used to lookup the post-shuffle ShuffledRowRDD for an Exchange operator.
-  private[this] val postShuffleRDDs: JMap[ShuffleExchangeExec, ShuffledRowRDD] =
-    new JHashMap[ShuffleExchangeExec, ShuffledRowRDD](numExchanges)
+  private[this] val postShuffleRDDs: JMap[CoordinatorSupport, ShuffledRowRDD] =
+    new JHashMap[CoordinatorSupport, ShuffledRowRDD](numExchanges)
 
   // A boolean that indicates if this coordinator has made decision on how to shuffle data.
   // This variable will only be updated by doEstimationIfNecessary, which is protected by
@@ -105,7 +106,7 @@ class ExchangeCoordinator(
    * to be called in the `doPrepare` method of a [[ShuffleExchangeExec]] operator.
    */
   @GuardedBy("this")
-  def registerExchange(exchange: ShuffleExchangeExec): Unit = synchronized {
+  def registerExchange(exchange: CoordinatorSupport): Unit = synchronized {
     exchanges += exchange
   }
 
@@ -200,27 +201,32 @@ class ExchangeCoordinator(
       // Make sure we have the expected number of registered Exchange operators.
       assert(exchanges.length == numExchanges)
 
-      val distinctExchanges = exchanges.distinct
-      val numDistinctExchanges = distinctExchanges.length
+      val (shuffleExchanges, reused) = exchanges.partition(!_.isInstanceOf[ReusedExchangeExec])
 
+      // Make sure `shuffleExchanges` includes all the exchanges `ReusedExchangeExec`s hold
+      assert(reused.map(_.asInstanceOf[ReusedExchangeExec].child).forall(shuffleExchanges.contains))
+
+      val numShuffleExchange = shuffleExchanges.length
       val newPostShuffleRDDs =
-        new JHashMap[ShuffleExchangeExec, ShuffledRowRDD](numDistinctExchanges)
+        new JHashMap[CoordinatorSupport, ShuffledRowRDD](numExchanges)
 
       // Submit all map stages
       val shuffleDependencies = ArrayBuffer[ShuffleDependency[Int, InternalRow, InternalRow]]()
       val submittedStageFutures = ArrayBuffer[SimpleFutureAction[MapOutputStatistics]]()
       var i = 0
-      while (i < numDistinctExchanges) {
-        val exchange = distinctExchanges(i)
-        val shuffleDependency = exchange.prepareShuffleDependency()
-        shuffleDependencies += shuffleDependency
-        if (shuffleDependency.rdd.partitions.length != 0) {
-          // submitMapStage does not accept RDD with 0 partition.
-          // So, we will not submit this dependency.
-          submittedStageFutures +=
-            exchange.sqlContext.sparkContext.submitMapStage(shuffleDependency)
+      while (i < numShuffleExchange) {
+        shuffleExchanges(i) match {
+          case exchange: ShuffleExchangeExec =>
+            val shuffleDependency = exchange.prepareShuffleDependency()
+            shuffleDependencies += shuffleDependency
+            if (shuffleDependency.rdd.partitions.length != 0) {
+              // submitMapStage does not accept RDD with 0 partition.
+              // So, we will not submit this dependency.
+              submittedStageFutures +=
+                exchange.sqlContext.sparkContext.submitMapStage(shuffleDependency)
+            }
+            i += 1
         }
-        i += 1
       }
 
       // Wait for the finishes of those submitted map stages.
@@ -242,24 +248,29 @@ class ExchangeCoordinator(
         }
 
       var k = 0
-      while (k < numDistinctExchanges) {
-        val exchange = distinctExchanges(k)
-        val rdd =
-          exchange.preparePostShuffleRDD(shuffleDependencies(k), Some(partitionStartIndices))
-        newPostShuffleRDDs.put(exchange, rdd)
+      while (k < numShuffleExchange) {
+        shuffleExchanges(k) match {
+          case exchange: ShuffleExchangeExec =>
+            val rdd =
+            exchange.preparePostShuffleRDD(shuffleDependencies (k), Some (partitionStartIndices))
+            newPostShuffleRDDs.put(exchange, rdd)
+            k += 1
+        }
+      }
 
-        k += 1
+      for (exchange <- reused.map(_.asInstanceOf[ReusedExchangeExec])) {
+        newPostShuffleRDDs.put(exchange, newPostShuffleRDDs.get(exchange.child))
       }
 
       // Finally, we set postShuffleRDDs and estimated.
       assert(postShuffleRDDs.isEmpty)
-      assert(newPostShuffleRDDs.size() == numDistinctExchanges)
+      assert(newPostShuffleRDDs.size() == numExchanges)
       postShuffleRDDs.putAll(newPostShuffleRDDs)
       estimated = true
     }
   }
 
-  def postShuffleRDD(exchange: ShuffleExchangeExec): ShuffledRowRDD = {
+  def postShuffleRDD(exchange: CoordinatorSupport): ShuffledRowRDD = {
     doEstimationIfNecessary()
 
     if (!postShuffleRDDs.containsKey(exchange)) {
@@ -272,5 +283,47 @@ class ExchangeCoordinator(
 
   override def toString: String = {
     s"coordinator[target post-shuffle partition size: $advisoryTargetPostShuffleInputSize]"
+  }
+}
+
+trait CoordinatorSupport extends SparkPlan {
+
+  def coordinator: Option[ExchangeCoordinator]
+
+  override protected def doPrepare(): Unit = {
+    // If an ExchangeCoordinator is needed, we register this Exchange operator
+    // to the coordinator when we do prepare. It is important to make sure
+    // we register this operator right before the execution instead of register it
+    // in the constructor because it is possible that we create new instances of
+    // Exchange operators when we transform the physical plan
+    // (then the ExchangeCoordinator will hold references of unneeded Exchanges).
+    // So, we should only call registerExchange just before we start to execute
+    // the plan.
+    coordinator match {
+      case Some(exchangeCoordinator) => exchangeCoordinator.registerExchange(this)
+      case _ =>
+    }
+  }
+
+  /**
+   * Caches the created ShuffleRowRDD so we can reuse that.
+   */
+  private var cachedShuffleRDD: RDD[InternalRow] = null
+
+  protected def doShuffle(): RDD[InternalRow]
+
+  protected override def doExecute(): RDD[InternalRow] = attachTree(this, "execute") {
+    // Returns the same ShuffleRowRDD if this plan is used by multiple plans.
+    if (cachedShuffleRDD == null) {
+      cachedShuffleRDD = coordinator match {
+        case Some(exchangeCoordinator) =>
+          val shuffleRDD = exchangeCoordinator.postShuffleRDD(this)
+          assert(shuffleRDD.partitions.length == outputPartitioning.numPartitions)
+          shuffleRDD
+        case _ =>
+          doShuffle()
+      }
+    }
+    cachedShuffleRDD
   }
 }

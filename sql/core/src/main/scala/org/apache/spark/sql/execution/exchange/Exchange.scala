@@ -47,20 +47,17 @@ abstract class Exchange extends UnaryExecNode {
  * preserve the original ids because they're what downstream operators are expecting.
  */
 case class ReusedExchangeExec(override val output: Seq[Attribute], child: Exchange)
-  extends LeafExecNode {
+  extends LeafExecNode with CoordinatorSupport {
 
   // Ignore this wrapper for canonicalizing.
   override def doCanonicalize(): SparkPlan = child.canonicalized
 
-  override protected def doPrepare(): Unit = {
-    child match {
-      case shuffleExchange @ ShuffleExchangeExec(_, _, Some(coordinator)) =>
-        coordinator.registerExchange(shuffleExchange)
-      case _ =>
-    }
+  override def coordinator: Option[ExchangeCoordinator] = child match {
+    case ShuffleExchangeExec(_, _, coordinator) => coordinator
+    case _ => None
   }
 
-  def doExecute(): RDD[InternalRow] = {
+  override protected def doShuffle(): RDD[InternalRow] = {
     child.execute()
   }
 
