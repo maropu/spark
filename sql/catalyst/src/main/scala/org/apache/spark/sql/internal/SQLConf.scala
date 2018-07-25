@@ -809,6 +809,16 @@ object SQLConf {
     .longConf
     .createWithDefault(4 * 1024 * 1024)
 
+  val FILES_ADAPTIVE_INPUT_SPLIT = buildConf("spark.sql.files.adaptiveInputSplit")
+    .doc("Whether to enable adaptive file splitting when reading non-bucketed data.")
+    .booleanConf
+    .createWithDefault(false)
+
+  val FILES_EXPECTED_PARTITION_SIZE = buildConf("spark.sql.files.expectedPartitionSize")
+    .doc("The expected size of a single partition when reading files.")
+    .longConf
+    .createWithDefault(128 * 1024 * 1024)
+
   val IGNORE_CORRUPT_FILES = buildConf("spark.sql.files.ignoreCorruptFiles")
     .doc("Whether to ignore corrupt files. If true, the Spark jobs will continue to run when " +
       "encountering corrupted files and the contents that have been read will still be returned.")
@@ -1497,6 +1507,10 @@ class SQLConf extends Serializable with Logging {
   def filesMaxPartitionBytes: Long = getConf(FILES_MAX_PARTITION_BYTES)
 
   def filesOpenCostInBytes: Long = getConf(FILES_OPEN_COST_IN_BYTES)
+
+  def filesAdaptiveInputSplit: Boolean = getConf(FILES_ADAPTIVE_INPUT_SPLIT)
+
+  def filesExpectedPartitionSize: Long = getConf(FILES_EXPECTED_PARTITION_SIZE)
 
   def ignoreCorruptFiles: Boolean = getConf(IGNORE_CORRUPT_FILES)
 

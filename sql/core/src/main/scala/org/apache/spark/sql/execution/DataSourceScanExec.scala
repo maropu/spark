@@ -307,6 +307,11 @@ case class FileSourceScanExec(
     withSelectedBucketsCount
   }
 
+  private def estimateScanRatio(dataSchema: StructType, requiredSchema: StructType): Double = {
+    val estimateRowSize = (schema: StructType) => schema.map(_.dataType.defaultSize).sum
+    estimateRowSize(requiredSchema).toDouble / estimateRowSize(dataSchema)
+  }
+
   private lazy val inputRDD: RDD[InternalRow] = {
     val readFile: (PartitionedFile) => Iterator[InternalRow] =
       relation.fileFormat.buildReaderWithPartitionValues(
@@ -322,7 +327,8 @@ case class FileSourceScanExec(
       case Some(bucketing) if relation.sparkSession.sessionState.conf.bucketingEnabled =>
         createBucketedReadRDD(bucketing, readFile, selectedPartitions, relation)
       case _ =>
-        createNonBucketedReadRDD(readFile, selectedPartitions, relation)
+        val scanRatio = estimateScanRatio(relation.dataSchema, requiredSchema)
+        createNonBucketedReadRDD(readFile, selectedPartitions, scanRatio, relation)
     }
   }
 
@@ -422,15 +428,21 @@ case class FileSourceScanExec(
   private def createNonBucketedReadRDD(
       readFile: (PartitionedFile) => Iterator[InternalRow],
       selectedPartitions: Seq[PartitionDirectory],
+      estimatedScanRatio: Double,
       fsRelation: HadoopFsRelation): RDD[InternalRow] = {
-    val defaultMaxSplitBytes =
-      fsRelation.sparkSession.sessionState.conf.filesMaxPartitionBytes
-    val openCostInBytes = fsRelation.sparkSession.sessionState.conf.filesOpenCostInBytes
+    val conf = fsRelation.sparkSession.sessionState.conf
+    val defaultMaxSplitBytes = conf.filesMaxPartitionBytes
+    val openCostInBytes = conf.filesOpenCostInBytes
     val defaultParallelism = fsRelation.sparkSession.sparkContext.defaultParallelism
     val totalBytes = selectedPartitions.flatMap(_.files.map(_.getLen + openCostInBytes)).sum
     val bytesPerCore = totalBytes / defaultParallelism
+    val maxSplitBytes = if (conf.filesAdaptiveInputSplit) {
+      val expectedPartitionSize = conf.filesExpectedPartitionSize
+      Math.min(((1.0 / estimatedScanRatio) * expectedPartitionSize).toLong, defaultMaxSplitBytes)
+    } else {
+      Math.min(defaultMaxSplitBytes, Math.max(openCostInBytes, bytesPerCore))
+    }
 
-    val maxSplitBytes = Math.min(defaultMaxSplitBytes, Math.max(openCostInBytes, bytesPerCore))
     logInfo(s"Planning scan with bin packing, max size: $maxSplitBytes bytes, " +
       s"open cost is considered as scanning $openCostInBytes bytes.")
 
