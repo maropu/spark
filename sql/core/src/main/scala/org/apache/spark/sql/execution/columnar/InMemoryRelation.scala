@@ -162,7 +162,7 @@ object InMemoryRelation {
 case class InMemoryRelation(
     output: Seq[Attribute],
     @transient cacheBuilder: CachedRDDBuilder)(
-    statsOfPlanToCache: Statistics,
+    var statsOfPlanToCache: Statistics,
     override val outputOrdering: Seq[SortOrder])
   extends logical.LeafNode with MultiInstanceRelation {
 
@@ -190,7 +190,9 @@ case class InMemoryRelation(
       // care of it and retain the hint info in the lookup input plan.
       statsOfPlanToCache.copy(hints = HintInfo())
     } else {
-      Statistics(sizeInBytes = cacheBuilder.sizeInBytesStats.value.longValue)
+      statsOfPlanToCache.copy(
+        sizeInBytes = cacheBuilder.sizeInBytesStats.value.longValue,
+        hints = HintInfo())
     }
   }
 

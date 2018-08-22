@@ -68,7 +68,7 @@ case class AnalyzeColumnCommand(
    * Compute stats for the given columns.
    * @return (row count, map from column name to CatalogColumnStats)
    */
-  private def computeColumnStats(
+  def computeColumnStats(
       sparkSession: SparkSession,
       tableIdent: TableIdentifier,
       columnNames: Seq[String]): (Long, Map[String, CatalogColumnStat]) = {
@@ -121,7 +121,7 @@ case class AnalyzeColumnCommand(
   }
 
   /** Computes percentiles for each attribute. */
-  private def computePercentiles(
+  private[execution] def computePercentiles(
       attributesToAnalyze: Seq[Attribute],
       sparkSession: SparkSession,
       relation: LogicalPlan): AttributeMap[ArrayData] = {
@@ -157,7 +157,7 @@ case class AnalyzeColumnCommand(
   }
 
   /** Returns true iff the we support gathering column statistics on column of the given type. */
-  private def supportsType(dataType: DataType): Boolean = dataType match {
+  private[execution] def supportsType(dataType: DataType): Boolean = dataType match {
     case _: IntegralType => true
     case _: DecimalType => true
     case DoubleType | FloatType => true
@@ -188,7 +188,7 @@ case class AnalyzeColumnCommand(
    * Together with [[rowToColumnStat]], this function is used to create [[ColumnStat]] and
    * as a result should stay in sync with it.
    */
-  private def statExprs(
+  private[execution] def statExprs(
     col: Attribute,
     conf: SQLConf,
     colPercentiles: AttributeMap[ArrayData]): CreateNamedStruct = {
@@ -241,7 +241,7 @@ case class AnalyzeColumnCommand(
   }
 
   /** Convert a struct for column stats (defined in `statExprs`) into [[ColumnStat]]. */
-  private def rowToColumnStat(
+  private[execution] def rowToColumnStat(
     row: InternalRow,
     attr: Attribute,
     rowCount: Long,

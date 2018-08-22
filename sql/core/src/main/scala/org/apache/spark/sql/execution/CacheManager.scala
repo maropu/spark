@@ -24,10 +24,13 @@ import scala.collection.JavaConverters._
 import org.apache.hadoop.fs.{FileSystem, Path}
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.{Dataset, SparkSession}
-import org.apache.spark.sql.catalyst.expressions.SubqueryExpression
-import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, ResolvedHint}
+import org.apache.spark.sql.{AnalysisException, Dataset, SparkSession}
+import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeMap, Literal, SubqueryExpression}
+import org.apache.spark.sql.catalyst.expressions.aggregate.Count
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, ResolvedHint, Statistics}
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
+import org.apache.spark.sql.execution.command.AnalyzeColumnCommand
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation}
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.storage.StorageLevel.MEMORY_AND_DISK
@@ -148,6 +151,71 @@ class CacheManager extends Logging {
     // Re-compile dependent cached queries after removing the cached query.
     if (!cascade) {
       recacheByCondition(spark, _.find(_.sameResult(plan)).isDefined, clearCache = false)
+    }
+  }
+
+  private def analyzeColumns(
+      sparkSession: SparkSession,
+      relation: LogicalPlan,
+      columnNames: Seq[String]) = {
+    val conf = sparkSession.sessionState.conf
+    val analyzeCmd = AnalyzeColumnCommand(TableIdentifier(""), Seq.empty)
+    // Resolve the column names and dedup using AttributeSet
+    val attributesToAnalyze = columnNames.map { col =>
+      val exprOption = relation.output.find(attr => conf.resolver(attr.name, col))
+      exprOption.getOrElse(throw new AnalysisException(s"Column $col does not exist."))
+    }
+
+    // Make sure the column types are supported for stats gathering.
+    attributesToAnalyze.foreach { attr =>
+      if (!analyzeCmd.supportsType(attr.dataType)) {
+        throw new AnalysisException(
+          s"Column ${attr.name} in cached query tableIdent is of type ${attr.dataType}, " +
+            "and Spark does not support statistics collection on this column type.")
+      }
+    }
+
+    // Collect statistics per column.
+    // If no histogram is required, we run a job to compute basic column stats such as
+    // min, max, ndv, etc. Otherwise, besides basic column stats, histogram will also be
+    // generated. Currently we only support equi-height histogram.
+    // To generate an equi-height histogram, we need two jobs:
+    // 1. compute percentiles p(0), p(1/n) ... p((n-1)/n), p(1).
+    // 2. use the percentiles as value intervals of bins, e.g. [p(0), p(1/n)],
+    // [p(1/n), p(2/n)], ..., [p((n-1)/n), p(1)], and then count ndv in each bin.
+    // Basic column stats will be computed together in the second job.
+    val attributePercentiles = analyzeCmd.computePercentiles(
+      attributesToAnalyze, sparkSession, relation)
+
+    // The first element in the result will be the overall row count, the following elements
+    // will be structs containing all column stats.
+    // The layout of each struct follows the layout of the ColumnStats.
+    val expressions = Count(Literal(1)).toAggregateExpression() +:
+      attributesToAnalyze.map(analyzeCmd.statExprs(_, conf, attributePercentiles))
+
+    val namedExpressions = expressions.map(e => Alias(e, e.toString)())
+    val statsRow = new QueryExecution(sparkSession, Aggregate(Nil, namedExpressions, relation))
+      .executedPlan.executeTake(1).head
+
+    val rowCount = statsRow.getLong(0)
+    val columnStats = attributesToAnalyze.zipWithIndex.map { case (attr, i) =>
+      // according to `statExprs`, the stats struct always have 7 fields.
+      (attr, analyzeCmd.rowToColumnStat(statsRow.getStruct(i + 1, 7), attr, rowCount,
+        attributePercentiles.get(attr)))
+    }
+    (rowCount, columnStats)
+  }
+
+  def analyzeColumnCacheQuery(query: Dataset[_], columnNames: Seq[String]): Unit = writeLock {
+    lookupCachedData(query).foreach { cachedData =>
+      val relation = cachedData.cachedRepresentation
+      val (rowCount, newColStats) = analyzeColumns(query.sparkSession, relation, columnNames)
+      val oldStats = cachedData.cachedRepresentation.statsOfPlanToCache
+      val newStats = oldStats.copy(
+        rowCount = Some(rowCount),
+        attributeStats = AttributeMap((oldStats.attributeStats ++ newColStats).toSeq)
+      )
+      cachedData.cachedRepresentation.statsOfPlanToCache = newStats
     }
   }
 
