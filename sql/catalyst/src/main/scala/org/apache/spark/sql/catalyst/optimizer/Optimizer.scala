@@ -63,6 +63,7 @@ abstract class Optimizer(sessionCatalog: SessionCatalog)
         PushPredicateThroughJoin,
         PushDownPredicate,
         LimitPushDown,
+        SamplePushDown,
         ColumnPruning,
         InferFiltersFromConstraints,
         // Operator combine
@@ -457,6 +458,17 @@ object LimitPushDown extends Rule[LogicalPlan] {
         case _ => join
       }
       LocalLimit(exp, newJoin)
+  }
+}
+
+/**
+ * Pushes down [[Sample]] beneath [[Project]].
+ */
+object SamplePushDown extends Rule[LogicalPlan] {
+
+  def apply(plan: LogicalPlan): LogicalPlan = plan transform {
+    case s @ Sample(_, _, _, _, Project(projList, child)) if projList.forall(_.deterministic) =>
+      Project(projList, s.copy(child = child))
   }
 }
 
