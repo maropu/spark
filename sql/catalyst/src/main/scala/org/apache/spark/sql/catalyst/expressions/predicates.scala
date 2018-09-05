@@ -21,10 +21,10 @@ import scala.collection.immutable.TreeSet
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, CodeGenerator, ExprCode, FalseLiteral, GenerateSafeProjection, GenerateUnsafeProjection, Predicate => BasePredicate}
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, CodeGenerator, ExprCode, FalseLiteral, Predicate => BasePredicate}
 import org.apache.spark.sql.catalyst.expressions.codegen.Block._
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.util.TypeUtils
+import org.apache.spark.sql.catalyst.util.{DateTimeUtils, TypeUtils}
 import org.apache.spark.sql.types._
 
 
@@ -769,4 +769,41 @@ case class GreaterThanOrEqual(left: Expression, right: Expression)
   override def symbol: String = ">="
 
   protected override def nullSafeEval(input1: Any, input2: Any): Any = ordering.gteq(input1, input2)
+}
+
+case class SpecializedBinaryComparison(
+    left: Expression,
+    right: Expression)(
+    origChild: BinaryComparison) extends BinaryComparison with NullIntolerant {
+
+  override protected def otherCopyArgs: Seq[AnyRef] = origChild :: Nil
+
+  override def checkInputDataTypes(): TypeCheckResult = origChild.checkInputDataTypes()
+
+  override def symbol: String = origChild.symbol
+
+  override def eval(input: InternalRow): Any = {
+    origChild.eval(input)
+  }
+
+  override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+    defineCodeGen(ctx, ev, (c1, c2) => {
+      val compareFunc = ctx.freshName("specializedCompare")
+      val dateTimeUtilsClass = DateTimeUtils.getClass.getName.stripSuffix("$")
+      val funcCode: String =
+        s"""
+           |public boolean $compareFunc(UTF8String a, long b) {
+           |  scala.Option<Long> aOption = $dateTimeUtilsClass.stringToTimestamp(a);
+           |  if (aOption.isDefined()) {
+           |    long aValue = ((Long) aOption.get()).longValue();
+           |    return aValue $symbol b;
+           |  } else {
+           |    final UTF8String sb = UTF8String.fromString($dateTimeUtilsClass.timestampToString(b));
+           |    return a.compare(sb) $symbol 0;
+           |  }
+           |}
+         """.stripMargin
+      s"${ctx.addNewFunction(compareFunc, funcCode)}($c1, $c2)"
+    })
+  }
 }

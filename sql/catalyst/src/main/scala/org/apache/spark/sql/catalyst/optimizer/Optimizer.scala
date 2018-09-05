@@ -93,7 +93,8 @@ abstract class Optimizer(sessionCatalog: SessionCatalog)
         RemoveRedundantAliases,
         RemoveRedundantProject,
         SimplifyExtractValueOps,
-        CombineConcats) ++
+        CombineConcats,
+        ComparisonSpecialization) ++
         extendedOperatorOptimizationRules
 
     val operatorOptimizationBatch: Seq[Batch] = {

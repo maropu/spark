@@ -709,3 +709,11 @@ object CombineConcats extends Rule[LogicalPlan] {
       flattenConcats(concat)
   }
 }
+
+object ComparisonSpecialization extends Rule[LogicalPlan] {
+
+  def apply(plan: LogicalPlan): LogicalPlan = plan.transformExpressionsDown {
+    case p @ BinaryComparison(left @ StringType(), Cast(right @ TimestampType(), StringType, _)) =>
+      SpecializedBinaryComparison(left, right)(p)
+  }
+}
