@@ -91,19 +91,4 @@ class CodeGeneratorWithInterpretedFallbackSuite extends SparkFunSuite with PlanT
     }.getMessage
     assert(errMsg.contains("failed to compile: org.codehaus.commons.compiler.CompileException:"))
   }
-
-  test("SPARK-25358 Correctly handles NoOp in MutableProjection") {
-    val exprs = Seq(Add(BoundReference(0, IntegerType, nullable = true), Literal.create(1)), NoOp)
-    val input = InternalRow.fromSeq(1 :: 1 :: Nil)
-    val expected = 2 :: null :: Nil
-    withSQLConf(SQLConf.CODEGEN_FACTORY_MODE.key -> codegenOnly) {
-      val proj = MutableProjection.createObject(exprs)
-      assert(proj(input).toSeq(StructType.fromDDL("c0 int, c1 int")) === expected)
-    }
-
-    withSQLConf(SQLConf.CODEGEN_FACTORY_MODE.key -> noCodegen) {
-      val proj = MutableProjection.createObject(exprs)
-      assert(proj(input).toSeq(StructType.fromDDL("c0 int, c1 int")) === expected)
-    }
-  }
 }

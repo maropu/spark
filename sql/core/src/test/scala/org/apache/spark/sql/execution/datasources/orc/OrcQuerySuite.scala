@@ -103,7 +103,7 @@ abstract class OrcQueryTest extends OrcTest {
 
   test("Read/write UserDefinedType") {
     withTempPath { path =>
-      val data = Seq((1, new UDT.MyDenseVector(Array(0.25, 2.25, 4.25))))
+      val data = Seq((1, new TestUDT.MyDenseVector(Array(0.25, 2.25, 4.25))))
       val udtDF = data.toDF("id", "vectors")
       udtDF.write.orc(path.getAbsolutePath)
       val readBack = spark.read.schema(udtDF.schema).orc(path.getAbsolutePath)

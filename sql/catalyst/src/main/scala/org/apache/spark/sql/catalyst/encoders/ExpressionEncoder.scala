@@ -24,7 +24,7 @@ import org.apache.spark.sql.Encoder
 import org.apache.spark.sql.catalyst.{InternalRow, JavaTypeInference, ScalaReflection}
 import org.apache.spark.sql.catalyst.analysis.{Analyzer, GetColumnByOrdinal, SimpleAnalyzer, UnresolvedAttribute, UnresolvedExtractValue}
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.codegen.{GenerateSafeProjection, GenerateUnsafeProjection}
+import org.apache.spark.sql.catalyst.expressions.codegen.GenerateUnsafeProjection
 import org.apache.spark.sql.catalyst.expressions.objects.{AssertNotNull, Invoke, NewInstance}
 import org.apache.spark.sql.catalyst.optimizer.SimplifyCasts
 import org.apache.spark.sql.catalyst.plans.logical.{CatalystSerde, DeserializeToObject, LocalRelation}
@@ -268,7 +268,7 @@ case class ExpressionEncoder[T](
   private lazy val inputRow = new GenericInternalRow(1)
 
   @transient
-  private lazy val constructProjection = GenerateSafeProjection.generate(deserializer :: Nil)
+  private lazy val constructProjection = SafeProjection.create(deserializer :: Nil)
 
   /**
    * Returns a new set (with unique ids) of [[NamedExpression]] that represent the serialized form
