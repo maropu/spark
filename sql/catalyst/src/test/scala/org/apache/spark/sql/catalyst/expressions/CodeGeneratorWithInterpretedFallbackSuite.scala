@@ -30,7 +30,9 @@ class CodeGeneratorWithInterpretedFallbackSuite extends SparkFunSuite with PlanT
   object FailedCodegenProjection
       extends CodeGeneratorWithInterpretedFallback[Seq[Expression], UnsafeProjection] {
 
-    override protected def createCodeGeneratedObject(in: Seq[Expression]): UnsafeProjection = {
+    override protected def createCodeGeneratedObject(
+        in: Seq[Expression],
+        subexpressionEliminationEnabled: Boolean): UnsafeProjection = {
       val invalidCode = new CodeAndComment("invalid code", Map.empty)
       // We assume this compilation throws an exception
       CodeGenerator.compile(invalidCode)
@@ -54,6 +56,21 @@ class CodeGeneratorWithInterpretedFallbackSuite extends SparkFunSuite with PlanT
     withSQLConf(SQLConf.CODEGEN_FACTORY_MODE.key -> noCodegen) {
       val obj = UnsafeProjection.createObject(input)
       assert(obj.isInstanceOf[InterpretedUnsafeProjection])
+    }
+  }
+
+  test("MutableProjection with codegen factory mode") {
+    val input = Seq(BoundReference(0, IntegerType, nullable = true))
+    val codegenOnly = CodegenObjectFactoryMode.CODEGEN_ONLY.toString
+    withSQLConf(SQLConf.CODEGEN_FACTORY_MODE.key -> codegenOnly) {
+      val obj = MutableProjection.createObject(input)
+      assert(obj.getClass.getName.contains("GeneratedClass$SpecificMutableProjection"))
+    }
+
+    val noCodegen = CodegenObjectFactoryMode.NO_CODEGEN.toString
+    withSQLConf(SQLConf.CODEGEN_FACTORY_MODE.key -> noCodegen) {
+      val obj = MutableProjection.createObject(input)
+      assert(obj.isInstanceOf[InterpretedMutableProjection])
     }
   }
 

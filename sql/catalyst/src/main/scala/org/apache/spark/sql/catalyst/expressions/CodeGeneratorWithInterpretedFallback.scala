@@ -37,19 +37,22 @@ object CodegenObjectFactoryMode extends Enumeration {
  */
 abstract class CodeGeneratorWithInterpretedFallback[IN, OUT] extends Logging {
 
-  def createObject(in: IN): OUT = {
+  def createObject(in: IN): OUT =
+    createObject(in, subexpressionEliminationEnabled = false)
+
+  def createObject(in: IN, subexpressionEliminationEnabled: Boolean): OUT = {
     // We are allowed to choose codegen-only or no-codegen modes if under tests.
     val config = SQLConf.get.getConf(SQLConf.CODEGEN_FACTORY_MODE)
     val fallbackMode = CodegenObjectFactoryMode.withName(config)
 
     fallbackMode match {
       case CodegenObjectFactoryMode.CODEGEN_ONLY if Utils.isTesting =>
-        createCodeGeneratedObject(in)
+        createCodeGeneratedObject(in, subexpressionEliminationEnabled)
       case CodegenObjectFactoryMode.NO_CODEGEN if Utils.isTesting =>
         createInterpretedObject(in)
       case _ =>
         try {
-          createCodeGeneratedObject(in)
+          createCodeGeneratedObject(in, subexpressionEliminationEnabled)
         } catch {
           case NonFatal(_) =>
             // We should have already seen the error message in `CodeGenerator`
@@ -59,6 +62,6 @@ abstract class CodeGeneratorWithInterpretedFallback[IN, OUT] extends Logging {
     }
   }
 
-  protected def createCodeGeneratedObject(in: IN): OUT
+  protected def createCodeGeneratedObject(in: IN, subexpressionEliminationEnabled: Boolean): OUT
   protected def createInterpretedObject(in: IN): OUT
 }
