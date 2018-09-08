@@ -50,12 +50,15 @@ class InterpretedSafeProjection(expressions: Seq[Expression]) extends Projection
     }
   }
 
-  private def generateSafeValueConverter(dt: DataType): Any => Any = {
-    // TODO: This is test code, so we need to immediately replace with actual convert
-    // implementations from unsafe to safe internal values.
-    val toScala = CatalystTypeConverters.createToScalaConverter(dt)
-    val toCatalyst = CatalystTypeConverters.createToCatalystConverter(dt)
-    v => toCatalyst(toScala(v))
+  private def generateSafeValueConverter(dt: DataType): Any => Any = dt match {
+    case CalendarIntervalType =>
+    case BinaryType =>
+    case _: ArrayType =>
+    case StringType =>
+    case _: StructType =>
+    case _: MapType =>
+    case _: UserDefinedType[_] =>
+    case _ => identity
   }
 
   private def generateRowWriter(ordinal: Int, dt: DataType): Any => Unit = dt match {
