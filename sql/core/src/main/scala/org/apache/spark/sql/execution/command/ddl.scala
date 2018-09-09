@@ -22,18 +22,17 @@ import java.util.Locale
 import scala.collection.{GenMap, GenSeq}
 import scala.collection.parallel.ForkJoinTaskSupport
 import scala.util.control.NonFatal
-
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs._
 import org.apache.hadoop.mapred.{FileInputFormat, JobConf}
-
 import org.apache.spark.sql.{AnalysisException, Row, SparkSession}
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.analysis.{Resolver, UnresolvedAttribute}
+import org.apache.spark.sql.catalyst.analysis.{Resolver, UnresolvedAttribute, UnresolvedRelation}
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.QueryPlan
+import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan}
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation, PartitioningUtils}
 import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetSchemaConverter
@@ -523,88 +522,36 @@ case class AlterTableRenamePartitionCommand(
  */
 case class AlterTableDropPartitionCommand(
     tableName: TableIdentifier,
-    partitionsFilters: Seq[Seq[Expression]],
+    partitionFilter: LogicalPlan,
     ifExists: Boolean,
     purge: Boolean,
     retainData: Boolean)
-  extends RunnableCommand {
+  extends RunnableCommand with PredicateHelper {
+
+  override def children: Seq[LogicalPlan] = partitionFilter :: Nil
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
     val catalog = sparkSession.sessionState.catalog
-    val timeZone = Option(sparkSession.sessionState.conf.sessionLocalTimeZone)
     val table = catalog.getTableMetadata(tableName)
-    val partitionColumns = table.partitionColumnNames
-    val partitionAttributes = table.partitionSchema.toAttributes.map(a => a.name -> a).toMap
     DDLUtils.verifyAlterTableType(catalog, table, isView = false)
     DDLUtils.verifyPartitionProviderIsHive(sparkSession, table, "ALTER TABLE DROP PARTITION")
 
-    val resolvedSpecs = partitionsFilters.flatMap { filtersSpec =>
-      if (hasComplexFilters(filtersSpec)) {
-        generatePartitionSpec(filtersSpec,
-          partitionColumns,
-          partitionAttributes,
-          table.identifier,
-          catalog,
-          sparkSession.sessionState.conf.resolver,
-          timeZone,
-          ifExists)
-      } else {
-        val partitionSpec = filtersSpec.map {
-          case EqualTo(key: Attribute, Literal(value, StringType)) =>
-            key.name -> value.toString
-        }.toMap
-        PartitioningUtils.normalizePartitionSpec(
-          partitionSpec,
-          partitionColumns,
-          table.identifier.quotedString,
-          sparkSession.sessionState.conf.resolver) :: Nil
-      }
+    val resolvedSpec = children.head match {
+      case Filter(conditions, _) =>
+        val filters = splitDisjunctivePredicates(conditions).flatMap { filter =>
+          splitConjunctivePredicates(filter)
+        }
+        // Resolve TablePartitionSpec based on the resolved expressions?
+        ...
     }
 
     catalog.dropPartitions(
-      table.identifier, resolvedSpecs, ignoreIfNotExists = ifExists, purge = purge,
+      table.identifier, resolvedSpec, ignoreIfNotExists = ifExists, purge = purge,
       retainData = retainData)
 
     CommandUtils.updateTableStats(sparkSession, table)
 
     Seq.empty[Row]
-  }
-
-  def hasComplexFilters(partitionFilterSpec: Seq[Expression]): Boolean = {
-    partitionFilterSpec.exists(!_.isInstanceOf[EqualTo])
-  }
-
-  def generatePartitionSpec(
-      partitionFilterSpec: Seq[Expression],
-      partitionColumns: Seq[String],
-      partitionAttributes: Map[String, Attribute],
-      tableIdentifier: TableIdentifier,
-      catalog: SessionCatalog,
-      resolver: Resolver,
-      timeZone: Option[String],
-      ifExists: Boolean): Seq[TablePartitionSpec] = {
-    val filters = partitionFilterSpec.map { pFilter =>
-      pFilter.transform {
-        // Resolve the partition attributes
-        case partitionCol: Attribute =>
-          val normalizedPartition = PartitioningUtils.normalizePartitionColumn(
-            partitionCol.name,
-            partitionColumns,
-            tableIdentifier.quotedString,
-            resolver)
-          partitionAttributes(normalizedPartition)
-      }.transform {
-        // Cast the partition value to the data type of the corresponding partition attribute
-        case cmp @ BinaryComparison(partitionAttr, value)
-            if !partitionAttr.dataType.sameType(value.dataType) =>
-          cmp.withNewChildren(Seq(partitionAttr, Cast(value, partitionAttr.dataType, timeZone)))
-      }
-    }
-    val partitions = catalog.listPartitionsByFilter(tableIdentifier, filters)
-    if (partitions.isEmpty && !ifExists) {
-      throw new AnalysisException(s"There is no partition for ${filters.reduceLeft(And).sql}")
-    }
-    partitions.map(_.spec)
   }
 }
 
@@ -617,17 +564,15 @@ object AlterTableDropPartitionCommand {
       ifExists: Boolean,
       purge: Boolean,
       retainData: Boolean): AlterTableDropPartitionCommand = {
-    AlterTableDropPartitionCommand(tableName,
-      specs.map(tablePartitionToPartitionFilters),
-      ifExists,
-      purge,
-      retainData)
+    val conditions = specs.map(tablePartitionToPartitionFilter)
+    val filter = Filter(conditions.reduce(Or), UnresolvedRelation(tableName))
+    AlterTableDropPartitionCommand(tableName, filter, ifExists, purge, retainData)
   }
 
-  def tablePartitionToPartitionFilters(spec: TablePartitionSpec): Seq[Expression] = {
-    spec.map {
-      case (key, value) => EqualTo(AttributeReference(key, StringType)(), Literal(value))
-    }.toSeq
+  private def tablePartitionToPartitionFilter(spec: TablePartitionSpec): Expression = {
+    spec.map { case (key, value) =>
+      EqualTo(AttributeReference(key, StringType)(), Literal(value))
+    }.reduce(And)
   }
 }
 

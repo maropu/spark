@@ -20,14 +20,13 @@ package org.apache.spark.sql.execution
 import java.util.Locale
 
 import scala.collection.JavaConverters._
-
 import org.antlr.v4.runtime.{ParserRuleContext, Token}
 import org.antlr.v4.runtime.tree.TerminalNode
-
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
+import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
 import org.apache.spark.sql.catalyst.catalog._
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.{And, Expression, Or}
 import org.apache.spark.sql.catalyst.parser._
 import org.apache.spark.sql.catalyst.parser.SqlBaseParser._
 import org.apache.spark.sql.catalyst.plans.logical._
@@ -925,9 +924,11 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
     if (ctx.VIEW != null) {
       operationNotAllowed("ALTER VIEW ... DROP PARTITION", ctx)
     }
+    val tableIdent = visitTableIdentifier(ctx.tableIdentifier)
+    val conditions = ctx.dropPartitionSpec().asScala.map(visitDropPartitionSpec(_).reduce(And)).reduce(Or)
     AlterTableDropPartitionCommand(
-      visitTableIdentifier(ctx.tableIdentifier),
-      ctx.dropPartitionSpec().asScala.map(visitDropPartitionSpec),
+      tableIdent,
+      Filter(conditions, UnresolvedRelation(tableIdent)),
       ifExists = ctx.EXISTS != null,
       purge = ctx.PURGE != null,
       retainData = false)
