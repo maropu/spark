@@ -41,15 +41,7 @@ object AttributeSet {
 
   /** Constructs a new [[AttributeSet]] given a sequence of [[Expression Expressions]]. */
   def apply(baseSet: Iterable[Expression]): AttributeSet = {
-    fromAttributeSets(baseSet.map(_.references))
-  }
-
-  /** Constructs a new [[AttributeSet]] given a sequence of [[AttributeSet]]s. */
-  def fromAttributeSets(sets: Iterable[AttributeSet]): AttributeSet = {
-    val baseSet = sets.foldLeft(new mutable.LinkedHashSet[AttributeEquals]()) {
-      case (agg, set) => agg ++= set.baseSet
-    }
-    new AttributeSet(baseSet.toSet)
+    new AttributeSet(baseSet.map(_.references.baseSet).foldLeft(Set.empty[AttributeEquals])(_ ++ _))
   }
 }
 
