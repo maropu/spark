@@ -18,6 +18,7 @@ package org.apache.spark.sql.catalyst.expressions
 
 import org.apache.spark.SparkException
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
+import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, ArrayData, GenericArrayData, MapData}
 import org.apache.spark.sql.types._
 
 
@@ -50,14 +51,70 @@ class InterpretedSafeProjection(expressions: Seq[Expression]) extends Projection
     }
   }
 
+  private def isPrimitive(dataType: DataType): Boolean = {
+    dataType match {
+      case BooleanType => true
+      case ByteType => true
+      case ShortType => true
+      case IntegerType => true
+      case LongType => true
+      case FloatType => true
+      case DoubleType => true
+      case _ => false
+    }
+  }
+
   private def generateSafeValueConverter(dt: DataType): Any => Any = dt match {
-    case CalendarIntervalType =>
-    case BinaryType =>
-    case _: ArrayType =>
-    case StringType =>
-    case _: StructType =>
-    case _: MapType =>
-    case _: UserDefinedType[_] =>
+    case ArrayType(elemType, _) =>
+      if (isPrimitive(elemType)) {
+        v => {
+          val arrayValue = v.asInstanceOf[ArrayData]
+          new GenericArrayData(arrayValue.toArray[Any](elemType))
+        }
+      } else {
+        val elementConverter = generateSafeValueConverter(elemType)
+        v => {
+          val arrayValue = v.asInstanceOf[ArrayData]
+          val result = new Array[Any](arrayValue.numElements())
+          arrayValue.foreach(elemType, (i, e) => {
+            result(i) = elementConverter(e)
+          })
+          new GenericArrayData(result)
+        }
+      }
+
+    case st: StructType =>
+      val fieldTypes = st.fields.map(_.dataType)
+      val fieldConverters = fieldTypes.map(generateSafeValueConverter)
+      v => {
+        val row = v.asInstanceOf[InternalRow]
+        val ar = new Array[Any](row.numFields)
+        var idx = 0
+        while (idx < row.numFields) {
+          ar(idx) = fieldConverters(idx)(row.get(idx, fieldTypes(idx)))
+          idx += 1
+        }
+        new GenericInternalRow(ar)
+      }
+
+    case MapType(keyType, valueType, _) =>
+      lazy val keyConverter = generateSafeValueConverter(keyType)
+      lazy val valueConverter = generateSafeValueConverter(valueType)
+      v => {
+        val mapValue = v.asInstanceOf[MapData]
+        val keys = mapValue.keyArray().toArray[Any](keyType)
+        val values = mapValue.valueArray().toArray[Any](valueType)
+        val convertedKeys =
+          if (isPrimitive(keyType)) keys else keys.map(keyConverter)
+        val convertedValues =
+          if (isPrimitive(valueType)) values else values.map(valueConverter)
+
+        ArrayBasedMapData(convertedKeys, convertedValues)
+      }
+
+    case udt: UserDefinedType[_] =>
+      generateSafeValueConverter(udt.sqlType)
+
     case _ => identity
   }
 
