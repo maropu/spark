@@ -20,10 +20,12 @@ package org.apache.spark.sql.catalyst.expressions
 import java.util.concurrent.ExecutionException
 
 import org.apache.spark.SparkFunSuite
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodeAndComment, CodeGenerator}
 import org.apache.spark.sql.catalyst.plans.PlanTestBase
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.{IntegerType, StructType}
 
 class CodeGeneratorWithInterpretedFallbackSuite extends SparkFunSuite with PlanTestBase {
 
@@ -92,5 +94,21 @@ class CodeGeneratorWithInterpretedFallbackSuite extends SparkFunSuite with PlanT
       }
     }.getMessage
     assert(errMsg.contains("failed to compile: org.codehaus.commons.compiler.CompileException:"))
+  }
+
+  test("SPARK-25358 Correctly handles NoOp in MutableProjection") {
+    val exprs = Seq(Add(BoundReference(0, IntegerType, nullable = true), Literal.create(1)), NoOp)
+    val input = InternalRow.fromSeq(1 :: 1 :: Nil)
+    val expected = 2 :: null :: Nil
+    val codegenOnly = CodegenObjectFactoryMode.CODEGEN_ONLY.toString
+    withSQLConf(SQLConf.CODEGEN_FACTORY_MODE.key -> codegenOnly) {
+      val proj = SafeProjection.createObject(exprs)
+      assert(proj(input).toSeq(StructType.fromDDL("c0 int, c1 int")) === expected)
+    }
+    val noCodegen = CodegenObjectFactoryMode.NO_CODEGEN.toString
+    withSQLConf(SQLConf.CODEGEN_FACTORY_MODE.key -> noCodegen) {
+      val proj = SafeProjection.createObject(exprs)
+      assert(proj(input).toSeq(StructType.fromDDL("c0 int, c1 int")) === expected)
+    }
   }
 }

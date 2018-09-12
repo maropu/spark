@@ -17,6 +17,7 @@
 package org.apache.spark.sql.catalyst.expressions
 
 import org.apache.spark.SparkException
+import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, ArrayData, GenericArrayData, MapData}
 import org.apache.spark.sql.types._
@@ -34,6 +35,11 @@ class InterpretedSafeProjection(expressions: Seq[Expression]) extends Projection
   private[this] val numFields = expressions.length
 
   private[this] val mutableRow = new SpecificInternalRow(expressions.map(_.dataType))
+
+  private[this] val validExprs = expressions.zipWithIndex.filter {
+    case (NoOp, _) => false
+    case _ => true
+  }
 
   private[this] val fieldWriters: Seq[Any => Unit] = expressions.zipWithIndex.map { case (e, i) =>
     val converter = generateSafeValueConverter(e.dataType)
@@ -145,10 +151,8 @@ class InterpretedSafeProjection(expressions: Seq[Expression]) extends Projection
   }
 
   override def apply(row: InternalRow): InternalRow = {
-    var i = 0
-    while (i < numFields) {
-      fieldWriters(i)(expressions(i).eval(row))
-      i += 1
+    validExprs.foreach { case (expr, i) =>
+      fieldWriters(i)(expr.eval(row))
     }
     mutableRow
   }
