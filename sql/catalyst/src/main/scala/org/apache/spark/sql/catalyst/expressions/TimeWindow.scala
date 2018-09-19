@@ -35,8 +35,9 @@ case class TimeWindow(
   with ImplicitCastInputTypes
   with Unevaluable
   with NonSQLExpression {
-  TimeWindow.checkWindowAndSlideDuration(windowDuration, slideDuration,
-    windowDuration, slideDuration)
+
+  require(windowDuration > 0, s"The window duration must be positive, but found: $windowDuration")
+  require(slideDuration > 0, s"The slide duration must be positive, but found: $slideDuration")
 
   //////////////////////////
   // SQL Constructors
@@ -47,13 +48,13 @@ case class TimeWindow(
       windowDuration: Expression,
       slideDuration: Expression,
       startTime: Expression) = {
-    this(timeColumn, TimeWindow.parseWindowDuration(windowDuration),
-      TimeWindow.parseSlideDuration(slideDuration), TimeWindow.parseExpression(startTime))
+    this(timeColumn, TimeWindow.parseExpression(windowDuration),
+      TimeWindow.parseExpression(slideDuration), TimeWindow.parseExpression(startTime))
   }
 
   def this(timeColumn: Expression, windowDuration: Expression, slideDuration: Expression) = {
-    this(timeColumn, TimeWindow.parseWindowDuration(windowDuration),
-      TimeWindow.parseSlideDuration(slideDuration), 0)
+    this(timeColumn, TimeWindow.parseExpression(windowDuration),
+      TimeWindow.parseExpression(slideDuration), 0)
   }
 
   def this(timeColumn: Expression, windowDuration: Expression) = {
@@ -139,41 +140,15 @@ object TimeWindow {
       "an integer, long or string literal.")
   }
 
-  private def parseWindowDuration(windowDuration: Expression): Long = {
-    val windowDurationMicroSec = parseExpression(windowDuration)
-    require(windowDurationMicroSec > 0, "The window duration must be " +
-      s"a positive integer, long or string literal, found: $windowDuration")
-    windowDurationMicroSec
-  }
-
-  private def parseSlideDuration(slideDuration: Expression): Long = {
-    val slideDurationMicroSec = parseExpression(slideDuration)
-    require(slideDurationMicroSec > 0, "The slide duration must be " +
-      s"a positive integer, long or string literal, found: $slideDuration")
-    slideDurationMicroSec
-  }
-
   def apply(
       timeColumn: Expression,
       windowDuration: String,
       slideDuration: String,
       startTime: String): TimeWindow = {
-    val windowDurationMicroSec = getIntervalInMicroSeconds(windowDuration)
-    val slideDurationMicroSec = getIntervalInMicroSeconds(slideDuration)
-    checkWindowAndSlideDuration(windowDurationMicroSec, slideDurationMicroSec,
-      windowDuration, slideDuration)
     TimeWindow(timeColumn,
-      windowDurationMicroSec,
-      slideDurationMicroSec,
+      getIntervalInMicroSeconds(windowDuration),
+      getIntervalInMicroSeconds(slideDuration),
       getIntervalInMicroSeconds(startTime))
-  }
-
-  private def checkWindowAndSlideDuration(windowDurationMicroSec: Long, slideDurationMicroSec: Long,
-                                          windowDuration: Any, slideDuration: Any): Unit = {
-    require(windowDurationMicroSec > 0, "The window duration must be " +
-      s"a positive integer, long or string literal, found: $windowDuration")
-    require(slideDurationMicroSec > 0, "The slide duration must be " +
-      s"a positive integer, long or string literal, found: $slideDuration")
   }
 }
 

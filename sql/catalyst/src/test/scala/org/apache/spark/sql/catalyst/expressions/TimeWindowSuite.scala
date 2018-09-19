@@ -18,7 +18,6 @@
 package org.apache.spark.sql.catalyst.expressions
 
 import org.scalatest.PrivateMethodTester
-import org.scalatest.prop.TableDrivenPropertyChecks.{forAll => forAllRows, Table}
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.AnalysisException
@@ -124,48 +123,28 @@ class TimeWindowSuite extends SparkFunSuite with ExpressionEvalHelper with Priva
   }
 
   test("windowDuration and slideDuration should be positive.") {
-    val fractions = Table(
-      ("windowDuration", "slideDuration"), // First tuple defines column names
-      ("-2 seconds", "1 seconds"),
-      ("1 seconds", "-2 seconds"),
-      ("0 seconds", "1 seconds"),
-      ("1 seconds", "0 seconds"),
-      ("-2 seconds", "-2 seconds"),
-      ("-2 seconds", "-2 hours"),
-      ("0 seconds", "0 seconds"),
-      (-2L, 2L),
-      (2L, -2L),
-      (-2, 2),
-      (2, -2)
-    )
-    forAllRows(fractions) { (windowDuration: Any, slideDuration: Any) =>
-      logInfo(s"windowDuration = $windowDuration slideDuration = $slideDuration")
-
-      val thrown = intercept[IllegalArgumentException] {
-        (windowDuration, slideDuration) match {
-          case (wd: String, sd: String) => TimeWindow(Literal(10L), wd, sd, "0 seconds")
-          case (wd: Long, sd: Long) => TimeWindow(Literal(10L), wd, sd, 0)
-          case (wd: Int, sd: Int) => TimeWindow(Literal(10L), wd, sd, 0)
-        }
-
-      }
-      def isNonPositive(s: Any): Boolean = {
-        val trimmed = s.toString.trim
-        trimmed.startsWith("-") || trimmed.startsWith("0")
-      }
-      val expectedMsg =
-        if (isNonPositive(windowDuration)) {
-          "requirement failed: The window duration must be a " +
-            s"positive integer, long or string literal, found: $windowDuration"
-        } else if (isNonPositive(slideDuration)) {
-          "requirement failed: The slide duration must be a " +
-            s"positive integer, long or string literal, found: $slideDuration"
-        } else {
-          "Error is not expected."
-        }
-      assert(thrown.getMessage === expectedMsg,
-        "The expected message was not found.")
+    def testInvalidDuration(errorType: String)(f: => Unit): Unit = {
+      val errMsg = intercept[IllegalArgumentException] {
+        f
+      }.getMessage
+      assert(errMsg.contains(
+        s"requirement failed: The $errorType duration must be positive, but found:"))
     }
+
+    testInvalidDuration("window") {
+      TimeWindow(Literal(10L), "-2 seconds", "1 seconds", "0 seconds")
+    }
+    testInvalidDuration("window") {
+      TimeWindow(Literal(10L), "0 seconds", "1 seconds", "0 seconds")
+    }
+    testInvalidDuration("slide") {
+      TimeWindow(Literal(10L), "1 seconds", "-2 seconds", "0 seconds")
+    }
+    testInvalidDuration("slide") {
+      TimeWindow(Literal(10L), "1 seconds", "0 seconds", "0 seconds")
+    }
+
+    // Adds tests for ints and longs
   }
 
   test("SPARK-16837: TimeWindow.apply equivalent to TimeWindow constructor") {
