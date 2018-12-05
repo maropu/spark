@@ -20,9 +20,11 @@ package org.apache.spark.sql
 import java.io.File
 import java.util.{Locale, TimeZone}
 
+import scala.collection.JavaConverters._
 import scala.util.control.NonFatal
 
-import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode._
+import com.google.common.util.concurrent.AtomicLongMap
+
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.RuleExecutor
@@ -137,62 +139,60 @@ class SQLQueryTestSuite extends QueryTest with SharedSQLContext {
     }
   }
 
+  // Runs all the tests on mixed config sets: WHOLESTAGE_CODEGEN_ENABLED and CODEGEN_FACTORY_MODE
+  private lazy val codegenConfigSets = Array(
+    ("true", "CODEGEN_ONLY"),
+    ("true", "NO_CODEGEN"),
+    ("false", "CODEGEN_ONLY"),
+    ("false", "NO_CODEGEN")
+  ).map { case (wholeStageCodegenEnabled, codegenFactoryMode) =>
+    Set(SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key -> wholeStageCodegenEnabled,
+      SQLConf.CODEGEN_FACTORY_MODE.key -> codegenFactoryMode)
+  }
+
+  // Collect codegen/interpreter-related time metrics
+  private lazy val runningTimeMap = AtomicLongMap.create[Set[(String, String)]]()
+
   /** Run a test case. */
   private def runTest(testCase: TestCase): Unit = {
     val input = fileToString(new File(testCase.inputFile))
 
     val (comments, code) = input.split("\n").partition(_.startsWith("--"))
 
-    // Runs all the tests on mixed config sets: WHOLESTAGE_CODEGEN_ENABLED and CODEGEN_FACTORY_MODE
-    val codegenConfigSets = Array(
-      ("true", "CODEGEN_ONLY"),
-      ("true", "NO_CODEGEN"),
-      ("false", "CODEGEN_ONLY"),
-      ("false", "NO_CODEGEN")
-    ).map { case (wholeStageCodegenEnabled, codegenFactoryMode) =>
-      Array(SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key -> wholeStageCodegenEnabled,
-        SQLConf.CODEGEN_FACTORY_MODE.key -> codegenFactoryMode)
-    }
-    val configSets = {
+    // Collect optional config sets
+    val optConfigSets = {
       val configLines = comments.filter(_.startsWith("--SET")).map(_.substring(5))
-      val configs = configLines.map(_.split(",").map { confAndValue =>
+      configLines.map(_.split(",").map { confAndValue =>
         val (conf, value) = confAndValue.span(_ != '=')
         conf.trim -> value.substring(1).trim
       })
-      // When we are regenerating the golden files, we don't need to set any config as they
-      // all need to return the same result
-      if (regenerateGoldenFiles) {
-        Array.empty[Array[(String, String)]]
-      } else {
-        if (configs.nonEmpty) {
-          codegenConfigSets.flatMap { codegenConfig =>
-            configs.map { config =>
-              config ++ codegenConfig
-            }
-          }
-        } else {
-          codegenConfigSets
-        }
-      }
     }
 
     // List of SQL queries to run
     // note: this is not a robust way to split queries using semicolon, but works for now.
     val queries = code.mkString("\n").split("(?<=[^\\\\]);").map(_.trim).filter(_ != "").toSeq
 
-    if (configSets.isEmpty) {
+    // When we are regenerating the golden files, we don't need to set any config as they
+    // all need to return the same result
+    if (regenerateGoldenFiles) {
       runQueries(queries, testCase.resultFile, None)
     } else {
-      configSets.foreach { configSet =>
-        try {
-          runQueries(queries, testCase.resultFile, Some(configSet))
-        } catch {
-          case e: Throwable =>
-            val configs = configSet.map {
-              case (k, v) => s"$k=$v"
-            }
-            logError(s"Error using configs: ${configs.mkString(",")}")
-            throw e
+      codegenConfigSets.foreach { codegenConfigSet =>
+        optConfigSets.foreach { optConfigSet =>
+          val configSet = optConfigSet ++ codegenConfigSet
+          val runTime = try {
+            val startTime = System.nanoTime()
+            runQueries(queries, testCase.resultFile, Some(configSet))
+            val runTime = System.nanoTime() - startTime
+            runningTimeMap.getAndAdd(codegenConfigSet, runTime)
+          } catch {
+            case e: Throwable =>
+              val configs = configSet.map {
+                case (k, v) => s"$k=$v"
+              }
+              logError(s"Error using configs: ${configs.mkString(",")}")
+              throw e
+          }
         }
       }
     }
@@ -363,6 +363,31 @@ class SQLQueryTestSuite extends QueryTest with SharedSQLContext {
     try {
       TimeZone.setDefault(originalTimeZone)
       Locale.setDefault(originalLocale)
+
+      // Dump codegen/interpreter-related time metrics
+      if (!regenerateGoldenFiles) {
+        val metricsMap = runningTimeMap.asMap.asScala.map { case (codegenConfig, time) =>
+          (codegenConfig.map { case (k, v) => s"$k=$v" }.mkString(","), time)
+        }
+        val maxLengthColConfigSet = metricsMap.map(_._1.length).max
+        val colConfigSet = "Configs".padTo(maxLengthColConfigSet, " ").mkString
+        val colRunTime = "Run Time (seconds)".padTo(len = 47, " ").mkString
+
+        val timeMetrics = metricsMap.map { case (name, time) =>
+          val configSet = name.padTo(maxLengthColConfigSet, " ").mkString
+          val runTime = s"$time".padTo(len = 47, " ").mkString
+          s"$configSet $runTime"
+        }.mkString("\n", "\n", "")
+
+        logWarning(
+          s"""
+             |=== Codegen/Interpreter Time Metrics ===
+             |Total time: ${runningTimeMap.sum / 1000000000D} seconds
+             |
+             |$colConfigSet $colRunTime
+             |$timeMetrics
+           """.stripMargin)
+      }
 
       // For debugging dump some statistics about how much time was spent in various optimizer rules
       logWarning(RuleExecutor.dumpTimeSpent())
