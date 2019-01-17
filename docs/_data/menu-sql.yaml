@@ -45,6 +45,8 @@
       url: sql-performance-tuning.html#other-configuration-options
     - text: Broadcast Hint for SQL Queries
       url: sql-performance-tuning.html#broadcast-hint-for-sql-queries
+    - text: SQL Metrics
+      url: sql-performance-tuning.html#sql-metrics
 - text: Distributed SQL Engine
   url: sql-distributed-sql-engine.html
   subitems:

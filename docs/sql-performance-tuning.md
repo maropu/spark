@@ -149,3 +149,51 @@ SELECT /*+ BROADCAST(r) */ * FROM records r JOIN src s ON r.key = s.key
 
 </div>
 </div>
+
+## SQL Metrics
+
+(Describes something here...).
+A list of SQL metrics is as follows.
+
+<table class ="table">
+  <tr>
+    <th>Metric Name</th>
+    <th>Operator Names</th>
+    <th>Meaning</th>
+  </tr>
+  <tr>
+    <td style="vertical-align: middle;">numOutputRows</td>
+    <td style="vertical-align: middle;">Filter, Sample, Range, ExternalRDDScan, RDDScan, Expand, Generate</td>
+    <td style="vertical-align: middle;"></td>
+  </tr>
+  <tr>
+    <td style="vertical-align: middle;">dataSize</td>
+    <td style="vertical-align: middle;">Subquery</td>
+    <td style="vertical-align: middle;"></td>
+  </tr>
+  <tr>
+    <td style="vertical-align: middle;">collectTime</td>
+    <td style="vertical-align: middle;">Subquery</td>
+    <td style="vertical-align: middle;"></td>
+  </tr>
+  <tr>
+    <td style="vertical-align: middle;">sortTime</td>
+    <td style="vertical-align: middle;">Sort</td>
+    <td style="vertical-align: middle;"></td>
+  </tr>
+  <tr>
+    <td style="vertical-align: middle;">peakMemory</td>
+    <td style="vertical-align: middle;">Sort</td>
+    <td style="vertical-align: middle;"></td>
+  </tr>
+  <tr>
+    <td style="vertical-align: middle;">spillSize</td>
+    <td style="vertical-align: middle;">Sort</td>
+    <td style="vertical-align: middle;"></td>
+  </tr>
+  <tr>
+    <td style="vertical-align: middle;">pipelineTime</td>
+    <td style="vertical-align: middle;">WholeStageCodegen</td>
+    <td style="vertical-align: middle;"></td>
+  </tr>
+</table>
