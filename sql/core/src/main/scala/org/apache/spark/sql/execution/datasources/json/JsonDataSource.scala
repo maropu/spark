@@ -125,6 +125,18 @@ object TextInputJsonDataSource extends JsonDataSource {
       .select("value").as(Encoders.STRING)
   }
 
+  private def filterOutEmptyLines(iter: Iterator[Text]): Iterator[Text] = {
+    def isEmptyLine(t: Text): Boolean = {
+      val len = t.getLength
+      var i = 0
+      while ((i < len) && (t.charAt(i) == ' '.toByte)) {
+        i += 1
+      }
+      i == len
+    }
+    iter.filter(!isEmptyLine(_))
+  }
+
   override def readFile(
       conf: Configuration,
       file: PartitionedFile,
@@ -142,7 +154,7 @@ object TextInputJsonDataSource extends JsonDataSource {
       schema,
       parser.options.columnNameOfCorruptRecord,
       parser.options.multiLine)
-    linesReader.flatMap(safeParser.parse)
+    filterOutEmptyLines(linesReader).flatMap(safeParser.parse)
   }
 
   private def textToUTF8String(value: Text): UTF8String = {
