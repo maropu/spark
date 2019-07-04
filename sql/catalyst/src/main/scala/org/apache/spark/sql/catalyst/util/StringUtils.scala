@@ -41,7 +41,8 @@ object StringUtils extends Logging {
    * @param pattern the SQL pattern to convert
    * @return the equivalent Java regular expression of the pattern
    */
-  def escapeLikeRegex(pattern: String): String = {
+  def escapeLikeRegex(pattern: String, escapeChar: String): String = {
+    // Handles `escapeChar` inside
     val in = pattern.toIterator
     val out = new StringBuilder()
 
