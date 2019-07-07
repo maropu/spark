@@ -18,19 +18,21 @@
 package org.apache.spark.sql
 
 import java.io.File
+import java.sql.{Date, Timestamp}
 import java.util.{Locale, TimeZone}
 
 import scala.util.control.NonFatal
-
+import org.apache.spark.sql.catalyst.ScalaReflection
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.RuleExecutor
 import org.apache.spark.sql.catalyst.util.{fileToString, stringToFile}
 import org.apache.spark.sql.execution.HiveResult.hiveResultString
 import org.apache.spark.sql.execution.command.{DescribeColumnCommand, DescribeCommandBase}
+import org.apache.spark.sql.expressions.{SparkUserDefinedFunction, UserDefinedFunction}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SharedSQLContext
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{DataType, DecimalType, StructType}
 
 /**
  * End-to-end test cases for SQL queries.
@@ -155,6 +157,10 @@ class SQLQueryTestSuite extends QueryTest with SharedSQLContext {
   private case class RegularTestCase(
       name: String, inputFile: String, resultFile: String) extends TestCase
 
+  /** A ANSI SQL type coercion test case. */
+  private case class AnsiSQLTypeCoercionTestCase(
+      name: String, inputFile: String, resultFile: String) extends TestCase
+
   /** A PostgreSQL test case. */
   private case class PgSQLTestCase(
       name: String, inputFile: String, resultFile: String) extends TestCase
@@ -246,6 +252,14 @@ class SQLQueryTestSuite extends QueryTest with SharedSQLContext {
     }
   }
 
+  private def buildUdf(
+      f: AnyRef,
+      argTypes: Seq[DataType],
+      dataType: DataType): UserDefinedFunction = {
+    val inputSchemas = argTypes.map { dataType => Some(ScalaReflection.Schema(dataType, true)) }
+    SparkUserDefinedFunction(f, dataType, inputSchemas)
+  }
+
   private def runQueries(
       queries: Seq[String],
       testCase: TestCase,
@@ -256,6 +270,34 @@ class SQLQueryTestSuite extends QueryTest with SharedSQLContext {
     loadTestData(localSparkSession)
     testCase match {
       case udfTestCase: UDFTestCase => registerTestUDF(udfTestCase.udf, localSparkSession)
+      case _: AnsiSQLTypeCoercionTestCase =>
+        localSparkSession.udf.register("byteIn", (v: Byte) => v)
+        localSparkSession.udf.register("shortIn", (v: Short) => v)
+        localSparkSession.udf.register("intIn", (v: Int) => v)
+        localSparkSession.udf.register("longIn", (v: Long) => v)
+        localSparkSession.udf.register("doubleIn", (v: Double) => v)
+        localSparkSession.udf.register("floatIn", (v: Float) => v)
+        localSparkSession.udf.register("binaryIn", (v: Array[Byte]) => v)
+        localSparkSession.udf.register("booleanIn", (v: Boolean) => v)
+        localSparkSession.udf.register("stringIn", (v: String) => v)
+        localSparkSession.udf.register("dateIn", (v: Date) => v)
+        localSparkSession.udf.register("timestampIn", (v: Timestamp) => v)
+        localSparkSession.udf.register("arrayIntIn", (v: Array[Int]) => v)
+        localSparkSession.udf.register("arrayDoubleIn", (v: Array[Double]) => v)
+        localSparkSession.udf.register("mapStringIntIn", (v: Map[String, Int]) => v)
+        localSparkSession.udf.register("mapStringDoubleIn", (v: Map[String, Double]) => v)
+
+        val buildDecimalUdf = (dataType: DataType) => {
+          val inputSchemas = Some(ScalaReflection.Schema(dataType, true)) :: Nil
+          SparkUserDefinedFunction((v: java.math.BigDecimal) => v, dataType, inputSchemas)
+        }
+        localSparkSession.udf.register("decimal3_0In", buildDecimalUdf(DecimalType.ByteDecimal))
+        localSparkSession.udf.register("decimal5_0In", buildDecimalUdf(DecimalType.ShortDecimal))
+        localSparkSession.udf.register("decimal10_0In", buildDecimalUdf(DecimalType.IntDecimal))
+        localSparkSession.udf.register("decimal10_2In", buildDecimalUdf(DecimalType(10, 2)))
+        localSparkSession.udf.register("decimal20_0In", buildDecimalUdf(DecimalType.LongDecimal))
+        localSparkSession.udf.register("decimal30_15In", buildDecimalUdf(DecimalType.DoubleDecimal))
+        localSparkSession.udf.register("decimal14_7In", buildDecimalUdf(DecimalType.FloatDecimal))
       case _: PgSQLTestCase =>
         // booleq/boolne used by boolean.sql
         localSparkSession.udf.register("booleq", (b1: Boolean, b2: Boolean) => b1 == b2)
@@ -390,6 +432,9 @@ class SQLQueryTestSuite extends QueryTest with SharedSQLContext {
             resultFile,
             udf)
         }
+      } else if (file.getAbsolutePath.startsWith(
+          s"$inputFilePath${File.separator}ansi${File.separator}typeCoercion")) {
+        AnsiSQLTypeCoercionTestCase(testCaseName, absPath, resultFile) :: Nil
       } else if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}pgSQL")) {
         PgSQLTestCase(testCaseName, absPath, resultFile) :: Nil
       } else {

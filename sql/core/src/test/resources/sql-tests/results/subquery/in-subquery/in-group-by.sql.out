@@ -243,14 +243,10 @@ WHERE  t1c IN (SELECT t2c
                               GROUP  BY t3b)
                GROUP  BY t2c)
 -- !query 13 schema
-struct<t1a:string,t1b:smallint>
+struct<>
 -- !query 13 output
-t1a	16
-t1a	16
-t1b	8
-t1c	8
-t1d	NULL
-t1d	NULL
+java.util.concurrent.ExecutionException
+java.lang.NullPointerException
 
 
 -- !query 14
@@ -263,10 +259,10 @@ WHERE  t1c IN (SELECT Min(t2c)
                GROUP  BY t2a)
 GROUP  BY t1a
 -- !query 14 schema
-struct<t1a:string,min(t1b):smallint>
+struct<>
 -- !query 14 output
-t1b	8
-t1c	8
+java.lang.NullPointerException
+null
 
 
 -- !query 15
@@ -283,12 +279,10 @@ WHERE  t1c IN (SELECT Min(t2c)
 GROUP  BY t1a,
           t1d
 -- !query 15 schema
-struct<t1a:string,min(t1b):smallint>
+struct<>
 -- !query 15 output
-t1b	8
-t1c	8
-t1d	NULL
-t1d	NULL
+java.lang.NullPointerException
+null
 
 
 -- !query 16
@@ -305,10 +299,10 @@ WHERE  t1c IN (SELECT Min(t2c)
                    GROUP  BY t3d)
 GROUP  BY t1a
 -- !query 16 schema
-struct<t1a:string,min(t1b):smallint>
+struct<>
 -- !query 16 output
-t1b	8
-t1c	8
+java.lang.NullPointerException
+null
 
 
 -- !query 17
@@ -325,12 +319,10 @@ WHERE  t1c IN (SELECT Min(t2c)
                    GROUP  BY t3d)
 GROUP  BY t1a
 -- !query 17 schema
-struct<t1a:string,min(t1b):smallint>
+struct<>
 -- !query 17 output
-t1a	16
-t1b	8
-t1c	8
-t1d	NULL
+java.lang.NullPointerException
+null
 
 
 -- !query 18
@@ -350,8 +342,7 @@ WHERE  t1c IN (SELECT Min(t2c)
 GROUP  BY t1a
 HAVING Min(t1b) IS NOT NULL
 -- !query 18 schema
-struct<t1a:string,min(t1b):smallint>
+struct<>
 -- !query 18 output
-t1a	16
-t1b	8
-t1c	8
+java.lang.NullPointerException
+null

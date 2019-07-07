@@ -21,15 +21,16 @@ import java.util.Locale
 
 import org.apache.spark.sql.{AnalysisException, SaveMode, SparkSession}
 import org.apache.spark.sql.catalyst.analysis._
+import org.apache.spark.sql.catalyst.analysis.AnsiTypeCoercion
 import org.apache.spark.sql.catalyst.catalog._
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, Cast, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName, RowOrdering}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.command.DDLUtils
 import org.apache.spark.sql.execution.datasources.v2.FileDataSourceV2
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.InsertableRelation
-import org.apache.spark.sql.types.{AtomicType, StructType}
+import org.apache.spark.sql.types.{AtomicType, ByteType, StructType}
 import org.apache.spark.sql.util.SchemaUtils
 
 /**
@@ -497,6 +498,23 @@ object DDLPreprocessingUtils {
       query: LogicalPlan,
       expectedOutput: Seq[Attribute],
       conf: SQLConf): LogicalPlan = {
+
+    if (conf.ansiCastModeEnabled) {
+      val incompatOutput = expectedOutput.zip(query.output).filterNot { case (expected, actual) =>
+        actual.dataType.sameType(expected.dataType) ||
+          AnsiTypeCoercion.canAssignmentCast(actual.dataType, expected.dataType)
+      }
+      if (incompatOutput.nonEmpty) {
+        val expectedSchema = StructType.fromAttributes(expectedOutput).toDDL
+        val incompatTypeCastList = incompatOutput.map {
+          case (a1, a2) => s"${a2.dataType.catalogString}->${a1.dataType.catalogString}"
+        }.mkString(", ")
+        throw new AnalysisException(
+          s"Can't cast from input schema(${query.schema.toDDL}) to output " +
+            s"schema($expectedSchema) and the illegal type conversions are: $incompatTypeCastList")
+      }
+    }
+
     val newChildOutput = expectedOutput.zip(query.output).map {
       case (expected, actual) =>
         if (expected.dataType.sameType(actual.dataType) &&
@@ -504,14 +522,21 @@ object DDLPreprocessingUtils {
           expected.metadata == actual.metadata) {
           actual
         } else {
+          val castExpr = if (!conf.ansiCastModeEnabled) {
+            Cast(actual, expected.dataType, Option(conf.sessionLocalTimeZone))
+          } else {
+            // If the ANSI mode enabled, checks value ranges on runtime and returns NULL
+            // in case of out-of-range.
+            AnsiTypeCoercion.castWithValueRangeCheck(
+              actual, expected.dataType, Option(conf.sessionLocalTimeZone))
+          }
+
           // Renaming is needed for handling the following cases like
           // 1) Column names/types do not match, e.g., INSERT INTO TABLE tab1 SELECT 1, 2
           // 2) Target tables have column metadata
-          Alias(
-            Cast(actual, expected.dataType, Option(conf.sessionLocalTimeZone)),
-            expected.name)(explicitMetadata = Option(expected.metadata))
+          Alias(castExpr, expected.name)(explicitMetadata = Option(expected.metadata))
         }
-    }
+      }
 
     if (newChildOutput == query.output) {
       query

@@ -331,7 +331,8 @@ CREATE TABLE BOOLTBL1 (f1 boolean) USING parquet
 -- !query 40 schema
 struct<>
 -- !query 40 output
-
+org.apache.spark.sql.AnalysisException
+Can not create the managed table('`default`.`booltbl1`'). The associated location('file:/Users/maropu/Repositories/spark/spark-master/sql/core/spark-warehouse/org.apache.spark.sql.SQLQueryTestSuite/booltbl1') already exists.;
 
 
 -- !query 41
@@ -339,7 +340,8 @@ INSERT INTO BOOLTBL1 VALUES (cast('t' as boolean))
 -- !query 41 schema
 struct<>
 -- !query 41 output
-
+org.apache.spark.sql.AnalysisException
+Table not found: BOOLTBL1;
 
 
 -- !query 42
@@ -347,7 +349,8 @@ INSERT INTO BOOLTBL1 VALUES (cast('True' as boolean))
 -- !query 42 schema
 struct<>
 -- !query 42 output
-
+org.apache.spark.sql.AnalysisException
+Table not found: BOOLTBL1;
 
 
 -- !query 43
@@ -355,17 +358,17 @@ INSERT INTO BOOLTBL1 VALUES (cast('true' as boolean))
 -- !query 43 schema
 struct<>
 -- !query 43 output
-
+org.apache.spark.sql.AnalysisException
+Table not found: BOOLTBL1;
 
 
 -- !query 44
 SELECT '' AS t_3, BOOLTBL1.* FROM BOOLTBL1
 -- !query 44 schema
-struct<t_3:string,f1:boolean>
+struct<>
 -- !query 44 output
-true
-	true
-	true
+org.apache.spark.sql.AnalysisException
+Table or view not found: BOOLTBL1; line 1 pos 34
 
 
 -- !query 45
@@ -373,11 +376,10 @@ SELECT '' AS t_3, BOOLTBL1.*
    FROM BOOLTBL1
    WHERE f1 = boolean('true')
 -- !query 45 schema
-struct<t_3:string,f1:boolean>
+struct<>
 -- !query 45 output
-true
-	true
-	true
+org.apache.spark.sql.AnalysisException
+Table or view not found: BOOLTBL1; line 2 pos 8
 
 
 -- !query 46
@@ -385,11 +387,10 @@ SELECT '' AS t_3, BOOLTBL1.*
    FROM BOOLTBL1
    WHERE f1 <> boolean('false')
 -- !query 46 schema
-struct<t_3:string,f1:boolean>
+struct<>
 -- !query 46 output
-true
-	true
-	true
+org.apache.spark.sql.AnalysisException
+Table or view not found: BOOLTBL1; line 2 pos 8
 
 
 -- !query 47
@@ -397,9 +398,10 @@ SELECT '' AS zero, BOOLTBL1.*
    FROM BOOLTBL1
    WHERE booleq(boolean('false'), f1)
 -- !query 47 schema
-struct<zero:string,f1:boolean>
+struct<>
 -- !query 47 output
-
+org.apache.spark.sql.AnalysisException
+Table or view not found: BOOLTBL1; line 2 pos 8
 
 
 -- !query 48
@@ -407,7 +409,8 @@ INSERT INTO BOOLTBL1 VALUES (boolean('f'))
 -- !query 48 schema
 struct<>
 -- !query 48 output
-
+org.apache.spark.sql.AnalysisException
+Table not found: BOOLTBL1;
 
 
 -- !query 49
@@ -415,9 +418,10 @@ SELECT '' AS f_1, BOOLTBL1.*
    FROM BOOLTBL1
    WHERE f1 = boolean('false')
 -- !query 49 schema
-struct<f_1:string,f1:boolean>
+struct<>
 -- !query 49 output
-false
+org.apache.spark.sql.AnalysisException
+Table or view not found: BOOLTBL1; line 2 pos 8
 
 
 -- !query 50
@@ -425,7 +429,8 @@ CREATE TABLE BOOLTBL2 (f1 boolean) USING parquet
 -- !query 50 schema
 struct<>
 -- !query 50 output
-
+org.apache.spark.sql.AnalysisException
+Can not create the managed table('`default`.`booltbl2`'). The associated location('file:/Users/maropu/Repositories/spark/spark-master/sql/core/spark-warehouse/org.apache.spark.sql.SQLQueryTestSuite/booltbl2') already exists.;
 
 
 -- !query 51
@@ -433,7 +438,8 @@ INSERT INTO BOOLTBL2 VALUES (boolean('f'))
 -- !query 51 schema
 struct<>
 -- !query 51 output
-
+org.apache.spark.sql.AnalysisException
+Table not found: BOOLTBL2;
 
 
 -- !query 52
@@ -441,7 +447,8 @@ INSERT INTO BOOLTBL2 VALUES (boolean('false'))
 -- !query 52 schema
 struct<>
 -- !query 52 output
-
+org.apache.spark.sql.AnalysisException
+Table not found: BOOLTBL2;
 
 
 -- !query 53
@@ -449,7 +456,8 @@ INSERT INTO BOOLTBL2 VALUES (boolean('False'))
 -- !query 53 schema
 struct<>
 -- !query 53 output
-
+org.apache.spark.sql.AnalysisException
+Table not found: BOOLTBL2;
 
 
 -- !query 54
@@ -457,7 +465,8 @@ INSERT INTO BOOLTBL2 VALUES (boolean('FALSE'))
 -- !query 54 schema
 struct<>
 -- !query 54 output
-
+org.apache.spark.sql.AnalysisException
+Table not found: BOOLTBL2;
 
 
 -- !query 55
@@ -466,19 +475,17 @@ INSERT INTO BOOLTBL2
 -- !query 55 schema
 struct<>
 -- !query 55 output
-
+org.apache.spark.sql.AnalysisException
+Table not found: BOOLTBL2;
 
 
 -- !query 56
 SELECT '' AS f_4, BOOLTBL2.* FROM BOOLTBL2
 -- !query 56 schema
-struct<f_4:string,f1:boolean>
+struct<>
 -- !query 56 output
-NULL
-	false
-	false
-	false
-	false
+org.apache.spark.sql.AnalysisException
+Table or view not found: BOOLTBL2; line 1 pos 34
 
 
 -- !query 57
@@ -486,20 +493,10 @@ SELECT '' AS tf_12, BOOLTBL1.*, BOOLTBL2.*
    FROM BOOLTBL1, BOOLTBL2
    WHERE BOOLTBL2.f1 <> BOOLTBL1.f1
 -- !query 57 schema
-struct<tf_12:string,f1:boolean,f1:boolean>
+struct<>
 -- !query 57 output
-true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
+org.apache.spark.sql.AnalysisException
+Table or view not found: BOOLTBL1; line 2 pos 8
 
 
 -- !query 58
@@ -507,20 +504,10 @@ SELECT '' AS tf_12, BOOLTBL1.*, BOOLTBL2.*
    FROM BOOLTBL1, BOOLTBL2
    WHERE boolne(BOOLTBL2.f1,BOOLTBL1.f1)
 -- !query 58 schema
-struct<tf_12:string,f1:boolean,f1:boolean>
+struct<>
 -- !query 58 output
-true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
+org.apache.spark.sql.AnalysisException
+Table or view not found: BOOLTBL1; line 2 pos 8
 
 
 -- !query 59
@@ -528,12 +515,10 @@ SELECT '' AS ff_4, BOOLTBL1.*, BOOLTBL2.*
    FROM BOOLTBL1, BOOLTBL2
    WHERE BOOLTBL2.f1 = BOOLTBL1.f1 and BOOLTBL1.f1 = boolean('false')
 -- !query 59 schema
-struct<ff_4:string,f1:boolean,f1:boolean>
+struct<>
 -- !query 59 output
-false	false
-	false	false
-	false	false
-	false	false
+org.apache.spark.sql.AnalysisException
+Table or view not found: BOOLTBL1; line 2 pos 8
 
 
 -- !query 60
@@ -542,27 +527,10 @@ SELECT '' AS tf_12_ff_4, BOOLTBL1.*, BOOLTBL2.*
    WHERE BOOLTBL2.f1 = BOOLTBL1.f1 or BOOLTBL1.f1 = boolean('true')
    ORDER BY BOOLTBL1.f1, BOOLTBL2.f1
 -- !query 60 schema
-struct<tf_12_ff_4:string,f1:boolean,f1:boolean>
+struct<>
 -- !query 60 output
-false	false
-	false	false
-	false	false
-	false	false
-	true	NULL
-	true	NULL
-	true	NULL
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
+org.apache.spark.sql.AnalysisException
+Table or view not found: BOOLTBL1; line 2 pos 8
 
 
 -- !query 61
@@ -714,7 +682,8 @@ DROP TABLE  BOOLTBL1
 -- !query 79 schema
 struct<>
 -- !query 79 output
-
+org.apache.spark.sql.AnalysisException
+Table or view not found: BOOLTBL1;
 
 
 -- !query 80
@@ -722,7 +691,8 @@ DROP TABLE  BOOLTBL2
 -- !query 80 schema
 struct<>
 -- !query 80 output
-
+org.apache.spark.sql.AnalysisException
+Table or view not found: BOOLTBL2;
 
 
 -- !query 81

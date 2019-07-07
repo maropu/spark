@@ -60,7 +60,7 @@ object TypeCoercion {
       IfCoercion ::
       StackCoercion ::
       Division ::
-      ImplicitTypeCasts ::
+      ImplicitTypeCasts(conf) ::
       DateTimeOperations ::
       WindowFrameCoercion ::
       Nil
@@ -150,7 +150,7 @@ object TypeCoercion {
     case (l, r) => None
   }
 
-  private def findTypeForComplex(
+  private[sql] def findTypeForComplex(
       t1: DataType,
       t2: DataType,
       findTypeFunc: (DataType, DataType) => Option[DataType]): Option[DataType] = (t1, t2) match {
@@ -843,63 +843,85 @@ object TypeCoercion {
   /**
    * Casts types according to the expected input types for [[Expression]]s.
    */
-  object ImplicitTypeCasts extends TypeCoercionRule {
+  case class ImplicitTypeCasts(conf: SQLConf) extends TypeCoercionRule {
+    import ImplicitTypeCasts._
+
     override protected def coerceTypes(
-        plan: LogicalPlan): LogicalPlan = plan resolveExpressions {
-      // Skip nodes who's children have not been resolved yet.
-      case e if !e.childrenResolved => e
+        plan: LogicalPlan): LogicalPlan = if (conf.ansiCastModeEnabled) {
+      AnsiTypeCoercion.ImplicitTypeCasts.coerceTypes(plan)
+    } else {
+      plan resolveExpressions {
+        // Skip nodes who's children have not been resolved yet.
+        case e if !e.childrenResolved => e
 
-      case b @ BinaryOperator(left, right) if left.dataType != right.dataType =>
-        findTightestCommonType(left.dataType, right.dataType).map { commonType =>
-          if (b.inputType.acceptsType(commonType)) {
-            // If the expression accepts the tightest common type, cast to that.
-            val newLeft = if (left.dataType == commonType) left else Cast(left, commonType)
-            val newRight = if (right.dataType == commonType) right else Cast(right, commonType)
-            b.withNewChildren(Seq(newLeft, newRight))
-          } else {
-            // Otherwise, don't do anything with the expression.
-            b
+        case b @ BinaryOperator(left, right) if left.dataType != right.dataType =>
+          findTightestCommonType(left.dataType, right.dataType).map { commonType =>
+            if (b.inputType.acceptsType(commonType)) {
+              // If the expression accepts the tightest common type, cast to that.
+              val newLeft = if (left.dataType == commonType) left else Cast(left, commonType)
+              val newRight = if (right.dataType == commonType) right else Cast(right, commonType)
+              b.withNewChildren(Seq(newLeft, newRight))
+            } else {
+              // Otherwise, don't do anything with the expression.
+              b
+            }
+          }.getOrElse(b)  // If there is no applicable conversion, leave expression unchanged.
+
+        case e: ImplicitCastInputTypes if e.inputTypes.nonEmpty =>
+          val children: Seq[Expression] = e.children.zip(e.inputTypes).map { case (in, expected) =>
+            // If we cannot do the implicit cast, just use the original input.
+            implicitCast(in, expected).getOrElse(in)
           }
-        }.getOrElse(b)  // If there is no applicable conversion, leave expression unchanged.
+          e.withNewChildren(children)
 
-      case e: ImplicitCastInputTypes if e.inputTypes.nonEmpty =>
-        val children: Seq[Expression] = e.children.zip(e.inputTypes).map { case (in, expected) =>
-          // If we cannot do the implicit cast, just use the original input.
-          implicitCast(in, expected).getOrElse(in)
-        }
-        e.withNewChildren(children)
-
-      case e: ExpectsInputTypes if e.inputTypes.nonEmpty =>
-        // Convert NullType into some specific target type for ExpectsInputTypes that don't do
-        // general implicit casting.
-        val children: Seq[Expression] = e.children.zip(e.inputTypes).map { case (in, expected) =>
-          if (in.dataType == NullType && !expected.acceptsType(NullType)) {
-            Literal.create(null, expected.defaultConcreteType)
-          } else {
-            in
+        case e: ExpectsInputTypes if e.inputTypes.nonEmpty =>
+          // Convert NullType into some specific target type for ExpectsInputTypes that don't do
+          // general implicit casting.
+          val children: Seq[Expression] = e.children.zip(e.inputTypes).map { case (in, expected) =>
+            if (in.dataType == NullType && !expected.acceptsType(NullType)) {
+              Literal.create(null, expected.defaultConcreteType)
+            } else {
+              in
+            }
           }
-        }
-        e.withNewChildren(children)
+          e.withNewChildren(children)
 
-      case udf: ScalaUDF if udf.inputTypes.nonEmpty =>
-        val children = udf.children.zip(udf.inputTypes).map { case (in, expected) =>
-          // Currently Scala UDF will only expect `AnyDataType` at top level, so this trick works.
-          // In the future we should create types like `AbstractArrayType`, so that Scala UDF can
-          // accept inputs of array type of arbitrary element type.
-          if (expected == AnyDataType) {
-            in
-          } else {
-            implicitCast(
-              in,
-              udfInputToCastType(in.dataType, expected.asInstanceOf[DataType])
-            ).getOrElse(in)
+        case udf: ScalaUDF if udf.inputTypes.nonEmpty =>
+          val children = udf.children.zip(udf.inputTypes).map { case (in, expected) =>
+            // Currently Scala UDF will only expect `AnyDataType` at top level, so this trick works.
+            // In the future we should create types like `AbstractArrayType`, so that Scala UDF can
+            // accept inputs of array type of arbitrary element type.
+            if (expected == AnyDataType) {
+              in
+            } else {
+              implicitCast(
+                in,
+                udfInputToCastType(in.dataType, expected.asInstanceOf[DataType])
+              ).getOrElse(in)
+            }
+
           }
-
-        }
-        udf.withNewChildren(children)
+          udf.withNewChildren(children)
+      }
     }
 
-    private def udfInputToCastType(input: DataType, expectedType: DataType): DataType = {
+  }
+
+  object ImplicitTypeCasts {
+
+    /**
+     * Given an expected data type, try to cast the expression and return the cast expression.
+     *
+     * If the expression already fits the input type, we simply return the expression itself.
+     * If the expression has an incompatible type that cannot be implicitly cast, return None.
+     */
+    def implicitCast(e: Expression, expectedType: AbstractDataType): Option[Expression] = {
+      implicitCast(e.dataType, expectedType).map { dt =>
+        if (dt == e.dataType) e else Cast(e, dt)
+      }
+    }
+
+    private[sql] def udfInputToCastType(input: DataType, expectedType: DataType): DataType = {
       (input, expectedType) match {
         // SPARK-26308: avoid casting to an arbitrary precision and scale for decimals. Please note
         // that precision and scale cannot be inferred properly for a ScalaUDF because, when it is
@@ -921,18 +943,6 @@ object TypeCoercion {
             field.copy(dataType = newDt)
           })
         case (_, other) => other
-      }
-    }
-
-    /**
-     * Given an expected data type, try to cast the expression and return the cast expression.
-     *
-     * If the expression already fits the input type, we simply return the expression itself.
-     * If the expression has an incompatible type that cannot be implicitly cast, return None.
-     */
-    def implicitCast(e: Expression, expectedType: AbstractDataType): Option[Expression] = {
-      implicitCast(e.dataType, expectedType).map { dt =>
-        if (dt == e.dataType) e else Cast(e, dt)
       }
     }
 

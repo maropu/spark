@@ -318,11 +318,7 @@ GROUP  BY t1a,
           t1b
 ORDER  BY t1b DESC nulls last
 -- !query 17 schema
-struct<count(DISTINCT t1a):bigint,t1b:smallint>
+struct<>
 -- !query 17 output
-1	16
-1	10
-1	10
-1	8
-1	6
-1	NULL
+org.apache.spark.SparkException
+Job 2292 cancelled because SparkContext was shut down

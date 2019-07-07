@@ -365,6 +365,12 @@ object SQLConf {
       .booleanConf
       .createWithDefault(false)
 
+  val ANSI_SQL_CAST_MODE =
+    buildConf("spark.sql.ansi.typeCoercion.enabled")
+      .doc("When true, tries to conform to the implicit cast rules in ANSI SQL.")
+      .booleanConf
+      .createWithDefault(false)
+
   val ESCAPED_STRING_LITERALS = buildConf("spark.sql.parser.escapedStringLiterals")
     .internal()
     .doc("When true, string literals (including regex patterns) remain escaped in our SQL " +
@@ -2033,6 +2039,8 @@ class SQLConf extends Serializable with Logging {
   def constraintPropagationEnabled: Boolean = getConf(CONSTRAINT_PROPAGATION_ENABLED)
 
   def ansiParserEnabled: Boolean = getConf(ANSI_SQL_PARSER)
+
+  def ansiCastModeEnabled: Boolean = getConf(ANSI_SQL_CAST_MODE)
 
   def escapedStringLiterals: Boolean = getConf(ESCAPED_STRING_LITERALS)
 

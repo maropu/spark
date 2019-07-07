@@ -7,7 +7,8 @@ CREATE TABLE FLOAT4_TBL (f1  float) USING parquet
 -- !query 0 schema
 struct<>
 -- !query 0 output
-
+org.apache.spark.sql.AnalysisException
+Can not create the managed table('`default`.`float4_tbl`'). The associated location('file:/Users/maropu/Repositories/spark/spark-master/sql/core/spark-warehouse/org.apache.spark.sql.SQLQueryTestSuite/float4_tbl') already exists.;
 
 
 -- !query 1
@@ -15,7 +16,8 @@ INSERT INTO FLOAT4_TBL VALUES ('    0.0')
 -- !query 1 schema
 struct<>
 -- !query 1 output
-
+org.apache.spark.sql.AnalysisException
+Table not found: FLOAT4_TBL;
 
 
 -- !query 2
@@ -23,7 +25,8 @@ INSERT INTO FLOAT4_TBL VALUES ('1004.30   ')
 -- !query 2 schema
 struct<>
 -- !query 2 output
-
+org.apache.spark.sql.AnalysisException
+Table not found: FLOAT4_TBL;
 
 
 -- !query 3
@@ -31,7 +34,8 @@ INSERT INTO FLOAT4_TBL VALUES ('     -34.84    ')
 -- !query 3 schema
 struct<>
 -- !query 3 output
-
+org.apache.spark.sql.AnalysisException
+Table not found: FLOAT4_TBL;
 
 
 -- !query 4
@@ -39,7 +43,8 @@ INSERT INTO FLOAT4_TBL VALUES ('1.2345678901234e+20')
 -- !query 4 schema
 struct<>
 -- !query 4 output
-
+org.apache.spark.sql.AnalysisException
+Table not found: FLOAT4_TBL;
 
 
 -- !query 5
@@ -47,7 +52,8 @@ INSERT INTO FLOAT4_TBL VALUES ('1.2345678901234e-20')
 -- !query 5 schema
 struct<>
 -- !query 5 output
-
+org.apache.spark.sql.AnalysisException
+Table not found: FLOAT4_TBL;
 
 
 -- !query 6
@@ -149,130 +155,113 @@ NULL
 -- !query 18
 SELECT '' AS five, * FROM FLOAT4_TBL
 -- !query 18 schema
-struct<five:string,f1:float>
+struct<>
 -- !query 18 output
--34.84
-	0.0
-	1.2345679E-20
-	1.2345679E20
-	1004.3
+org.apache.spark.sql.AnalysisException
+Table or view not found: FLOAT4_TBL; line 1 pos 26
 
 
 -- !query 19
 SELECT '' AS four, f.* FROM FLOAT4_TBL f WHERE f.f1 <> '1004.3'
 -- !query 19 schema
-struct<four:string,f1:float>
+struct<>
 -- !query 19 output
--34.84
-	0.0
-	1.2345679E-20
-	1.2345679E20
+org.apache.spark.sql.AnalysisException
+Table or view not found: FLOAT4_TBL; line 1 pos 28
 
 
 -- !query 20
 SELECT '' AS one, f.* FROM FLOAT4_TBL f WHERE f.f1 = '1004.3'
 -- !query 20 schema
-struct<one:string,f1:float>
+struct<>
 -- !query 20 output
-1004.3
+org.apache.spark.sql.AnalysisException
+Table or view not found: FLOAT4_TBL; line 1 pos 27
 
 
 -- !query 21
 SELECT '' AS three, f.* FROM FLOAT4_TBL f WHERE '1004.3' > f.f1
 -- !query 21 schema
-struct<three:string,f1:float>
+struct<>
 -- !query 21 output
--34.84
-	0.0
-	1.2345679E-20
+org.apache.spark.sql.AnalysisException
+Table or view not found: FLOAT4_TBL; line 1 pos 29
 
 
 -- !query 22
 SELECT '' AS three, f.* FROM FLOAT4_TBL f WHERE  f.f1 < '1004.3'
 -- !query 22 schema
-struct<three:string,f1:float>
+struct<>
 -- !query 22 output
--34.84
-	0.0
-	1.2345679E-20
+org.apache.spark.sql.AnalysisException
+Table or view not found: FLOAT4_TBL; line 1 pos 29
 
 
 -- !query 23
 SELECT '' AS four, f.* FROM FLOAT4_TBL f WHERE '1004.3' >= f.f1
 -- !query 23 schema
-struct<four:string,f1:float>
+struct<>
 -- !query 23 output
--34.84
-	0.0
-	1.2345679E-20
-	1004.3
+org.apache.spark.sql.AnalysisException
+Table or view not found: FLOAT4_TBL; line 1 pos 28
 
 
 -- !query 24
 SELECT '' AS four, f.* FROM FLOAT4_TBL f WHERE  f.f1 <= '1004.3'
 -- !query 24 schema
-struct<four:string,f1:float>
+struct<>
 -- !query 24 output
--34.84
-	0.0
-	1.2345679E-20
-	1004.3
+org.apache.spark.sql.AnalysisException
+Table or view not found: FLOAT4_TBL; line 1 pos 28
 
 
 -- !query 25
 SELECT '' AS three, f.f1, f.f1 * '-10' AS x FROM FLOAT4_TBL f
    WHERE f.f1 > '0.0'
 -- !query 25 schema
-struct<three:string,f1:float,x:double>
+struct<>
 -- !query 25 output
-1.2345679E-20	-1.2345678720289608E-19
-	1.2345679E20	-1.2345678955701443E21
-	1004.3	-10042.999877929688
+org.apache.spark.sql.AnalysisException
+Table or view not found: FLOAT4_TBL; line 1 pos 49
 
 
 -- !query 26
 SELECT '' AS three, f.f1, f.f1 + '-10' AS x FROM FLOAT4_TBL f
    WHERE f.f1 > '0.0'
 -- !query 26 schema
-struct<three:string,f1:float,x:double>
+struct<>
 -- !query 26 output
-1.2345679E-20	-10.0
-	1.2345679E20	1.2345678955701443E20
-	1004.3	994.2999877929688
+org.apache.spark.sql.AnalysisException
+Table or view not found: FLOAT4_TBL; line 1 pos 49
 
 
 -- !query 27
 SELECT '' AS three, f.f1, f.f1 / '-10' AS x FROM FLOAT4_TBL f
    WHERE f.f1 > '0.0'
 -- !query 27 schema
-struct<three:string,f1:float,x:double>
+struct<>
 -- !query 27 output
-1.2345679E-20	-1.2345678720289608E-21
-	1.2345679E20	-1.2345678955701443E19
-	1004.3	-100.42999877929688
+org.apache.spark.sql.AnalysisException
+Table or view not found: FLOAT4_TBL; line 1 pos 49
 
 
 -- !query 28
 SELECT '' AS three, f.f1, f.f1 - '-10' AS x FROM FLOAT4_TBL f
    WHERE f.f1 > '0.0'
 -- !query 28 schema
-struct<three:string,f1:float,x:double>
+struct<>
 -- !query 28 output
-1.2345679E-20	10.0
-	1.2345679E20	1.2345678955701443E20
-	1004.3	1014.2999877929688
+org.apache.spark.sql.AnalysisException
+Table or view not found: FLOAT4_TBL; line 1 pos 49
 
 
 -- !query 29
 SELECT '' AS five, * FROM FLOAT4_TBL
 -- !query 29 schema
-struct<five:string,f1:float>
+struct<>
 -- !query 29 output
--34.84
-	0.0
-	1.2345679E-20
-	1.2345679E20
-	1004.3
+org.apache.spark.sql.AnalysisException
+Table or view not found: FLOAT4_TBL; line 1 pos 26
 
 
 -- !query 30
@@ -376,4 +365,5 @@ DROP TABLE FLOAT4_TBL
 -- !query 42 schema
 struct<>
 -- !query 42 output
-
+org.apache.spark.sql.AnalysisException
+Table or view not found: FLOAT4_TBL;
