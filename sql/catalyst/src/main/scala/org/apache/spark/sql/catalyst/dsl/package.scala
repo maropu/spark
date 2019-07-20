@@ -111,9 +111,9 @@ package object dsl {
     def isNotNull: Predicate = IsNotNull(expr)
 
     def isTrue: Predicate = IsTrue(expr)
-    def isNotTrue: Predicate = IsFalse(expr)
+    def isNotTrue: Predicate = IsNotTrue(expr)
     def isFalse: Predicate = IsFalse(expr)
-    def isNotFalse: Predicate = IsTrue(expr)
+    def isNotFalse: Predicate = IsNotFalse(expr)
     def isUnknown: Predicate = IsUnknown(expr)
     def isNotUnknown: Predicate = IsNotUnknown(expr)
 

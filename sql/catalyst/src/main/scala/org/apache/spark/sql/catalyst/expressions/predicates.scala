@@ -842,56 +842,46 @@ case class GreaterThanOrEqual(left: Expression, right: Expression)
   protected override def nullSafeEval(input1: Any, input2: Any): Any = ordering.gteq(input1, input2)
 }
 
-case class IsTrue(child: Expression)
-    extends UnaryExpression with Predicate with ExpectsInputTypes {
+abstract class BooleanTestBase(boolValue: Boolean, isNagative: Boolean)
+  extends UnaryExpression with Predicate with ExpectsInputTypes {
   override def nullable: Boolean = false
   override def inputTypes: Seq[AbstractDataType] = Seq(BooleanType)
 
   override def eval(input: InternalRow): Any = {
     val value = child.eval(input)
     if (value == null) {
-      false
+      isNagative
     } else {
-      value == true
+      value == boolValue
     }
   }
 
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
     val eval = child.genCode(ctx)
+    val boolVar = if (boolValue) "true" else "false"
+    val nagationPrefix = if (!isNagative) "!" else ""
     ev.copy(code = code"""
       ${eval.code}
       ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
-      ${ev.value} = !${eval.isNull} && ${eval.value} == true;""",
+      ${ev.value} = $nagationPrefix${eval.isNull} && ${eval.value} == $boolVar;""",
       isNull = FalseLiteral)
   }
+}
 
+case class IsTrue(child: Expression) extends BooleanTestBase(true, false) {
   override def sql: String = s"(${child.sql} IS TRUE)"
 }
 
-case class IsFalse(child: Expression)
-    extends UnaryExpression with Predicate with ExpectsInputTypes {
-  override def nullable: Boolean = false
-  override def inputTypes: Seq[AbstractDataType] = Seq(BooleanType)
+case class IsNotTrue(child: Expression) extends BooleanTestBase(true, true) {
+  override def sql: String = s"(${child.sql} IS NOT TRUE)"
+}
 
-  override def eval(input: InternalRow): Any = {
-    val value = child.eval(input)
-    if (value == null) {
-      false
-    } else {
-      value == false
-    }
-  }
-
-  override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
-    val eval = child.genCode(ctx)
-    ev.copy(code = code"""
-      ${eval.code}
-      ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
-      ${ev.value} = !${eval.isNull} && ${eval.value} == false;""",
-      isNull = FalseLiteral)
-  }
-
+case class IsFalse(child: Expression) extends BooleanTestBase(false, false) {
   override def sql: String = s"(${child.sql} IS FALSE)"
+}
+
+case class IsNotFalse(child: Expression) extends BooleanTestBase(false, true) {
+  override def sql: String = s"(${child.sql} IS NOT FALSE)"
 }
 
 /**

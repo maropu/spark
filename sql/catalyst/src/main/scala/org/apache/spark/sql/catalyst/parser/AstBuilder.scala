@@ -1247,12 +1247,12 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
       case SqlBaseParser.TRUE =>
         ctx.NOT match {
           case null => IsTrue(e)
-          case _ => IsFalse(e)
+          case _ => IsNotTrue(e)
         }
       case SqlBaseParser.FALSE =>
         ctx.NOT match {
           case null => IsFalse(e)
-          case _ => IsTrue(e)
+          case _ => IsNotFalse(e)
         }
       case SqlBaseParser.UNKNOWN =>
         ctx.NOT match {
