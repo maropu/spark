@@ -1245,11 +1245,20 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
       case SqlBaseParser.NULL =>
         IsNull(e)
       case SqlBaseParser.TRUE =>
-        invertIfNotDefined(BooleanTest(e, Some(true)))
+        ctx.NOT match {
+          case null => IsTrue(e)
+          case _ => IsFalse(e)
+        }
       case SqlBaseParser.FALSE =>
-        invertIfNotDefined(BooleanTest(e, Some(false)))
+        ctx.NOT match {
+          case null => IsFalse(e)
+          case _ => IsTrue(e)
+        }
       case SqlBaseParser.UNKNOWN =>
-        invertIfNotDefined(BooleanTest(e, None))
+        ctx.NOT match {
+          case null => IsUnknown(e)
+          case _ => IsNotUnknown(e)
+        }
       case SqlBaseParser.DISTINCT if ctx.NOT != null =>
         EqualNullSafe(e, expression(ctx.right))
       case SqlBaseParser.DISTINCT =>
