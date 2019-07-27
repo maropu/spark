@@ -1894,6 +1894,13 @@ object SQLConf {
       .doc("When true, the ArrayExists will follow the three-valued boolean logic.")
       .booleanConf
       .createWithDefault(true)
+
+  val CTE_RECURSION_LEVEL_LIMIT = buildConf("spark.sql.cte.recursion.level.limit")
+    .internal()
+    .doc("Maximum level of recursion for a recursive CTE definition. If it reaches the limit, " +
+      "a runtime exception is thrown.")
+    .intConf
+    .createWithDefault(12)
 }
 
 /**

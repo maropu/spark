@@ -164,7 +164,7 @@ class Analyzer(
     Batch("Simple Sanity Check", Once,
       LookupFunctions),
     Batch("Substitution", fixedPoint,
-      CTESubstitution,
+      CTESubstitution(conf),
       WindowsSubstitution,
       EliminateUnions,
       new SubstituteUnresolvedOrdinals(conf)),
@@ -174,6 +174,7 @@ class Analyzer(
       ResolveInsertInto ::
       ResolveTables ::
       ResolveRelations ::
+      ResolveRecursiveReferences ::
       ResolveReferences ::
       ResolveCreateNamedStruct ::
       ResolveDeserializer ::
@@ -760,6 +761,30 @@ class Analyzer(
     private def isRunningDirectlyOnFiles(table: TableIdentifier): Boolean = {
       table.database.isDefined && conf.runSQLonFile && !catalog.isTemporaryTable(table) &&
         (!catalog.databaseExists(table.database.get) || !catalog.tableExists(table))
+    }
+  }
+
+  object ResolveRecursiveReferences extends Rule[LogicalPlan] {
+
+    def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
+      case p @ RecursiveUnion(initPlan, recursivePlan)
+          if initPlan.resolved && !recursivePlan.resolved =>
+
+        val newRecursivePlan = recursivePlan.transform {
+          case UnresolvedRecursiveState() =>
+            // Assigns new expression IDs
+            RecursiveState(initPlan.output.map(_.newInstance()))
+
+          case UnresolvedRecursiveRelation() =>
+            // Assigns new expression IDs
+            RecursiveReferences(
+              // Assigns new expression IDs
+              initPlan.output.map(_.newInstance()),
+              // Since it is hard to compute the correct statistics of input in a recursive query,
+              // We just reuse the statistics of output for an initialization query.
+              initPlan.stats)
+        }
+        p.copy(recursivePlan = newRecursivePlan)
     }
   }
 

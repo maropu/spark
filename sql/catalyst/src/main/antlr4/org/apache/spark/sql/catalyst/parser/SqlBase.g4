@@ -331,10 +331,15 @@ describeColName
 
 ctes
     : WITH namedQuery (',' namedQuery)*
+    | WITH RECURSIVE cteIdentifier AS? '(' initStmt=queryPrimary UNION ALL? recursiveStmt=queryPrimary ')'
     ;
 
 namedQuery
-    : name=errorCapturingIdentifier (columnAliases=identifierList)? AS? '(' query ')'
+    : cteIdentifier AS? '(' query ')'
+    ;
+
+cteIdentifier
+    : name=errorCapturingIdentifier (columnAliases=identifierList)?
     ;
 
 tableProvider
@@ -1287,6 +1292,7 @@ nonReserved
     | RECORDREADER
     | RECORDWRITER
     | RECOVER
+    | RECURSIVE
     | REDUCE
     | REFERENCES
     | REFRESH
@@ -1549,6 +1555,7 @@ RANGE: 'RANGE';
 RECORDREADER: 'RECORDREADER';
 RECORDWRITER: 'RECORDWRITER';
 RECOVER: 'RECOVER';
+RECURSIVE: 'RECURSIVE';
 REDUCE: 'REDUCE';
 REFERENCES: 'REFERENCES';
 REFRESH: 'REFRESH';
