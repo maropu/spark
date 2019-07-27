@@ -164,7 +164,7 @@ class Analyzer(
     Batch("Simple Sanity Check", Once,
       LookupFunctions),
     Batch("Substitution", fixedPoint,
-      CTESubstitution,
+      CTESubstitution(conf),
       WindowsSubstitution,
       EliminateUnions,
       new SubstituteUnresolvedOrdinals(conf)),
@@ -174,6 +174,7 @@ class Analyzer(
       ResolveInsertInto ::
       ResolveTables ::
       ResolveRelations ::
+      ResolveRecursiveReferences ::
       ResolveReferences ::
       ResolveCreateNamedStruct ::
       ResolveDeserializer ::
@@ -759,6 +760,21 @@ class Analyzer(
     private def isRunningDirectlyOnFiles(table: TableIdentifier): Boolean = {
       table.database.isDefined && conf.runSQLonFile && !catalog.isTemporaryTable(table) &&
         (!catalog.databaseExists(table.database.get) || !catalog.tableExists(table))
+    }
+  }
+
+  object ResolveRecursiveReferences extends Rule[LogicalPlan] {
+
+    def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
+      case p @ RecursiveUnion(initPlan, recursivePlan)
+          if initPlan.resolved && !recursivePlan.resolved =>
+
+        val newRecursivePlan = recursivePlan.transform {
+          case UnresolvedRecursiveRelation() =>
+            // Assigns new expression IDs
+            RecursiveReferences(initPlan.output.map(_.newInstance()))
+        }
+        p.copy(recursivePlan = newRecursivePlan)
     }
   }
 

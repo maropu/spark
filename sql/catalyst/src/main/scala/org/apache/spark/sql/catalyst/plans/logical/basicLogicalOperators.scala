@@ -694,6 +694,45 @@ case class With(child: LogicalPlan, cteRelations: Seq[(String, SubqueryAlias)]) 
   override def innerChildren: Seq[LogicalPlan] = cteRelations.map(_._2)
 }
 
+case class WithRecursive(
+    child: LogicalPlan,
+    cteName: String,
+    cteColumnNames: Seq[String],
+    initPlan: LogicalPlan,
+    recursivePlan: LogicalPlan,
+    distinct: Boolean) extends LeafNode {
+
+  override def output: Seq[Attribute] = child.output
+  override def simpleString(maxFields: Int): String = s"CTE Recursive $cteName"
+  override def innerChildren: Seq[LogicalPlan] = initPlan :: recursivePlan :: Nil
+}
+
+case class RecursiveUnion(
+    initPlan: LogicalPlan,
+    recursivePlan: LogicalPlan) extends LogicalPlan {
+
+  override def output: Seq[Attribute] = recursivePlan.output
+  override def children: Seq[LogicalPlan] = initPlan :: recursivePlan :: Nil
+
+  override lazy val references: AttributeSet =
+    AttributeSet(initPlan.output ++ recursivePlan.output)
+
+  override lazy val resolved: Boolean = {
+    // allChildrenCompatible needs to be evaluated after childrenResolved
+    def allChildrenCompatible: Boolean =
+      children.tail.forall { child =>
+        // compare the attribute number with the first child
+        child.output.length == children.head.output.length &&
+        // compare the data types with the first child
+        child.output.zip(children.head.output).forall {
+          case (l, r) => l.dataType.sameType(r.dataType)
+        }}
+    childrenResolved && allChildrenCompatible
+  }
+}
+
+case class RecursiveReferences(output: Seq[Attribute]) extends LeafNode
+
 case class WithWindowDefinition(
     windowDefinitions: Map[String, WindowSpecDefinition],
     child: LogicalPlan) extends UnaryNode {

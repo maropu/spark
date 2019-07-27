@@ -17,8 +17,9 @@
 
 package org.apache.spark.sql.catalyst.analysis
 
+import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.expressions.SubqueryExpression
-import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, With}
+import org.apache.spark.sql.catalyst.plans.logical.{Distinct, LogicalPlan, RecursiveUnion, SubqueryAlias, With, WithRecursive}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.internal.SQLConf.LEGACY_CTE_PRECEDENCE_ENABLED
@@ -26,12 +27,45 @@ import org.apache.spark.sql.internal.SQLConf.LEGACY_CTE_PRECEDENCE_ENABLED
 /**
  * Analyze WITH nodes and substitute child plan with CTE definitions.
  */
-object CTESubstitution extends Rule[LogicalPlan] {
+case class CTESubstitution(conf: SQLConf) extends Rule[LogicalPlan] {
+
+  private def withAliases(plan: LogicalPlan, name: String, columnNames: Seq[String]) = {
+    val newReferences = if (columnNames.nonEmpty) {
+      UnresolvedSubqueryColumnAliases(columnNames, plan)
+    } else {
+      plan
+    }
+    SubqueryAlias(name, newReferences)
+  }
+
   def apply(plan: LogicalPlan): LogicalPlan = {
-    if (SQLConf.get.getConf(LEGACY_CTE_PRECEDENCE_ENABLED)) {
+    val cteSubstitutedPlan = if (conf.getConf(LEGACY_CTE_PRECEDENCE_ENABLED)) {
       legacyTraverseAndSubstituteCTE(plan)
     } else {
       traverseAndSubstituteCTE(plan, false)
+    }
+
+    // Analyzes WITH RECURSIVE nodes
+    val resolver = conf.resolver
+    cteSubstitutedPlan.resolveOperatorsUp {
+      case WithRecursive(child, cteName, cteColumnNames, initPlan, recursivePlan, distinct) =>
+        val newRecursivePlan = recursivePlan.transform {
+          case u: UnresolvedRelation if resolver(cteName, u.tableName) =>
+            withAliases(UnresolvedRecursiveRelation(), cteName, cteColumnNames)
+        }
+        val recursiveReferences = newRecursivePlan.collect {
+          case p: UnresolvedRecursiveRelation => p
+        }
+        if (recursiveReferences.length != 1) {
+          throw new AnalysisException("number of recursive references must be 1, but " +
+            recursiveReferences.length)
+        }
+        val recursiveUnion = if (distinct) {
+          Distinct(RecursiveUnion(initPlan, newRecursivePlan))
+        } else {
+          RecursiveUnion(initPlan, newRecursivePlan)
+        }
+        substituteCTE(child, cteName, withAliases(recursiveUnion, cteName, cteColumnNames))
     }
   }
 

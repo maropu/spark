@@ -123,19 +123,27 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     dmlStmt.optionalMap(ctx.ctes)(withCTE)
   }
 
-  private def withCTE(ctx: CtesContext, plan: LogicalPlan): LogicalPlan = {
-    val ctes = ctx.namedQuery.asScala.map { nCtx =>
-      val namedQuery = visitNamedQuery(nCtx)
-      (namedQuery.alias, namedQuery)
+  private def withCTE(ctx: CtesContext, childPlan: LogicalPlan): LogicalPlan = {
+    if (ctx.RECURSIVE() != null) {
+      val cteName = ctx.cteIdentifier().name.getText
+      val cteColumnNames = visitIdentifierList(ctx.cteIdentifier().columnAliases)
+      val initPlan = plan(ctx.initStmt)
+      val recursivePlan = plan(ctx.recursiveStmt)
+      WithRecursive(childPlan, cteName, cteColumnNames, initPlan, recursivePlan, ctx.ALL() != null)
+    } else {
+      val ctes = ctx.namedQuery.asScala.map { nCtx =>
+        val namedQuery = visitNamedQuery(nCtx)
+        (namedQuery.alias, namedQuery)
+      }
+      // Check for duplicate names.
+      val duplicates = ctes.groupBy(_._1).filter(_._2.size > 1).keys
+      if (duplicates.nonEmpty) {
+        throw new ParseException(
+          s"CTE definition can't have duplicate names: ${duplicates.mkString("'", "', '", "'")}.",
+          ctx)
+      }
+      With(childPlan, ctes)
     }
-    // Check for duplicate names.
-    val duplicates = ctes.groupBy(_._1).filter(_._2.size > 1).keys
-    if (duplicates.nonEmpty) {
-      throw new ParseException(
-        s"CTE definition can't have duplicate names: ${duplicates.mkString("'", "', '", "'")}.",
-        ctx)
-    }
-    With(plan, ctes)
   }
 
   /**
@@ -186,11 +194,11 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
    * This is only used for Common Table Expressions.
    */
   override def visitNamedQuery(ctx: NamedQueryContext): SubqueryAlias = withOrigin(ctx) {
-    val subQuery: LogicalPlan = plan(ctx.query).optionalMap(ctx.columnAliases)(
+    val subQuery: LogicalPlan = plan(ctx.query).optionalMap(ctx.cteIdentifier.columnAliases)(
       (columnAliases, plan) =>
         UnresolvedSubqueryColumnAliases(visitIdentifierList(columnAliases), plan)
     )
-    SubqueryAlias(ctx.name.getText, subQuery)
+    SubqueryAlias(ctx.cteIdentifier.name.getText, subQuery)
   }
 
   /**

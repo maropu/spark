@@ -19,17 +19,20 @@ package org.apache.spark.sql.execution
 
 import java.util.concurrent.TimeUnit._
 
+import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 
-import org.apache.spark.{InterruptibleIterator, Partition, SparkContext, TaskContext}
+import org.apache.spark.{InterruptibleIterator, Partition, SparkContext, SparkException, TaskContext}
 import org.apache.spark.rdd.{EmptyRDD, PartitionwiseSampledRDD, RDD}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReferences
 import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.plans.physical._
+import org.apache.spark.sql.catalyst.util._
 import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{LongType, StructType}
 import org.apache.spark.util.ThreadUtils
 import org.apache.spark.util.random.{BernoulliCellSampler, PoissonSampler}
@@ -756,4 +759,52 @@ case class ReusedSubqueryExec(child: BaseSubqueryExec)
   protected override def doExecute(): RDD[InternalRow] = child.execute()
 
   override def executeCollect(): Array[InternalRow] = child.executeCollect()
+}
+
+case class RecursiveUnionExec(initPlan: SparkPlan, recursivePlan: SparkPlan) extends SparkPlan {
+
+  override def children: Seq[SparkPlan] = initPlan :: recursivePlan :: Nil
+  override def output: Seq[Attribute] = recursivePlan.output
+
+  private def planWithNewInput(plan: SparkPlan, inputRdd: RDD[InternalRow]): SparkPlan = {
+    plan.transform {
+      case ph: RecursiveScanExec =>
+        ph.newInstance(inputRdd)
+    }
+  }
+
+  override protected def doExecute(): RDD[InternalRow] = {
+    val recursiveLevelLimit = conf.getConf(SQLConf.CTE_RECURSION_LEVEL_LIMIT)
+    val rdds = mutable.ArrayBuffer[RDD[InternalRow]]()
+    val initRdd = initPlan.execute().map(_.copy())
+    rdds += initRdd
+    var i = 0
+    var prevRdd = initRdd
+    while (!prevRdd.isEmpty && i < recursiveLevelLimit) {
+      val recursivePlanWithNewInput = planWithNewInput(recursivePlan, prevRdd.map(_.copy()))
+      prevRdd = recursivePlanWithNewInput.execute().map(_.copy())
+      rdds += prevRdd
+      i += 1
+    }
+    if (i >= recursiveLevelLimit) {
+      throw new SparkException(s"Recursion level limit $recursiveLevelLimit reached but " +
+        s"running query not finished, try increasing '${SQLConf.CTE_RECURSION_LEVEL_LIMIT.key}'")
+    }
+    sparkContext.union(rdds)
+  }
+}
+
+case class RecursiveScanExec(output: Seq[Attribute]) extends LeafExecNode {
+
+  override protected def doExecute(): RDD[InternalRow] = {
+    sys.error(s"Invalid call to $nodeName")
+  }
+
+  def newInstance(rdd: RDD[InternalRow]): LeafExecNode = {
+    RDDScanExec(output, rdd, "RecursiveReferences")
+  }
+
+  override def simpleString(maxFields: Int): String = {
+    s"$nodeName ${truncatedString(output, "[", ",", "]", maxFields)}"
+  }
 }
