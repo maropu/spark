@@ -191,6 +191,61 @@ object Cast {
   }
 
   def resolvableNullability(from: Boolean, to: Boolean): Boolean = !from || to
+
+  private def buildCastWithValueRange(
+      child: Expression,
+      dataType: DataType,
+      timeZoneId: Option[String],
+      valueRange: (Literal, Literal)): Expression = {
+    val minCheckPred = GreaterThanOrEqual(child, valueRange._1)
+    val maxCheckPred = GreaterThanOrEqual(valueRange._2, child)
+    val ifExpr = If(And(minCheckPred, maxCheckPred),
+      Cast(child, dataType, timeZoneId), Literal(null, dataType))
+    ifExpr.transform {
+      case gte @ GreaterThanOrEqual(left, right) if !left.dataType.sameType(right.dataType) =>
+        TypeCoercion.findWiderTypeForTwo(left.dataType, right.dataType).map { widestType =>
+          GreaterThanOrEqual(
+            Cast(left, widestType, timeZoneId),
+            Cast(right, widestType, timeZoneId)
+          )
+        }.getOrElse(gte)
+    }
+  }
+
+  def castWithValueRangeCheck(
+      child: Expression,
+      dataType: DataType,
+      timeZoneId: Option[String] = None): Expression = {
+    if (!child.dataType.sameType(dataType)) {
+      val valueRangeOption = dataType match {
+        case ByteType =>
+          Some(Seq(Byte.MinValue, Byte.MaxValue).map(Literal(_, ByteType)))
+        case ShortType =>
+          Some(Seq(Short.MinValue, Short.MaxValue).map(Literal(_, ShortType)))
+        case IntegerType =>
+          Some(Seq(Int.MinValue, Int.MaxValue).map(Literal(_, IntegerType)))
+        case LongType =>
+          Some(Seq(Long.MinValue, Long.MaxValue).map(Literal(_, LongType)))
+        case FloatType =>
+          Some(Seq(Float.MinValue, Float.MaxValue).map(Literal(_, FloatType)))
+        case DoubleType =>
+          Some(Seq(Double.MinValue, Double.MaxValue).map(Literal(_, DoubleType)))
+        case _ =>
+          None
+      }
+      valueRangeOption.map { case Seq(minValue, maxValue) =>
+        val inputExpr = (child.dataType, dataType) match {
+          case (_: FractionalType, _: IntegralType) => Round(child, Literal(0))
+          case _ => child
+        }
+        buildCastWithValueRange(inputExpr, dataType, timeZoneId, (minValue, maxValue))
+      }.getOrElse(
+        Cast(child, dataType, timeZoneId)
+      )
+    } else {
+      child
+    }
+  }
 }
 
 /**
