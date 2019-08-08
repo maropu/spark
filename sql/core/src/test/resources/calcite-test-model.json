@@ -1,0 +1,14 @@
+{
+  version: '1.0',
+  defaultSchema: 'TESTDB',
+  schemas: [
+      {
+        name: "TESTDB",
+        type: "custom",
+        factory: "org.apache.calcite.adapter.java.ReflectiveSchema$Factory",
+        operand: {
+          class: "test.org.apache.spark.sql.jdbc.CalciteTestData"
+        }
+      }
+    ]
+}
