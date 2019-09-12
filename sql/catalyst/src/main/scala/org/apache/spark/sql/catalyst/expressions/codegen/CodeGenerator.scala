@@ -1091,7 +1091,8 @@ class CodegenContext {
       }
     }.foreach { case (expr, exprGroups) =>
       val parameters = expr.collect {
-        case b: ParameterizedBoundReference => b
+        case b: BoundReference =>
+          ParameterizedBoundReference(freshName("ordinal"), b.dataType, b.nullable)
       }
       val resultIndex = freshName("resultIndex")
       val parameterString = (parameters.map(p => s"int ${p.ordinalParam}") ++

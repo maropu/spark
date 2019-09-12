@@ -46,8 +46,8 @@ class EquivalentExpressions {
   case class StructuralExpr(e: Expression) {
     def normalized(expr: Expression): Expression = {
       expr.transformUp {
-        case b: ParameterizedBoundReference =>
-          b.copy(ordinalParam = "")
+        case b: BoundReference =>
+          b.copy(ordinal = -1)
       }
     }
     override def equals(o: Any): Boolean = o match {
@@ -108,9 +108,7 @@ class EquivalentExpressions {
       }
       val parameterLength = CodeGenerator.calculateParamLength(refs) + 2
       if (CodeGenerator.isValidParamLength(parameterLength)) {
-        val parameterizedExpr = parameterizedBoundReferences(ctx, expr)
-
-        val e: StructuralExpr = StructuralExpr(parameterizedExpr)
+        val e: StructuralExpr = StructuralExpr(expr)
         val f = structEquivalenceMap.get(e)
         if (f.isDefined) {
           addExpr(expr, f.get)
@@ -125,17 +123,6 @@ class EquivalentExpressions {
       }
     } else {
       false
-    }
-  }
-
-  /**
-   * Replaces bound references in given expression by parameterized bound references.
-   */
-  private def parameterizedBoundReferences(ctx: CodegenContext, expr: Expression): Expression = {
-    expr.transformUp {
-      case b: BoundReference =>
-        val param = ctx.freshName("ordinal")
-        ParameterizedBoundReference(param, b.dataType, b.nullable)
     }
   }
 
@@ -214,9 +201,7 @@ class EquivalentExpressions {
   }
 
   def getStructurallyEquivalentExprs(ctx: CodegenContext, e: Expression): Seq[Seq[Expression]] = {
-    val parameterizedExpr = parameterizedBoundReferences(ctx, e)
-
-    val key = StructuralExpr(parameterizedExpr)
+    val key = StructuralExpr(e)
     structEquivalenceMap.get(key).map(_.values.map(_.toSeq).toSeq).getOrElse(Seq.empty)
   }
 
