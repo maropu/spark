@@ -180,14 +180,11 @@ abstract class AggregationIterator(
       inputAttributes: Seq[Attribute]): (InternalRow, InternalRow) => Unit = {
     val joinedRow = new JoinedRow
     if (expressions.nonEmpty) {
-      var isFinalOrMerge = false
-      val mergeExpressions = functions.zipWithIndex.collect {
-        case (ae: DeclarativeAggregate, i) =>
-          expressions(i).mode match {
+      val mergeExpressions = functions.zip(expressions).flatMap {
+        case (ae: DeclarativeAggregate, expression) =>
+          expression.mode match {
             case Partial | Complete => ae.updateExpressions
-            case PartialMerge | Final =>
-              isFinalOrMerge = true
-              ae.mergeExpressions
+            case PartialMerge | Final => ae.mergeExpressions
           }
         case (agg: AggregateFunction, _) => Seq.fill(agg.aggBufferAttributes.length)(NoOp)
       }
@@ -222,6 +219,8 @@ abstract class AggregationIterator(
       // The following two situations will adopt a common implementation:
       // First, no filter predicate is specified for any aggregate expression.
       // Second, aggregate expressions are in merge or final mode.
+      val isFinalOrMerge = expressions.map(_.mode)
+        .collect { case PartialMerge | Final => true }.nonEmpty
       if (predicates.isEmpty || isFinalOrMerge) {
         (currentBuffer: InternalRow, row: InternalRow) => {
           updateProjection.target(currentBuffer)(joinedRow(currentBuffer, row))
