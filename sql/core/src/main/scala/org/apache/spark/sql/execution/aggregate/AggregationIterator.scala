@@ -180,9 +180,9 @@ abstract class AggregationIterator(
       inputAttributes: Seq[Attribute]): (InternalRow, InternalRow) => Unit = {
     val joinedRow = new JoinedRow
     if (expressions.nonEmpty) {
-      val mergeExpressions = functions.zip(expressions).flatMap {
-        case (ae: DeclarativeAggregate, expression) =>
-          expression.mode match {
+      val mergeExpressions = functions.zipWithIndex.collect {
+        case (ae: DeclarativeAggregate, i) =>
+          expressions(i).mode match {
             case Partial | Complete => ae.updateExpressions
             case PartialMerge | Final => ae.mergeExpressions
           }
