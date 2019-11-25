@@ -380,6 +380,7 @@ class TableIdentifierParserSuite extends SparkFunSuite with SQLHelper {
     "fetch",
     "fields",
     "fileformat",
+    "filter",
     "first",
     "first_value",
     "following",

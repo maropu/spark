@@ -1292,8 +1292,8 @@ class Analyzer(
      */
     def expandStarExpression(expr: Expression, child: LogicalPlan): Expression = {
       expr.transformUp {
-        case f1: UnresolvedFunction if containsStar(f1.children) =>
-          f1.copy(children = f1.children.flatMap {
+        case f1: UnresolvedFunction if containsStar(f1.arguments) =>
+          f1.copy(arguments = f1.arguments.flatMap {
             case s: Star => s.expand(child, resolver)
             case o => o :: Nil
           })
@@ -1645,9 +1645,9 @@ class Analyzer(
                     s"its class is ${other.getClass.getCanonicalName}, which is not a generator.")
               }
             }
-          case u @ UnresolvedFunction(funcId, children, isDistinct) =>
+          case u @ UnresolvedFunction(funcId, arguments, isDistinct, filter) =>
             withPosition(u) {
-              v1SessionCatalog.lookupFunction(funcId, children) match {
+              v1SessionCatalog.lookupFunction(funcId, arguments) match {
                 // AggregateWindowFunctions are AggregateFunctions that can only be evaluated within
                 // the context of a Window clause. They do not need to be wrapped in an
                 // AggregateExpression.
@@ -1655,16 +1655,23 @@ class Analyzer(
                   if (isDistinct) {
                     failAnalysis(
                       s"DISTINCT specified, but ${wf.prettyName} is not an aggregate function")
+                  } else if (filter.isDefined) {
+                    failAnalysis("FILTER predicate specified, " +
+                      s"but ${wf.prettyName} is not an aggregate function")
                   } else {
                     wf
                   }
                 // We get an aggregate function, we need to wrap it in an AggregateExpression.
-                case agg: AggregateFunction => AggregateExpression(agg, Complete, isDistinct)
+                case agg: AggregateFunction =>
+                  AggregateExpression(agg, Complete, isDistinct, filter)
                 // This function is not an aggregate function, just return the resolved one.
                 case other =>
                   if (isDistinct) {
                     failAnalysis(
                       s"DISTINCT specified, but ${other.prettyName} is not an aggregate function")
+                  } else if (filter.isDefined) {
+                    failAnalysis("FILTER predicate specified, " +
+                      s"but ${other.prettyName} is not an aggregate function")
                   } else {
                     other
                   }
@@ -2262,7 +2269,7 @@ class Analyzer(
 
           // Extract Windowed AggregateExpression
           case we @ WindowExpression(
-              ae @ AggregateExpression(function, _, _, _),
+              ae @ AggregateExpression(function, _, _, _, _),
               spec: WindowSpecDefinition) =>
             val newChildren = function.children.map(extractExpr)
             val newFunction = function.withNewChildren(newChildren).asInstanceOf[AggregateFunction]
@@ -2270,7 +2277,7 @@ class Analyzer(
             seenWindowAggregates += newAgg
             WindowExpression(newAgg, spec)
 
-          case AggregateExpression(aggFunc, _, _, _) if hasWindowFunction(aggFunc.children) =>
+          case AggregateExpression(aggFunc, _, _, _, _) if hasWindowFunction(aggFunc.children) =>
             failAnalysis("It is not allowed to use a window function inside an aggregate " +
               "function. Please use the inner window function in a sub-query.")
 
