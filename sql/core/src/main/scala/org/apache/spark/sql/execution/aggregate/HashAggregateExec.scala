@@ -53,7 +53,7 @@ case class HashAggregateExec(
     initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan)
-  extends UnaryExecNode with BlockingOperatorWithCodegen {
+  extends UnaryExecNode with BlockingOperatorWithCodegen with GeneratePredicateHelper {
 
   private[this] val aggregateBufferAttributes = {
     aggregateExpressions.flatMap(_.aggregateFunction.aggBufferAttributes)
@@ -153,8 +153,7 @@ case class HashAggregateExec(
 
   override def supportCodegen: Boolean = {
     // ImperativeAggregate and filter predicate are not supported right now
-    !(aggregateExpressions.exists(_.aggregateFunction.isInstanceOf[ImperativeAggregate]) ||
-        aggregateExpressions.exists(_.filter.isDefined))
+    !aggregateExpressions.exists(_.aggregateFunction.isInstanceOf[ImperativeAggregate])
   }
 
   override def inputRDDs(): Seq[RDD[InternalRow]] = {
@@ -274,7 +273,7 @@ case class HashAggregateExec(
       aggNames: Seq[String],
       aggBufferUpdatingExprs: Seq[Seq[Expression]],
       aggCodeBlocks: Seq[Block],
-      subExprs: Map[Expression, SubExprEliminationState]): Option[String] = {
+      subExprs: Map[Expression, SubExprEliminationState]): Option[Seq[String]] = {
     val exprValsInSubExprs = subExprs.flatMap { case (_, s) => s.value :: s.isNull :: Nil }
     if (exprValsInSubExprs.exists(_.isInstanceOf[SimpleExprValue])) {
       // `SimpleExprValue`s cannot be used as an input variable for split functions, so
@@ -313,7 +312,7 @@ case class HashAggregateExec(
           val inputVariables = args.map(_.variableName).mkString(", ")
           s"$doAggFuncName($inputVariables);"
         }
-        Some(splitCodes.mkString("\n").trim)
+        Some(splitCodes)
       } else {
         val errMsg = "Failed to split aggregate code into small functions because the parameter " +
           "length of at least one split function went over the JVM limit: " +
@@ -374,16 +373,30 @@ case class HashAggregateExec(
        """.stripMargin
     }
 
-    val codeToEvalAggFunc = if (conf.codegenSplitAggregateFunc &&
+    val codeToEvalAggFunc = {
+      val aggCodes = if (conf.codegenSplitAggregateFunc &&
         aggCodeBlocks.map(_.length).sum > conf.methodSplitThreshold) {
-      val maybeSplitCode = splitAggregateExpressions(
-        ctx, aggNames, boundUpdateExprs, aggCodeBlocks, subExprs.states)
+        val maybeSplitCodes = splitAggregateExpressions(
+          ctx, aggNames, boundUpdateExprs, aggCodeBlocks, subExprs.states)
 
-      maybeSplitCode.getOrElse {
-        aggCodeBlocks.fold(EmptyBlock)(_ + _).code
+        maybeSplitCodes.getOrElse(aggCodeBlocks.map(_.code))
+      } else {
+        aggCodeBlocks.map(_.code)
       }
-    } else {
-      aggCodeBlocks.fold(EmptyBlock)(_ + _).code
+
+      aggCodes.zip(aggregateExpressions.map(ae => (ae.mode, ae.filter))).map {
+        case (aggCode, (Partial | Complete, Some(condition))) =>
+          // Note: wrap in "do { } while(false);", so the generated checks can jump out
+          // with "continue;"
+          s"""
+             |do {
+             |  ${generatePredicateCode(ctx, condition, inputAttrs, input)}
+             |  $aggCode
+             |} while(false);
+         """.stripMargin
+        case (aggCode, _) =>
+          aggCode
+      }.mkString("\n")
     }
 
     s"""
@@ -927,7 +940,7 @@ case class HashAggregateExec(
       }
     }
 
-    val inputAttr = aggregateBufferAttributes ++ child.output
+    val inputAttrs = aggregateBufferAttributes ++ child.output
     // Here we set `currentVars(0)` to `currentVars(numBufferSlots)` to null, so that when
     // generating code for buffer columns, we use `INPUT_ROW`(will be the buffer row), while
     // generating input columns, we use `currentVars`.
@@ -949,7 +962,7 @@ case class HashAggregateExec(
     val updateRowInRegularHashMap: String = {
       ctx.INPUT_ROW = unsafeRowBuffer
       val boundUpdateExprs = updateExprs.map { updateExprsForOneFunc =>
-        bindReferences(updateExprsForOneFunc, inputAttr)
+        bindReferences(updateExprsForOneFunc, inputAttrs)
       }
       val subExprs = ctx.subexpressionEliminationForWholeStageCodegen(boundUpdateExprs.flatten)
       val effectiveCodes = subExprs.codes.mkString("\n")
@@ -980,16 +993,30 @@ case class HashAggregateExec(
          """.stripMargin
       }
 
-      val codeToEvalAggFunc = if (conf.codegenSplitAggregateFunc &&
+      val codeToEvalAggFunc = {
+        val aggCodes = if (conf.codegenSplitAggregateFunc &&
           aggCodeBlocks.map(_.length).sum > conf.methodSplitThreshold) {
-        val maybeSplitCode = splitAggregateExpressions(
-          ctx, aggNames, boundUpdateExprs, aggCodeBlocks, subExprs.states)
+          val maybeSplitCodes = splitAggregateExpressions(
+            ctx, aggNames, boundUpdateExprs, aggCodeBlocks, subExprs.states)
 
-        maybeSplitCode.getOrElse {
-          aggCodeBlocks.fold(EmptyBlock)(_ + _).code
+          maybeSplitCodes.getOrElse(aggCodeBlocks.map(_.code))
+        } else {
+          aggCodeBlocks.map(_.code)
         }
-      } else {
-        aggCodeBlocks.fold(EmptyBlock)(_ + _).code
+
+        aggCodes.zip(aggregateExpressions.map(ae => (ae.mode, ae.filter))).map {
+          case (aggCode, (Partial | Complete, Some(condition))) =>
+            // Note: wrap in "do { } while(false);", so the generated checks can jump out
+            // with "continue;"
+            s"""
+               |do {
+               |  ${generatePredicateCode(ctx, condition, inputAttrs, input)}
+               |  $aggCode
+               |} while(false);
+           """.stripMargin
+          case (aggCode, _) =>
+            aggCode
+        }.mkString("\n")
       }
 
       s"""
@@ -1005,7 +1032,7 @@ case class HashAggregateExec(
         if (isVectorizedHashMapEnabled) {
           ctx.INPUT_ROW = fastRowBuffer
           val boundUpdateExprs = updateExprs.map { updateExprsForOneFunc =>
-            bindReferences(updateExprsForOneFunc, inputAttr)
+            bindReferences(updateExprsForOneFunc, inputAttrs)
           }
           val subExprs = ctx.subexpressionEliminationForWholeStageCodegen(boundUpdateExprs.flatten)
           val effectiveCodes = subExprs.codes.mkString("\n")
@@ -1036,16 +1063,30 @@ case class HashAggregateExec(
           }
 
 
-          val codeToEvalAggFunc = if (conf.codegenSplitAggregateFunc &&
+          val codeToEvalAggFunc = {
+            val aggCodes = if (conf.codegenSplitAggregateFunc &&
               aggCodeBlocks.map(_.length).sum > conf.methodSplitThreshold) {
-            val maybeSplitCode = splitAggregateExpressions(
-              ctx, aggNames, boundUpdateExprs, aggCodeBlocks, subExprs.states)
+              val maybeSplitCodes = splitAggregateExpressions(
+                ctx, aggNames, boundUpdateExprs, aggCodeBlocks, subExprs.states)
 
-            maybeSplitCode.getOrElse {
-              aggCodeBlocks.fold(EmptyBlock)(_ + _).code
+              maybeSplitCodes.getOrElse(aggCodeBlocks.map(_.code))
+            } else {
+              aggCodeBlocks
             }
-          } else {
-            aggCodeBlocks.fold(EmptyBlock)(_ + _).code
+
+            aggCodes.zip(aggregateExpressions.map(ae => (ae.mode, ae.filter))).map {
+              case (aggCode, (Partial | Complete, Some(condition))) =>
+                // Note: wrap in "do { } while(false);", so the generated checks can jump out
+                // with "continue;"
+                s"""
+                   |do {
+                   |  ${generatePredicateCode(ctx, condition, inputAttrs, input)}
+                   |  $aggCode
+                   |} while(false);
+               """.stripMargin
+              case (aggCode, _) =>
+                aggCode
+            }.mkString("\n")
           }
 
           // If vectorized fast hash map is on, we first generate code to update row
