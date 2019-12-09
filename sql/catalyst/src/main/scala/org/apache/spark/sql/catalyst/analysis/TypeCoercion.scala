@@ -868,6 +868,19 @@ object TypeCoercion {
         SubtractTimestamps(l, Cast(r, TimestampType))
       case Subtract(l @ DateType(), r @ TimestampType()) =>
         SubtractTimestamps(Cast(l, TimestampType), r)
+
+      case o @ DateTimeOverlaps(ls @ DateType(), _, _, _) =>
+        o.copy(leftStart = Cast(ls, TimestampType))
+      case o @ DateTimeOverlaps(_, le @ DateType(), _, _) =>
+        o.copy(leftEnd = Cast(le, TimestampType))
+      case o @ DateTimeOverlaps(_, _, rs @ DateType(), _) =>
+        o.copy(rightStart = Cast(rs, TimestampType))
+      case o @ DateTimeOverlaps(_, _, _, re @ DateType()) =>
+        o.copy(rightEnd = Cast(re, TimestampType))
+      case o @ DateTimeOverlaps(ls @ TimestampType(), le @ CalendarIntervalType(), _, _) =>
+        o.copy(leftEnd = Add(ls, le))
+       case o @ DateTimeOverlaps(_, _, rs @ TimestampType(), re @ CalendarIntervalType()) =>
+        o.copy(rightEnd = Add(rs, re))
     }
   }
 

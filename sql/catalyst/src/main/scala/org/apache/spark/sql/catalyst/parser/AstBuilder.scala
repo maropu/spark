@@ -1582,7 +1582,7 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     val leftEnd = expression(ctx.leftEnd)
     val rightStart = expression(ctx.rightStart)
     val rightEnd = expression(ctx.rightEnd)
-    UnresolvedDateTimeOverlaps(leftStart, leftEnd, rightStart, rightEnd)
+    DateTimeOverlaps(leftStart, leftEnd, rightStart, rightEnd)
   }
 
   /**

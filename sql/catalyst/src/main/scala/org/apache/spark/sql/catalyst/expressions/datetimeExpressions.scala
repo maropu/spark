@@ -28,9 +28,10 @@ import org.apache.commons.text.StringEscapeUtils
 
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
 import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.expressions.codegen.Block._
-import org.apache.spark.sql.catalyst.util.{DateTimeUtils, TimestampFormatter}
+import org.apache.spark.sql.catalyst.util.{DateTimeUtils, TimestampFormatter, TypeUtils}
 import org.apache.spark.sql.catalyst.util.DateTimeConstants._
 import org.apache.spark.sql.catalyst.util.DateTimeUtils._
 import org.apache.spark.sql.internal.SQLConf
@@ -2184,59 +2185,35 @@ case class DateTimeOverlaps private (
     leftStart: Expression,
     leftEnd: Expression,
     rightStart: Expression,
-    rightEnd: Expression,
-    child: Expression)
-  extends RuntimeReplaceable {
+    rightEnd: Expression)
+  extends QuaternaryExpression with ExpectsInputTypes {
 
-  def this(leftStart: Expression,
-      leftEnd: Expression,
-      rightStart: Expression,
-      rightEnd: Expression) =
-    this(leftStart, leftEnd, rightStart, rightEnd, {
-      val left = Seq(leftStart, leftEnd)
-      val right = Seq(rightStart, rightEnd)
-      If(And(EqualTo(leftStart, leftEnd), EqualTo(rightStart, rightEnd)), /** both periods are 0 */
-        EqualTo(leftStart, rightStart),
-        If(EqualTo(leftStart, leftEnd), /** left period is 0, ll ∈ [rl, ru) */
-          And(GreaterThanOrEqual(leftStart, Least(right)), LessThan(leftStart, Greatest(right))),
-          If(EqualTo(rightStart, rightEnd), /** right period is 0, rl ∈ [ll, lu) */
-            And(GreaterThanOrEqual(rightStart, Least(left)), LessThan(rightStart, Greatest(left))),
-            {
-              val timePoints = Seq(leftStart, leftEnd, rightStart, rightEnd)
-              val leftPeriod = If(GreaterThan(leftStart, leftEnd),
-                Subtract(leftStart, leftEnd), Subtract(leftEnd, leftStart))
-              val rightPeriod = If(GreaterThan(rightStart, rightEnd),
-                Subtract(rightStart, rightEnd), Subtract(rightEnd, rightStart))
-              LessThan(Subtract(Greatest(timePoints), Least(timePoints)),
-                Add(leftPeriod, rightPeriod))
-            }
-          )
-        )
-      )
+  override def dataType: DataType = BooleanType
+  override def children: Seq[Expression] = Seq(leftStart, leftEnd, rightStart, rightEnd)
+  override def nullable: Boolean = children.exists(_.nullable)
+  override def inputTypes: Seq[AbstractDataType] = children.indices.map(_ => TimestampType)
+
+  def isOverlapped(ls: Long, le: Long, rs: Long, re: Long): Boolean = {
+    (ls == le && le == rs && rs == re) || {
+      val (leftFrom, leftTo) = (Math.min(ls, le), Math.max(ls, le))
+      val (rightFrom, rightTo) = (Math.min(rs, re), Math.max(rs, re))
+      (rightFrom <= leftFrom && rightTo > leftFrom) || (rightFrom >= leftFrom && rightFrom < leftTo)
+    }
+  }
+
+  override def nullSafeEval(ls: Any, le: Any, rs: Any, re: Any): Any = {
+    isOverlapped(ls.asInstanceOf[Long], le.asInstanceOf[Long], rs.asInstanceOf[Long],
+      re.asInstanceOf[Long])
+  }
+
+  override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+    val thisExpr = ctx.addReferenceObj("dateTimeOverlaps", this)
+    // TODO: Inline code to check if they are overlapped
+    nullSafeCodeGen(ctx, ev, (ls, le, rs, re) => {
+      s"""${ev.value} = $thisExpr.isOverlapped($ls, $le, $rs, $re);"""
     })
-
-  override def flatArguments: Iterator[Any] = Iterator(leftStart, leftEnd, rightStart, rightEnd)
+  }
 
   override def sql: String =
     s"(${leftStart.sql}, ${leftEnd.sql}) OVERLAPS (${rightStart.sql}, ${rightEnd.sql})"
-}
-
-case class UnresolvedDateTimeOverlaps(
-    leftStart: Expression,
-    leftEnd: Expression,
-    rightStart: Expression,
-    rightEnd: Expression) extends Unevaluable with ExpectsInputTypes {
-  override lazy val resolved = false
-
-  override def inputTypes: Seq[AbstractDataType] =
-    Seq(TypeCollection(DateType, TimestampType),
-      TypeCollection(DateType, TimestampType, CalendarIntervalType),
-      TypeCollection(DateType, TimestampType),
-      TypeCollection(DateType, TimestampType, CalendarIntervalType))
-
-  override def nullable: Boolean = true
-
-  override def dataType: DataType = BooleanType
-
-  override def children: Seq[Expression] = leftStart :: leftEnd :: rightStart :: rightEnd :: Nil
 }

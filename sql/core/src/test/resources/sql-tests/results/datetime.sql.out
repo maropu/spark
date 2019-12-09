@@ -182,7 +182,7 @@ struct<>
 -- !query 20
 select (cast(a as date), cast(b as date)) overlaps (cast(c as date), cast(d as date)), e from tmp_dates order by e
 -- !query 20 schema
-struct<(CAST(tmp_dates.`a` AS DATE), CAST(tmp_dates.`b` AS DATE)) OVERLAPS (CAST(tmp_dates.`c` AS DATE), CAST(tmp_dates.`d` AS DATE)):boolean,e:int>
+struct<(CAST(CAST(a AS DATE) AS TIMESTAMP), CAST(CAST(b AS DATE) AS TIMESTAMP)) OVERLAPS (CAST(CAST(c AS DATE) AS TIMESTAMP), CAST(CAST(d AS DATE) AS TIMESTAMP)):boolean,e:int>
 -- !query 20 output
 true	1
 false	2
@@ -197,7 +197,7 @@ NULL	8
 -- !query 21
 select (cast(a as timestamp), cast(b as timestamp)) overlaps (cast(c as timestamp), cast(d as timestamp)), e from tmp_dates order by e
 -- !query 21 schema
-struct<(CAST(tmp_dates.`a` AS TIMESTAMP), CAST(tmp_dates.`b` AS TIMESTAMP)) OVERLAPS (CAST(tmp_dates.`c` AS TIMESTAMP), CAST(tmp_dates.`d` AS TIMESTAMP)):boolean,e:int>
+struct<(CAST(a AS TIMESTAMP), CAST(b AS TIMESTAMP)) OVERLAPS (CAST(c AS TIMESTAMP), CAST(d AS TIMESTAMP)):boolean,e:int>
 -- !query 21 output
 true	1
 false	2
@@ -212,7 +212,7 @@ NULL	8
 -- !query 22
 select (cast(a as timestamp), cast(b as date)) overlaps (cast(c as date), cast(d as timestamp)), e from tmp_dates order by e
 -- !query 22 schema
-struct<(CAST(tmp_dates.`a` AS TIMESTAMP), CAST(tmp_dates.`b` AS DATE)) OVERLAPS (CAST(tmp_dates.`c` AS DATE), CAST(tmp_dates.`d` AS TIMESTAMP)):boolean,e:int>
+struct<(CAST(a AS TIMESTAMP), CAST(CAST(b AS DATE) AS TIMESTAMP)) OVERLAPS (CAST(CAST(c AS DATE) AS TIMESTAMP), CAST(d AS TIMESTAMP)):boolean,e:int>
 -- !query 22 output
 true	1
 false	2
@@ -240,7 +240,7 @@ select (cast(a as date), b) overlaps (c, d) from tmp_dates
 struct<>
 -- !query 24 output
 org.apache.spark.sql.AnalysisException
-argument 2 requires (date or timestamp or interval) type, however, 'tmp_dates.`b`' is of string type. argument 3 requires (date or timestamp) type, however, 'tmp_dates.`c`' is of string type. argument 4 requires (date or timestamp or interval) type, however, 'tmp_dates.`d`' is of string type.;
+cannot resolve '(CAST(CAST(tmp_dates.`a` AS DATE) AS TIMESTAMP), tmp_dates.`b`) OVERLAPS (tmp_dates.`c`, tmp_dates.`d`)' due to data type mismatch: argument 2 requires timestamp type, however, 'tmp_dates.`b`' is of string type. argument 3 requires timestamp type, however, 'tmp_dates.`c`' is of string type. argument 4 requires timestamp type, however, 'tmp_dates.`d`' is of string type.; line 1 pos 7
 
 
 -- !query 25
@@ -262,7 +262,7 @@ struct<>
 -- !query 26
 select (cast(a as date), cast(b as interval)) overlaps (cast(c as date), cast(d as interval)), e from tmp_dates_with_interval order by e
 -- !query 26 schema
-struct<(CAST(tmp_dates_with_interval.`a` AS DATE), (CAST(tmp_dates_with_interval.`a` AS DATE) + CAST(tmp_dates_with_interval.`b` AS INTERVAL))) OVERLAPS (CAST(tmp_dates_with_interval.`c` AS DATE), (CAST(tmp_dates_with_interval.`c` AS DATE) + CAST(tmp_dates_with_interval.`d` AS INTERVAL))):boolean,e:int>
+struct<(CAST(CAST(a AS DATE) AS TIMESTAMP), CAST(CAST(CAST(a AS DATE) AS TIMESTAMP) + CAST(b AS INTERVAL) AS TIMESTAMP)) OVERLAPS (CAST(CAST(c AS DATE) AS TIMESTAMP), CAST(CAST(CAST(c AS DATE) AS TIMESTAMP) + CAST(d AS INTERVAL) AS TIMESTAMP)):boolean,e:int>
 -- !query 26 output
 true	1
 false	2
@@ -277,7 +277,7 @@ NULL	8
 -- !query 27
 select (cast(a as timestamp), cast(b as interval)) overlaps (cast(c as timestamp), cast(d as interval)), e from tmp_dates_with_interval order by e
 -- !query 27 schema
-struct<(CAST(tmp_dates_with_interval.`a` AS TIMESTAMP), (CAST(tmp_dates_with_interval.`a` AS TIMESTAMP) + CAST(tmp_dates_with_interval.`b` AS INTERVAL))) OVERLAPS (CAST(tmp_dates_with_interval.`c` AS TIMESTAMP), (CAST(tmp_dates_with_interval.`c` AS TIMESTAMP) + CAST(tmp_dates_with_interval.`d` AS INTERVAL))):boolean,e:int>
+struct<(CAST(a AS TIMESTAMP), CAST(CAST(a AS TIMESTAMP) + CAST(b AS INTERVAL) AS TIMESTAMP)) OVERLAPS (CAST(c AS TIMESTAMP), CAST(CAST(c AS TIMESTAMP) + CAST(d AS INTERVAL) AS TIMESTAMP)):boolean,e:int>
 -- !query 27 output
 true	1
 false	2
@@ -292,7 +292,7 @@ NULL	8
 -- !query 28
 select (cast(a as timestamp), cast(b as interval)) overlaps (cast(c as date), cast(d as interval)), e from tmp_dates_with_interval order by e
 -- !query 28 schema
-struct<(CAST(tmp_dates_with_interval.`a` AS TIMESTAMP), (CAST(tmp_dates_with_interval.`a` AS TIMESTAMP) + CAST(tmp_dates_with_interval.`b` AS INTERVAL))) OVERLAPS (CAST(tmp_dates_with_interval.`c` AS DATE), (CAST(tmp_dates_with_interval.`c` AS DATE) + CAST(tmp_dates_with_interval.`d` AS INTERVAL))):boolean,e:int>
+struct<(CAST(a AS TIMESTAMP), CAST(CAST(a AS TIMESTAMP) + CAST(b AS INTERVAL) AS TIMESTAMP)) OVERLAPS (CAST(CAST(c AS DATE) AS TIMESTAMP), CAST(CAST(CAST(c AS DATE) AS TIMESTAMP) + CAST(d AS INTERVAL) AS TIMESTAMP)):boolean,e:int>
 -- !query 28 output
 true	1
 false	2
@@ -320,4 +320,4 @@ select (a, b) overlaps (c, d) from tmp_dates_with_interval
 struct<>
 -- !query 30 output
 org.apache.spark.sql.AnalysisException
-argument 1 requires (date or timestamp) type, however, 'tmp_dates_with_interval.`a`' is of string type. argument 2 requires (date or timestamp or interval) type, however, 'tmp_dates_with_interval.`b`' is of string type. argument 3 requires (date or timestamp) type, however, 'tmp_dates_with_interval.`c`' is of string type. argument 4 requires (date or timestamp or interval) type, however, 'tmp_dates_with_interval.`d`' is of string type.;
+cannot resolve '(tmp_dates_with_interval.`a`, tmp_dates_with_interval.`b`) OVERLAPS (tmp_dates_with_interval.`c`, tmp_dates_with_interval.`d`)' due to data type mismatch: argument 1 requires timestamp type, however, 'tmp_dates_with_interval.`a`' is of string type. argument 2 requires timestamp type, however, 'tmp_dates_with_interval.`b`' is of string type. argument 3 requires timestamp type, however, 'tmp_dates_with_interval.`c`' is of string type. argument 4 requires timestamp type, however, 'tmp_dates_with_interval.`d`' is of string type.; line 1 pos 7

@@ -26,7 +26,6 @@ import scala.util.Random
 
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst._
-import org.apache.spark.sql.catalyst.analysis.TypeCheckResult.TypeCheckFailure
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.encoders.OuterScopes
 import org.apache.spark.sql.catalyst.expressions._
@@ -229,7 +228,6 @@ class Analyzer(
       ResolveLambdaVariables(conf) ::
       ResolveTimeZone(conf) ::
       ResolveRandomSeed ::
-      ResolveDateTimeOverlaps ::
       TypeCoercion.typeCoercionRules(conf) ++
       extendedResolutionRules : _*),
     Batch("PostgreSQL Dialect", Once, PostgreSQLDialect.postgreSQLDialectRules: _*),
@@ -247,31 +245,6 @@ class Analyzer(
     Batch("Cleanup", fixedPoint,
       CleanupAliases)
   )
-
-  /**
-   * Replace interval with startEnd + interval and substitute child plan with DateTimeOverlaps.
-   */
-  object ResolveDateTimeOverlaps extends Rule[LogicalPlan] {
-    def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
-      case p: LogicalPlan => p.transformAllExpressions {
-        case u @ UnresolvedDateTimeOverlaps(leftStart, leftEnd, rightStart, rightEnd)
-          if u.childrenResolved =>
-          u.checkInputDataTypes() match {
-            case TypeCheckFailure(message) => failAnalysis(message)
-            case _ =>
-              val newLeftEnd = leftEnd.dataType match {
-                case CalendarIntervalType => Add(leftStart, leftEnd)
-                case _ => leftEnd
-              }
-              val newRightEnd = rightEnd.dataType match {
-                case CalendarIntervalType => Add(rightStart, rightEnd)
-                case _ => rightEnd
-              }
-              new DateTimeOverlaps(leftStart, newLeftEnd, rightStart, newRightEnd)
-          }
-      }
-    }
-  }
 
   /**
    * Substitute child plan with WindowSpecDefinitions.
