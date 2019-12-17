@@ -666,12 +666,19 @@ object Expand {
     // Create an array of Projections for the child projection, and replace the projections'
     // expressions which equal GroupBy expressions with Literal(null), if those expressions
     // are not set for this grouping set.
-    val projections = groupingSetsAttrs.map { groupingSetAttrs =>
+    val projections = groupingSetsAttrs.zipWithIndex.map { case (groupingSetAttrs, index) =>
       child.output ++ {
-        val gidDataType = GroupingID.groupIdDataType(groupByAttrs)
+        val (gidDataType, withIndex) = GroupingID.getFormat(groupingSetsAttrs)
         val gid = gidDataType match {
-          case IntegerType => buildBitmask(groupingSetAttrs, attrMap)
-          case StringType => buildBitmaskAsString(groupingSetAttrs, attrMap)
+          case IntegerType =>
+            buildBitmask(groupingSetAttrs, attrMap)
+          case StringType =>
+            val bitmask = buildBitmaskAsString(groupingSetAttrs, attrMap)
+            if (withIndex) {
+              s"$bitmask-$index"
+            } else {
+              bitmask
+            }
         }
         groupByAttrs.map { attr =>
           if (!groupingSetAttrs.contains(attr)) {
