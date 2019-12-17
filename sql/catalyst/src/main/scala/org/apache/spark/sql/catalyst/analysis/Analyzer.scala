@@ -506,20 +506,6 @@ class Analyzer(
       }.asInstanceOf[NamedExpression]
     }
 
-    // Construct a whole group-by list from selected group-by lists
-    private def constructGroupBy(selectedGroupByExprs: Seq[Seq[Expression]]): Seq[Expression] = {
-      selectedGroupByExprs.flatten.foldLeft(Seq.empty[Expression]) { (result, currentExpr) =>
-        // Only unique expressions are included in the group by expressions and is determined
-        // based on their semantic equality. Example. grouping sets ((a * b), (b * a)) results
-        // in grouping expression (a * b)
-        if (result.find(_.semanticEquals(currentExpr)).isDefined) {
-          result
-        } else {
-          result :+ currentExpr
-        }
-      }
-    }
-
     /*
      * Construct [[Aggregate]] operator from Cube/Rollup/GroupingSets.
      */
@@ -532,12 +518,12 @@ class Analyzer(
       // can be null. In such case, we derive the groupByExprs from the user supplied values for
       // grouping sets.
       val finalGroupByExpressions = if (groupByExprs == Nil) {
-        constructGroupBy(selectedGroupByExprs)
+        GroupingID.constructGroupBy(selectedGroupByExprs)
       } else {
         groupByExprs
       }
 
-      val gidDataType = GroupingID.groupIdDataType(finalGroupByExpressions)
+      val (gidDataType, _) = GroupingID.getFormat(selectedGroupByExprs)
       val gid = AttributeReference(VirtualColumn.groupingIdName, gidDataType, false)()
 
       // Expand works by setting grouping expressions to null as determined by the
@@ -572,21 +558,34 @@ class Analyzer(
 
     private object EmptyGroupingIDExtractor {
 
-      private def hasEmptyGroupingID(aggExprs: Seq[Expression]): Boolean = {
-        aggExprs.exists { p => p.collectFirst { case GroupingID(Nil) => true }.isDefined }
+      private def hasUnresolvedGroupingID(aggExprs: Seq[Expression]): Boolean = {
+        aggExprs.exists { p =>
+          p.collectFirst { case gId: GroupingID if !gId.resolved => true }.isDefined
+        }
       }
 
-      def unapply(p: LogicalPlan): Option[Seq[Expression]] = p match {
-        case Aggregate(Seq(Cube(groupByExprs)), aggExprs, _) if hasEmptyGroupingID(aggExprs) =>
-          Some(constructGroupBy(cubeExprs(groupByExprs)))
-        case Aggregate(Seq(Rollup(groupByExprs)), aggExprs, _) if hasEmptyGroupingID(aggExprs) =>
-          Some(constructGroupBy(rollupExprs(groupByExprs)))
-        case x: GroupingSets if hasEmptyGroupingID(x.aggregations) =>
-          Some(constructGroupBy(x.selectedGroupByExprs))
-        case Filter(cond, child) if hasEmptyGroupingID(cond :: Nil) =>
-          Some(findGroupingExprs(child))
-        case Sort(order, _, child) if hasEmptyGroupingID(order) =>
-          Some(findGroupingExprs(child))
+      // In case of Filter/Sort, we need to check the actual data type of a grouping ID in a child
+      // aggregation because the type depends on an input grouping set.
+      private def resolveGroupingIDFromChild(agg: Aggregate): GroupingID = {
+        val groupingExprs = findGroupingExprs(agg)
+        val gid = agg.references.filter(_.name == VirtualColumn.groupingIdName).head
+        GroupingID(groupingExprs, Some(gid.dataType))
+      }
+
+      def unapply(p: LogicalPlan): Option[GroupingID] = p match {
+        case Aggregate(Seq(Cube(groupByExprs)), aggExprs, _) if hasUnresolvedGroupingID(aggExprs) =>
+          Some(GroupingID(cubeExprs(groupByExprs)))
+        case Aggregate(Seq(Rollup(groupByExprs)), aggExprs, _)
+            if hasUnresolvedGroupingID(aggExprs) =>
+          Some(GroupingID(rollupExprs(groupByExprs)))
+        case x: GroupingSets if hasUnresolvedGroupingID(x.aggregations) =>
+          Some(GroupingID(x.selectedGroupByExprs))
+        case Filter(cond, agg @ Aggregate(_, _, ex: Expand))
+            if hasUnresolvedGroupingID(cond :: Nil) =>
+          Some(resolveGroupingIDFromChild(agg))
+        case Sort(order, _, agg @ Aggregate(_, _, ex: Expand))
+            if hasUnresolvedGroupingID(order) =>
+          Some(resolveGroupingIDFromChild(agg))
         case _ =>
           None
       }
@@ -597,9 +596,10 @@ class Analyzer(
       case a if !a.childrenResolved => a // be sure all of the children are resolved.
 
       // If a plan has grouping IDs with an empty group-by, we resolve them first
-      case p @ EmptyGroupingIDExtractor(groupByExprs) =>
+      case p @ EmptyGroupingIDExtractor(newGroupingID) =>
         p.transformExpressions {
-          case GroupingID(Nil) => GroupingID(groupByExprs)
+          case gid: GroupingID if !gid.resolved =>
+            newGroupingID
         }
 
       // Ensure group by expressions and aggregate expressions have been resolved.

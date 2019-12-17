@@ -264,7 +264,7 @@ SELECT course, year FROM courseSales GROUP BY course, year HAVING GROUPING_ID(co
 struct<>
 -- !query 19 output
 org.apache.spark.sql.AnalysisException
-grouping()/grouping_id() can only be used with GroupingSets/Cube/Rollup;
+grouping_id() can only be used with GroupingSets/Cube/Rollup;
 
 
 -- !query 20
@@ -328,7 +328,7 @@ SELECT course, year FROM courseSales GROUP BY course, year ORDER BY GROUPING_ID(
 struct<>
 -- !query 24 output
 org.apache.spark.sql.AnalysisException
-grouping()/grouping_id() can only be used with GroupingSets/Cube/Rollup;
+grouping_id() can only be used with GroupingSets/Cube/Rollup;
 
 
 -- !query 25

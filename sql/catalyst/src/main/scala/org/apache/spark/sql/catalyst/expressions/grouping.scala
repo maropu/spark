@@ -134,14 +134,19 @@ case class Grouping(child: Expression) extends Expression with Unevaluable {
   """,
   since = "2.0.0")
 // scalastyle:on line.size.limit line.contains.tab
-case class GroupingID(groupByExprs: Seq[Expression]) extends Expression with Unevaluable {
+case class GroupingID(groupByExprs: Seq[Expression], outputDataType: Option[DataType])
+    extends Expression with Unevaluable {
+
+  def this(groupByExprs: Seq[Expression]) = this(groupByExprs, None)
+
   @transient
   override lazy val references: AttributeSet =
     AttributeSet(VirtualColumn.groupingIdAttribute :: Nil)
   // `ResolveGroupingAnalytics` resolves `groupByExprs` if it is empty
-  override lazy val resolved: Boolean = childrenResolved && groupByExprs.nonEmpty
+  override lazy val resolved: Boolean =
+    childrenResolved && groupByExprs.nonEmpty && outputDataType.isDefined
   override def children: Seq[Expression] = groupByExprs
-  override def dataType: DataType = GroupingID.groupIdDataType(groupByExprs)
+  override def dataType: DataType = outputDataType.get
   override def nullable: Boolean = false
   override def prettyName: String = "grouping_id"
 }
@@ -150,11 +155,44 @@ object GroupingID {
 
   val MAX_GROUPING_NUM_FOR_INTEGER_ID = 31
 
-  def groupIdDataType(groupByExprs: Seq[Expression]): DataType = {
-    if (GroupingID.MAX_GROUPING_NUM_FOR_INTEGER_ID >= groupByExprs.size) {
-      IntegerType
-    } else {
-      StringType
+  // Construct a whole group-by list from selected group-by lists
+  def constructGroupBy(selectedGroupByExprs: Seq[Seq[Expression]]): Seq[Expression] = {
+    selectedGroupByExprs.flatten.foldLeft(Seq.empty[Expression]) { (result, currentExpr) =>
+      // Only unique expressions are included in the group by expressions and is determined
+      // based on their semantic equality. Example. grouping sets ((a * b), (b * a)) results
+      // in grouping expression (a * b)
+      if (result.find(_.semanticEquals(currentExpr)).isDefined) {
+        result
+      } else {
+        result :+ currentExpr
+      }
     }
+  }
+
+  def getFormat(selectedGroupByExprs: Seq[Seq[Expression]]): (DataType, Boolean) = {
+    val groupByExprs = constructGroupBy(selectedGroupByExprs)
+    // Checks if duplicate grouping exists. If it exists, to avoid grouping ID conflicts,
+    // we need to append positional indices in the suffixes of them.
+    val withIndex = selectedGroupByExprs.size !=
+      selectedGroupByExprs.map(_.map(_.semanticHash()).toSet).distinct.size
+    // We have three cases below for grouping IDs when having GroupBy attributes (a, b, c, d):
+    //   1) `5` and `1` for grouping sets ((a, c), (a, b, c))
+    //   2) `"0101"` and `"1010"` for grouping sets ((a, c), (b, d))
+    //   3) `"0011-0"` and `"0011-1"` for grouping sets ((a, b), (b, a))
+    if (!withIndex) {
+      if (GroupingID.MAX_GROUPING_NUM_FOR_INTEGER_ID >= groupByExprs.size) {
+        (IntegerType, false)
+      } else {
+        (StringType, false)
+      }
+    } else {
+      (StringType, true)
+    }
+  }
+
+  def apply(selectedGroupByExprs: Seq[Seq[Expression]]): GroupingID = {
+    val groupByExprs = constructGroupBy(selectedGroupByExprs)
+    val (dataType, _) = getFormat(selectedGroupByExprs)
+    GroupingID(groupByExprs, Some(dataType))
   }
 }

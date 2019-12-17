@@ -509,7 +509,7 @@ object functions {
    * @group agg_funcs
    * @since 2.0.0
    */
-  def grouping_id(cols: Column*): Column = Column(GroupingID(cols.map(_.expr)))
+  def grouping_id(cols: Column*): Column = Column(GroupingID(cols.map(_.expr), None))
 
   /**
    * Aggregate function: returns the level of grouping, equals to
