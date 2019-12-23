@@ -413,16 +413,16 @@ cannot resolve 'every('true')' due to data type mismatch: Input to function 'eve
 -- !query 43
 SELECT k, v, every(v) OVER (PARTITION BY k ORDER BY v) FROM test_agg
 -- !query 43 schema
-struct<k:int,v:boolean,every(v) OVER (PARTITION BY k ORDER BY v ASC NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):boolean>
+struct<k:int,v:boolean,every(v) OVER (PARTITION BY k ORDER BY v ASC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):boolean>
 -- !query 43 output
 1	false	false
 1	true	false
 2	true	true
-3	NULL	NULL
+3	NULL	false
 3	false	false
 4	NULL	NULL
 4	NULL	NULL
-5	NULL	NULL
+5	NULL	false
 5	false	false
 5	true	false
 
@@ -430,16 +430,16 @@ struct<k:int,v:boolean,every(v) OVER (PARTITION BY k ORDER BY v ASC NULLS FIRST 
 -- !query 44
 SELECT k, udf(udf(v)), some(v) OVER (PARTITION BY k ORDER BY v) FROM test_agg
 -- !query 44 schema
-struct<k:int,CAST(udf(cast(cast(udf(cast(v as string)) as boolean) as string)) AS BOOLEAN):boolean,some(v) OVER (PARTITION BY k ORDER BY v ASC NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):boolean>
+struct<k:int,CAST(udf(cast(cast(udf(cast(v as string)) as boolean) as string)) AS BOOLEAN):boolean,some(v) OVER (PARTITION BY k ORDER BY v ASC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):boolean>
 -- !query 44 output
 1	false	false
 1	true	true
 2	true	true
-3	NULL	NULL
+3	NULL	false
 3	false	false
 4	NULL	NULL
 4	NULL	NULL
-5	NULL	NULL
+5	NULL	true
 5	false	false
 5	true	true
 
@@ -447,16 +447,16 @@ struct<k:int,CAST(udf(cast(cast(udf(cast(v as string)) as boolean) as string)) A
 -- !query 45
 SELECT udf(udf(k)), v, any(v) OVER (PARTITION BY k ORDER BY v) FROM test_agg
 -- !query 45 schema
-struct<CAST(udf(cast(cast(udf(cast(k as string)) as int) as string)) AS INT):int,v:boolean,any(v) OVER (PARTITION BY k ORDER BY v ASC NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):boolean>
+struct<CAST(udf(cast(cast(udf(cast(k as string)) as int) as string)) AS INT):int,v:boolean,any(v) OVER (PARTITION BY k ORDER BY v ASC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):boolean>
 -- !query 45 output
 1	false	false
 1	true	true
 2	true	true
-3	NULL	NULL
+3	NULL	false
 3	false	false
 4	NULL	NULL
 4	NULL	NULL
-5	NULL	NULL
+5	NULL	true
 5	false	false
 5	true	true
 

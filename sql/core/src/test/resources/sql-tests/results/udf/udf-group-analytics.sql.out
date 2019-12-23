@@ -101,13 +101,13 @@ SELECT course, year, SUM(earnings) FROM courseSales GROUP BY ROLLUP(course, year
 -- !query 6 schema
 struct<course:string,year:int,sum(earnings):bigint>
 -- !query 6 output
-NULL	NULL	113000
-Java	NULL	50000
 Java	2012	20000
 Java	2013	30000
-dotNET	NULL	63000
+Java	NULL	50000
 dotNET	2012	15000
 dotNET	2013	48000
+dotNET	NULL	63000
+NULL	NULL	113000
 
 
 -- !query 7
@@ -115,15 +115,15 @@ SELECT course, year, SUM(earnings) FROM courseSales GROUP BY CUBE(course, year) 
 -- !query 7 schema
 struct<course:string,year:int,sum(earnings):bigint>
 -- !query 7 output
-NULL	NULL	113000
-NULL	2012	35000
-NULL	2013	78000
-Java	NULL	50000
 Java	2012	20000
 Java	2013	30000
-dotNET	NULL	63000
+Java	NULL	50000
 dotNET	2012	15000
 dotNET	2013	48000
+dotNET	NULL	63000
+NULL	2012	35000
+NULL	2013	78000
+NULL	NULL	113000
 
 
 -- !query 8
@@ -161,7 +161,6 @@ GROUP BY course, earnings GROUPING SETS((), (course), (course, earnings)) ORDER 
 -- !query 11 schema
 struct<course:string,sum:bigint>
 -- !query 11 output
-NULL	113000
 Java	20000
 Java	30000
 Java	50000
@@ -169,6 +168,7 @@ dotNET	5000
 dotNET	10000
 dotNET	48000
 dotNET	63000
+NULL	113000
 
 
 -- !query 12
@@ -177,7 +177,6 @@ GROUP BY course, earnings GROUPING SETS((), (course), (course, earnings)) ORDER 
 -- !query 12 schema
 struct<course:string,sum:bigint,grouping_id(course, earnings):int>
 -- !query 12 output
-NULL	113000	3
 Java	20000	0
 Java	30000	0
 Java	50000	1
@@ -185,6 +184,7 @@ dotNET	5000	0
 dotNET	10000	0
 dotNET	48000	0
 dotNET	63000	1
+NULL	113000	3
 
 
 -- !query 13
@@ -244,9 +244,9 @@ HAVING GROUPING(year) = 1 AND GROUPING_ID(course, year) > 0 ORDER BY course, udf
 -- !query 17 schema
 struct<course:string,year:int>
 -- !query 17 output
-NULL	NULL
 Java	NULL
 dotNET	NULL
+NULL	NULL
 
 
 -- !query 18

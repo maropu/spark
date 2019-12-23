@@ -21,6 +21,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.expressions.codegen.Block._
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 import org.apache.spark.util.collection.unsafe.sort.PrefixComparators._
@@ -36,12 +37,24 @@ abstract sealed class NullOrdering {
 
 case object Ascending extends SortDirection {
   override def sql: String = "ASC"
-  override def defaultNullOrdering: NullOrdering = NullsFirst
+  override def defaultNullOrdering: NullOrdering = {
+    if (SQLConf.get.getConf(SQLConf.LEGACY_NULL_FIRST_IN_ORDER_BY)) {
+      NullsFirst
+    } else {
+      NullsLast
+    }
+  }
 }
 
 case object Descending extends SortDirection {
   override def sql: String = "DESC"
-  override def defaultNullOrdering: NullOrdering = NullsLast
+  override def defaultNullOrdering: NullOrdering = {
+    if (SQLConf.get.getConf(SQLConf.LEGACY_NULL_FIRST_IN_ORDER_BY)) {
+      NullsLast
+    } else {
+      NullsFirst
+    }
+  }
 }
 
 case object NullsFirst extends NullOrdering{

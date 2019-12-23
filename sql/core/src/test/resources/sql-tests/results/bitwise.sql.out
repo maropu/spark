@@ -226,7 +226,7 @@ struct<b1:int,bit_xor(b2):int>
 -- !query 26
 SELECT b1, b2, bit_xor(b2) OVER (PARTITION BY b1 ORDER BY b2) FROM bitwise_test
 -- !query 26 schema
-struct<b1:int,b2:int,bit_xor(b2) OVER (PARTITION BY b1 ORDER BY b2 ASC NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):int>
+struct<b1:int,b2:int,bit_xor(b2) OVER (PARTITION BY b1 ORDER BY b2 ASC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):int>
 -- !query 26 output
 1	1	1
 2	3	3

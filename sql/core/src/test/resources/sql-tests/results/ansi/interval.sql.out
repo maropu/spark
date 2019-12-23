@@ -983,7 +983,7 @@ SELECT
     sum(cast(v as interval)) OVER (ORDER BY i ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
 FROM VALUES(1, '1 seconds'), (1, '2 seconds'), (2, NULL), (2, NULL) t(i,v)
 -- !query 104 schema
-struct<i:int,sum(CAST(v AS INTERVAL)) OVER (ORDER BY i ASC NULLS FIRST ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING):interval>
+struct<i:int,sum(CAST(v AS INTERVAL)) OVER (ORDER BY i ASC NULLS LAST ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING):interval>
 -- !query 104 output
 1	2 seconds
 1	3 seconds
@@ -1070,7 +1070,7 @@ SELECT
     avg(cast(v as interval)) OVER (ORDER BY i ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
 FROM VALUES (1,'1 seconds'), (1,'2 seconds'), (2,NULL), (2,NULL) t(i,v)
 -- !query 113 schema
-struct<i:int,avg(CAST(v AS INTERVAL)) OVER (ORDER BY i ASC NULLS FIRST ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING):interval>
+struct<i:int,avg(CAST(v AS INTERVAL)) OVER (ORDER BY i ASC NULLS LAST ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING):interval>
 -- !query 113 output
 1	1.5 seconds
 1	2 seconds

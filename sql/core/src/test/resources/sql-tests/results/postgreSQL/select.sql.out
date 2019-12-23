@@ -375,13 +375,13 @@ SELECT * FROM foo ORDER BY f1
 -- !query 20 schema
 struct<f1:int>
 -- !query 20 output
-NULL
-NULL
 1
 3
 7
 10
 42
+NULL
+NULL
 
 
 -- !query 21
@@ -389,13 +389,13 @@ SELECT * FROM foo ORDER BY f1 ASC
 -- !query 21 schema
 struct<f1:int>
 -- !query 21 output
-NULL
-NULL
 1
 3
 7
 10
 42
+NULL
+NULL
 
 
 -- !query 22
@@ -417,13 +417,13 @@ SELECT * FROM foo ORDER BY f1 DESC
 -- !query 23 schema
 struct<f1:int>
 -- !query 23 output
+NULL
+NULL
 42
 10
 7
 3
 1
-NULL
-NULL
 
 
 -- !query 24

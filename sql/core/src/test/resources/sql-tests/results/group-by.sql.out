@@ -431,16 +431,16 @@ cannot resolve 'bool_or(1.0D)' due to data type mismatch: Input to function 'boo
 -- !query 45
 SELECT k, v, every(v) OVER (PARTITION BY k ORDER BY v) FROM test_agg
 -- !query 45 schema
-struct<k:int,v:boolean,every(v) OVER (PARTITION BY k ORDER BY v ASC NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):boolean>
+struct<k:int,v:boolean,every(v) OVER (PARTITION BY k ORDER BY v ASC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):boolean>
 -- !query 45 output
 1	false	false
 1	true	false
 2	true	true
-3	NULL	NULL
+3	NULL	false
 3	false	false
 4	NULL	NULL
 4	NULL	NULL
-5	NULL	NULL
+5	NULL	false
 5	false	false
 5	true	false
 
@@ -448,16 +448,16 @@ struct<k:int,v:boolean,every(v) OVER (PARTITION BY k ORDER BY v ASC NULLS FIRST 
 -- !query 46
 SELECT k, v, some(v) OVER (PARTITION BY k ORDER BY v) FROM test_agg
 -- !query 46 schema
-struct<k:int,v:boolean,some(v) OVER (PARTITION BY k ORDER BY v ASC NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):boolean>
+struct<k:int,v:boolean,some(v) OVER (PARTITION BY k ORDER BY v ASC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):boolean>
 -- !query 46 output
 1	false	false
 1	true	true
 2	true	true
-3	NULL	NULL
+3	NULL	false
 3	false	false
 4	NULL	NULL
 4	NULL	NULL
-5	NULL	NULL
+5	NULL	true
 5	false	false
 5	true	true
 
@@ -465,16 +465,16 @@ struct<k:int,v:boolean,some(v) OVER (PARTITION BY k ORDER BY v ASC NULLS FIRST R
 -- !query 47
 SELECT k, v, any(v) OVER (PARTITION BY k ORDER BY v) FROM test_agg
 -- !query 47 schema
-struct<k:int,v:boolean,any(v) OVER (PARTITION BY k ORDER BY v ASC NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):boolean>
+struct<k:int,v:boolean,any(v) OVER (PARTITION BY k ORDER BY v ASC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):boolean>
 -- !query 47 output
 1	false	false
 1	true	true
 2	true	true
-3	NULL	NULL
+3	NULL	false
 3	false	false
 4	NULL	NULL
 4	NULL	NULL
-5	NULL	NULL
+5	NULL	true
 5	false	false
 5	true	true
 
@@ -482,16 +482,16 @@ struct<k:int,v:boolean,any(v) OVER (PARTITION BY k ORDER BY v ASC NULLS FIRST RA
 -- !query 48
 SELECT k, v, bool_and(v) OVER (PARTITION BY k ORDER BY v) FROM test_agg
 -- !query 48 schema
-struct<k:int,v:boolean,bool_and(v) OVER (PARTITION BY k ORDER BY v ASC NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):boolean>
+struct<k:int,v:boolean,bool_and(v) OVER (PARTITION BY k ORDER BY v ASC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):boolean>
 -- !query 48 output
 1	false	false
 1	true	false
 2	true	true
-3	NULL	NULL
+3	NULL	false
 3	false	false
 4	NULL	NULL
 4	NULL	NULL
-5	NULL	NULL
+5	NULL	false
 5	false	false
 5	true	false
 
@@ -499,16 +499,16 @@ struct<k:int,v:boolean,bool_and(v) OVER (PARTITION BY k ORDER BY v ASC NULLS FIR
 -- !query 49
 SELECT k, v, bool_or(v) OVER (PARTITION BY k ORDER BY v) FROM test_agg
 -- !query 49 schema
-struct<k:int,v:boolean,bool_or(v) OVER (PARTITION BY k ORDER BY v ASC NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):boolean>
+struct<k:int,v:boolean,bool_or(v) OVER (PARTITION BY k ORDER BY v ASC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):boolean>
 -- !query 49 output
 1	false	false
 1	true	true
 2	true	true
-3	NULL	NULL
+3	NULL	false
 3	false	false
 4	NULL	NULL
 4	NULL	NULL
-5	NULL	NULL
+5	NULL	true
 5	false	false
 5	true	true
 

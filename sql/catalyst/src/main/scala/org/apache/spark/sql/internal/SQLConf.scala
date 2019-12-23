@@ -2105,6 +2105,13 @@ object SQLConf {
         "defined by `from` and `to`.")
       .booleanConf
       .createWithDefault(false)
+
+  val LEGACY_NULL_FIRST_IN_ORDER_BY =
+    buildConf("spark.sql.legacy.nullFirstInOrderBy")
+      .internal()
+      .doc("When true, NULLS LAST is the default for an ascending order.")
+      .booleanConf
+      .createWithDefault(false)
 }
 
 /**

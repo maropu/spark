@@ -545,21 +545,21 @@ struct<tf_12_ff_4:string,f1:boolean,f1:boolean>
 	false	false
 	false	false
 	false	false
+	true	false
+	true	false
+	true	false
+	true	false
+	true	false
+	true	false
+	true	false
+	true	false
+	true	false
+	true	false
+	true	false
+	true	false
 	true	NULL
 	true	NULL
 	true	NULL
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
-	true	false
 
 
 -- !query 61
