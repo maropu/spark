@@ -606,7 +606,7 @@ object Expand {
    * @param attrMap Mapping group by attributes to its index in attributes sequence
    * @return The bitmask which represents the selected attributes out of group by attributes.
    */
-  private def buildBitmask(
+  private[catalyst] def buildBitmask(
     groupingSetAttrs: Seq[Attribute],
     attrMap: Map[Attribute, Int]): Int = {
     val numAttributes = attrMap.size

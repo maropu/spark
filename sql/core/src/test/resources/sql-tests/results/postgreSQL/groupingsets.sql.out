@@ -171,14 +171,10 @@ NULL	NULL	1	1	145	10	19
 select a, b, sum(c), sum(sum(c)) over (order by a,b) as rsum
   from gstest2 group by rollup (a,b) order by rsum, a, b
 -- !query 12 schema
-struct<a:int,b:int,sum(c):bigint,rsum:bigint>
+struct<>
 -- !query 12 output
-NULL	NULL	12	12
-1	NULL	10	22
-1	1	8	30
-1	2	2	32
-2	NULL	2	34
-2	2	2	36
+org.apache.spark.sql.AnalysisException
+grouping expressions sequence is empty, and '`a`' is not an aggregate function. Wrap '(sum(CAST(default.gstest2.`c` AS BIGINT)) AS `sum(c)`, sum(CAST(default.gstest2.`c` AS BIGINT)) AS `_w0`)' in windowing function(s) or wrap '`a`' in first() (or first_value) if you don't care which value you get.;
 
 
 -- !query 13
@@ -194,7 +190,7 @@ select a, b, sum(v), count(*) from gstest_empty group by grouping sets ((a,b),()
 -- !query 14 schema
 struct<a:int,b:int,sum(v):bigint,count(1):bigint>
 -- !query 14 output
-
+NULL	NULL	NULL	0
 
 
 -- !query 15
@@ -202,7 +198,7 @@ select a, b, sum(v), count(*) from gstest_empty group by grouping sets ((a,b),()
 -- !query 15 schema
 struct<a:int,b:int,sum(v):bigint,count(1):bigint>
 -- !query 15 output
-
+NULL	NULL	NULL	0
 
 
 -- !query 16
@@ -210,7 +206,7 @@ select sum(v), count(*) from gstest_empty group by grouping sets ((),(),())
 -- !query 16 schema
 struct<sum(v):bigint,count(1):bigint>
 -- !query 16 output
-
+NULL	0
 
 
 -- !query 17
@@ -219,7 +215,7 @@ select t1.a, t2.b, sum(t1.v), count(*) from gstest_empty t1, gstest_empty t2
 -- !query 17 schema
 struct<a:int,b:int,sum(v):bigint,count(1):bigint>
 -- !query 17 output
-
+NULL	NULL	NULL	0
 
 
 -- !query 18
@@ -428,9 +424,22 @@ select ten, grouping(ten) from onek
 group by rollup(ten) having grouping(ten) > 0
 order by 2,1
 -- !query 32 schema
-struct<ten:int,grouping(ten):tinyint>
+struct<>
 -- !query 32 output
-NULL	1
+org.apache.spark.sql.catalyst.errors.package$TreeNodeException
+Max iterations (100) reached for batch Resolution, tree:
+'Sort [unresolvedordinal(2) ASC NULLS FIRST, unresolvedordinal(1) ASC NULLS FIRST], true
++- !Filter (cast(cast((shiftright(grouping_id() AS grouping__id#29080 AS grouping_id()#29079 AS grouping__id#29078 AS grouping_id()#29077 AS grouping__id#29076 AS grouping_id()#29075 AS grouping__id#29074 AS grouping_id()#29073 AS grouping__id#29072 AS grouping_id()#29071 AS grouping__id#29070 AS grouping_id()#29069 AS grouping__id#29068 AS grouping_id()#29067 AS grouping__id#29066 AS grouping_id()#29065 AS grouping__id#29064 AS grouping_id()#29063 AS grouping__id#29062 AS grouping_id()#29061 AS grouping__id#29060 AS grouping_id()#29059 AS grouping__id#29058 AS grouping_id()#29057 AS grouping__id#29056 AS grouping_id()#29055 AS grouping__id#29054 AS grouping_id()#29053 AS grouping__id#29052 AS grouping_id()#29051 AS grouping__id#29050 AS grouping_id()#29049 AS grouping__id#29048 AS grouping_id()#29047 AS grouping__id#29046 AS grouping_id()#29045 AS grouping__id#29044 AS grouping_id()#29043 AS grouping__id#29042 AS grouping_id()#29041 AS grouping__id#29040 AS grouping_id()#29039 AS grouping__id#29038 AS grouping_id()#29037 AS grouping__id#29036 AS grouping_id()#29035 AS grouping__id#29034 AS grouping_id()#29033 AS grouping__id#29032 AS grouping_id()#29031 AS grouping__id#29030 AS grouping_id()#29029 AS grouping__id#29028 AS grouping_id()#29027 AS grouping__id#29026 AS grouping_id()#29025 AS grouping__id#29024 AS grouping_id()#29023 AS grouping__id#29022 AS grouping_id()#29021 AS grouping__id#29020 AS grouping_id()#29019 AS grouping__id#29018 AS grouping_id()#29017 AS grouping__id#29016 AS grouping_id()#29015 AS grouping__id#29014 AS grouping_id()#29013 AS grouping__id#29012 AS grouping_id()#29011 AS grouping__id#29010 AS grouping_id()#29009 AS grouping__id#29008 AS grouping_id()#29007 AS grouping__id#29006 AS grouping_id()#29005 AS grouping__id#29004 AS grouping_id()#29003 AS grouping__id#29002 AS grouping_id()#29001 AS grouping__id#29000 AS grouping_id()#28999 AS grouping__id#28998 AS grouping_id()#28997 AS grouping__id#28996 AS grouping_id()#28995 AS grouping__id#28994 AS grouping_id()#28993 AS grouping__id#28992 AS grouping_id()#28991 AS grouping__id#28990 AS grouping_id()#28989 AS grouping__id#28988 AS grouping_id()#28987 AS grouping__id#28986 AS grouping_id()#28985 AS grouping__id#28984 AS grouping_id()#28983 AS grouping__id#28982 AS grouping_id()#28981 AS grouping__id#28980 AS grouping_id()#28979 AS grouping__id#28978 AS grouping_id()#28977 AS grouping__id#28976 AS grouping_id()#28975 AS grouping__id#28974 AS grouping_id()#28973 AS grouping__id#28972 AS grouping_id()#28971 AS grouping__id#28970 AS grouping_id()#28969 AS grouping__id#28968 AS grouping_id()#28967 AS grouping__id#28966 AS grouping_id()#28965 AS grouping__id#28964 AS grouping_id()#28963 AS grouping__id#28962 AS grouping_id()#28961 AS grouping__id#28960 AS grouping_id()#28959 AS grouping__id#28958 AS grouping_id()#28957 AS grouping__id#28956 AS grouping_id()#28955 AS grouping__id#28954 AS grouping_id()#28953 AS grouping__id#28952 AS grouping_id()#28951 AS grouping__id#28950 AS grouping_id()#28949 AS grouping__id#28948 AS grouping_id()#28947 AS grouping__id#28946 AS grouping_id()#28945 AS grouping__id#28944 AS grouping_id()#28943 AS grouping__id#28942 AS grouping_id()#28941 AS grouping__id#28940 AS grouping_id()#28939 AS grouping__id#28938 AS grouping_id()#28937 AS grouping__id#28936 AS grouping_id()#28935 AS grouping__id#28934 AS grouping_id()#28933 AS grouping__id#28932 AS grouping_id()#28931 AS grouping__id#28930 AS grouping_id()#28929 AS grouping__id#28928 AS grouping_id()#28927 AS grouping__id#28926 AS grouping_id()#28925 AS grouping__id#28924 AS grouping_id()#28923 AS grouping__id#28922 AS grouping_id()#28921 AS grouping__id#28920 AS grouping_id()#28919 AS grouping__id#28918 AS grouping_id()#28917 AS grouping__id#28916 AS grouping_id()#28915 AS grouping__id#28914 AS grouping_id()#28913 AS grouping__id#28912 AS grouping_id()#28911 AS grouping__id#28910 AS grouping_id()#28909 AS grouping__id#28908 AS grouping_id()#28907 AS grouping__id#28906 AS grouping_id()#28905 AS grouping__id#28904 AS grouping_id()#28903 AS grouping__id#28902 AS grouping_id()#28901 AS grouping__id#28900 AS grouping_id()#28899 AS grouping__id#28898 AS grouping_id()#28897 AS grouping__id#28896 AS grouping_id()#28895 AS grouping__id#28894 AS grouping_id()#28893 AS grouping__id#28892 AS grouping_id()#28891 AS grouping__id#28890 AS grouping_id()#28889 AS grouping__id#28888 AS grouping_id()#28887 AS grouping__id#28886, 0) & 1) as tinyint) AS grouping(ten)#28885 as int) > 0)
+   +- Union
+      :- Aggregate [ten#28878, spark_grouping_id#28876], [ten#28878, cast((shiftright(spark_grouping_id#28876, 0) & 1) as tinyint) AS grouping(ten)#28879 AS grouping(ten)#28875]
+      :  +- Expand [List(unique1#28209, unique2#28210, two#28211, four#28212, ten#28213, twenty#28214, hundred#28215, thousand#28216, twothousand#28217, fivethous#28218, tenthous#28219, odd#28220, even#28221, stringu1#28222, stringu2#28223, string4#28224, ten#28877, 0)], [unique1#28209, unique2#28210, two#28211, four#28212, ten#28213, twenty#28214, hundred#28215, thousand#28216, twothousand#28217, fivethous#28218, tenthous#28219, odd#28220, even#28221, stringu1#28222, stringu2#28223, string4#28224, ten#28878, spark_grouping_id#28876]
+      :     +- Project [unique1#28209, unique2#28210, two#28211, four#28212, ten#28213, twenty#28214, hundred#28215, thousand#28216, twothousand#28217, fivethous#28218, tenthous#28219, odd#28220, even#28221, stringu1#28222, stringu2#28223, string4#28224, ten#28213 AS ten#28877]
+      :        +- SubqueryAlias `onek`
+      :           +- RelationV2[unique1#28209, unique2#28210, two#28211, four#28212, ten#28213, twenty#28214, hundred#28215, thousand#28216, twothousand#28217, fivethous#28218, tenthous#28219, odd#28220, even#28221, stringu1#28222, stringu2#28223, string4#28224] csv file:/Users/maropu/Repositories/spark/spark-master/sql/core/target/scala-2.12/test-classes/test-data/postgresql/onek.data
+      +- Project [ten#28881 AS ten#28883, grouping(ten)#28875 AS grouping(ten)#28884]
+         +- Aggregate [null AS ten#28881, cast((shiftright(3 AS gid#28880, 0) & 1) as tinyint) AS grouping(ten)#28882 AS grouping(ten)#28875]
+            +- SubqueryAlias `onek`
+               +- RelationV2[unique1#28209, unique2#28210, two#28211, four#28212, ten#28213, twenty#28214, hundred#28215, thousand#28216, twothousand#28217, fivethous#28218, tenthous#28219, odd#28220, even#28221, stringu1#28222, stringu2#28223, string4#28224] csv file:/Users/maropu/Repositories/spark/spark-master/sql/core/target/scala-2.12/test-classes/test-data/postgresql/onek.data
 
 
 -- !query 33
@@ -438,9 +447,22 @@ select ten, grouping(ten) from onek
 group by cube(ten) having grouping(ten) > 0
 order by 2,1
 -- !query 33 schema
-struct<ten:int,grouping(ten):tinyint>
+struct<>
 -- !query 33 output
-NULL	1
+org.apache.spark.sql.catalyst.errors.package$TreeNodeException
+Max iterations (100) reached for batch Resolution, tree:
+'Sort [unresolvedordinal(2) ASC NULLS FIRST, unresolvedordinal(1) ASC NULLS FIRST], true
++- !Filter (cast(cast((shiftright(grouping_id() AS grouping__id#29286 AS grouping_id()#29285 AS grouping__id#29284 AS grouping_id()#29283 AS grouping__id#29282 AS grouping_id()#29281 AS grouping__id#29280 AS grouping_id()#29279 AS grouping__id#29278 AS grouping_id()#29277 AS grouping__id#29276 AS grouping_id()#29275 AS grouping__id#29274 AS grouping_id()#29273 AS grouping__id#29272 AS grouping_id()#29271 AS grouping__id#29270 AS grouping_id()#29269 AS grouping__id#29268 AS grouping_id()#29267 AS grouping__id#29266 AS grouping_id()#29265 AS grouping__id#29264 AS grouping_id()#29263 AS grouping__id#29262 AS grouping_id()#29261 AS grouping__id#29260 AS grouping_id()#29259 AS grouping__id#29258 AS grouping_id()#29257 AS grouping__id#29256 AS grouping_id()#29255 AS grouping__id#29254 AS grouping_id()#29253 AS grouping__id#29252 AS grouping_id()#29251 AS grouping__id#29250 AS grouping_id()#29249 AS grouping__id#29248 AS grouping_id()#29247 AS grouping__id#29246 AS grouping_id()#29245 AS grouping__id#29244 AS grouping_id()#29243 AS grouping__id#29242 AS grouping_id()#29241 AS grouping__id#29240 AS grouping_id()#29239 AS grouping__id#29238 AS grouping_id()#29237 AS grouping__id#29236 AS grouping_id()#29235 AS grouping__id#29234 AS grouping_id()#29233 AS grouping__id#29232 AS grouping_id()#29231 AS grouping__id#29230 AS grouping_id()#29229 AS grouping__id#29228 AS grouping_id()#29227 AS grouping__id#29226 AS grouping_id()#29225 AS grouping__id#29224 AS grouping_id()#29223 AS grouping__id#29222 AS grouping_id()#29221 AS grouping__id#29220 AS grouping_id()#29219 AS grouping__id#29218 AS grouping_id()#29217 AS grouping__id#29216 AS grouping_id()#29215 AS grouping__id#29214 AS grouping_id()#29213 AS grouping__id#29212 AS grouping_id()#29211 AS grouping__id#29210 AS grouping_id()#29209 AS grouping__id#29208 AS grouping_id()#29207 AS grouping__id#29206 AS grouping_id()#29205 AS grouping__id#29204 AS grouping_id()#29203 AS grouping__id#29202 AS grouping_id()#29201 AS grouping__id#29200 AS grouping_id()#29199 AS grouping__id#29198 AS grouping_id()#29197 AS grouping__id#29196 AS grouping_id()#29195 AS grouping__id#29194 AS grouping_id()#29193 AS grouping__id#29192 AS grouping_id()#29191 AS grouping__id#29190 AS grouping_id()#29189 AS grouping__id#29188 AS grouping_id()#29187 AS grouping__id#29186 AS grouping_id()#29185 AS grouping__id#29184 AS grouping_id()#29183 AS grouping__id#29182 AS grouping_id()#29181 AS grouping__id#29180 AS grouping_id()#29179 AS grouping__id#29178 AS grouping_id()#29177 AS grouping__id#29176 AS grouping_id()#29175 AS grouping__id#29174 AS grouping_id()#29173 AS grouping__id#29172 AS grouping_id()#29171 AS grouping__id#29170 AS grouping_id()#29169 AS grouping__id#29168 AS grouping_id()#29167 AS grouping__id#29166 AS grouping_id()#29165 AS grouping__id#29164 AS grouping_id()#29163 AS grouping__id#29162 AS grouping_id()#29161 AS grouping__id#29160 AS grouping_id()#29159 AS grouping__id#29158 AS grouping_id()#29157 AS grouping__id#29156 AS grouping_id()#29155 AS grouping__id#29154 AS grouping_id()#29153 AS grouping__id#29152 AS grouping_id()#29151 AS grouping__id#29150 AS grouping_id()#29149 AS grouping__id#29148 AS grouping_id()#29147 AS grouping__id#29146 AS grouping_id()#29145 AS grouping__id#29144 AS grouping_id()#29143 AS grouping__id#29142 AS grouping_id()#29141 AS grouping__id#29140 AS grouping_id()#29139 AS grouping__id#29138 AS grouping_id()#29137 AS grouping__id#29136 AS grouping_id()#29135 AS grouping__id#29134 AS grouping_id()#29133 AS grouping__id#29132 AS grouping_id()#29131 AS grouping__id#29130 AS grouping_id()#29129 AS grouping__id#29128 AS grouping_id()#29127 AS grouping__id#29126 AS grouping_id()#29125 AS grouping__id#29124 AS grouping_id()#29123 AS grouping__id#29122 AS grouping_id()#29121 AS grouping__id#29120 AS grouping_id()#29119 AS grouping__id#29118 AS grouping_id()#29117 AS grouping__id#29116 AS grouping_id()#29115 AS grouping__id#29114 AS grouping_id()#29113 AS grouping__id#29112 AS grouping_id()#29111 AS grouping__id#29110 AS grouping_id()#29109 AS grouping__id#29108 AS grouping_id()#29107 AS grouping__id#29106 AS grouping_id()#29105 AS grouping__id#29104 AS grouping_id()#29103 AS grouping__id#29102 AS grouping_id()#29101 AS grouping__id#29100 AS grouping_id()#29099 AS grouping__id#29098 AS grouping_id()#29097 AS grouping__id#29096 AS grouping_id()#29095 AS grouping__id#29094 AS grouping_id()#29093 AS grouping__id#29092, 0) & 1) as tinyint) AS grouping(ten)#29091 as int) > 0)
+   +- Union
+      :- Aggregate [ten#29084, spark_grouping_id#29082], [ten#29084, cast((shiftright(spark_grouping_id#29082, 0) & 1) as tinyint) AS grouping(ten)#29085 AS grouping(ten)#29081]
+      :  +- Expand [List(unique1#28209, unique2#28210, two#28211, four#28212, ten#28213, twenty#28214, hundred#28215, thousand#28216, twothousand#28217, fivethous#28218, tenthous#28219, odd#28220, even#28221, stringu1#28222, stringu2#28223, string4#28224, ten#29083, 0)], [unique1#28209, unique2#28210, two#28211, four#28212, ten#28213, twenty#28214, hundred#28215, thousand#28216, twothousand#28217, fivethous#28218, tenthous#28219, odd#28220, even#28221, stringu1#28222, stringu2#28223, string4#28224, ten#29084, spark_grouping_id#29082]
+      :     +- Project [unique1#28209, unique2#28210, two#28211, four#28212, ten#28213, twenty#28214, hundred#28215, thousand#28216, twothousand#28217, fivethous#28218, tenthous#28219, odd#28220, even#28221, stringu1#28222, stringu2#28223, string4#28224, ten#28213 AS ten#29083]
+      :        +- SubqueryAlias `onek`
+      :           +- RelationV2[unique1#28209, unique2#28210, two#28211, four#28212, ten#28213, twenty#28214, hundred#28215, thousand#28216, twothousand#28217, fivethous#28218, tenthous#28219, odd#28220, even#28221, stringu1#28222, stringu2#28223, string4#28224] csv file:/Users/maropu/Repositories/spark/spark-master/sql/core/target/scala-2.12/test-classes/test-data/postgresql/onek.data
+      +- Project [ten#29087 AS ten#29089, grouping(ten)#29081 AS grouping(ten)#29090]
+         +- Aggregate [null AS ten#29087, cast((shiftright(3 AS gid#29086, 0) & 1) as tinyint) AS grouping(ten)#29088 AS grouping(ten)#29081]
+            +- SubqueryAlias `onek`
+               +- RelationV2[unique1#28209, unique2#28210, two#28211, four#28212, ten#28213, twenty#28214, hundred#28215, thousand#28216, twothousand#28217, fivethous#28218, tenthous#28219, odd#28220, even#28221, stringu1#28222, stringu2#28223, string4#28224] csv file:/Users/maropu/Repositories/spark/spark-master/sql/core/target/scala-2.12/test-classes/test-data/postgresql/onek.data
 
 
 -- !query 34
@@ -571,7 +593,7 @@ select a, b, sum(v), count(*) from gstest_empty group by grouping sets ((a,b),()
 -- !query 41 schema
 struct<a:int,b:int,sum(v):bigint,count(1):bigint>
 -- !query 41 output
-
+NULL	NULL	NULL	0
 
 
 -- !query 42
@@ -579,7 +601,7 @@ select a, b, sum(v), count(*) from gstest_empty group by grouping sets ((a,b),()
 -- !query 42 schema
 struct<a:int,b:int,sum(v):bigint,count(1):bigint>
 -- !query 42 output
-
+NULL	NULL	NULL	0
 
 
 -- !query 43
@@ -587,7 +609,7 @@ select sum(v), count(*) from gstest_empty group by grouping sets ((),(),())
 -- !query 43 schema
 struct<sum(v):bigint,count(1):bigint>
 -- !query 43 output
-
+NULL	0
 
 
 -- !query 44
@@ -623,16 +645,10 @@ NULL	NULL	1	1	37	2	19
 select a, b, sum(c), sum(sum(c)) over (order by a,b) as rsum
   from gstest2 group by cube (a,b) order by rsum, a, b
 -- !query 45 schema
-struct<a:int,b:int,sum(c):bigint,rsum:bigint>
+struct<>
 -- !query 45 output
-NULL	NULL	12	12
-NULL	1	8	20
-NULL	2	4	24
-1	NULL	10	34
-1	1	8	42
-1	2	2	44
-2	NULL	2	46
-2	2	2	48
+org.apache.spark.sql.AnalysisException
+grouping expressions sequence is empty, and '`a`' is not an aggregate function. Wrap '(sum(CAST(default.gstest2.`c` AS BIGINT)) AS `sum(c)`, sum(CAST(default.gstest2.`c` AS BIGINT)) AS `_w0`)' in windowing function(s) or wrap '`a`' in first() (or first_value) if you don't care which value you get.;
 
 
 -- !query 46

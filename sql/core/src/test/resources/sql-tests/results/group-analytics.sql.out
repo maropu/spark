@@ -177,7 +177,7 @@ GROUP BY course, earnings GROUPING SETS((), (course), (course, earnings)) ORDER 
 -- !query 12 schema
 struct<course:string,sum:bigint,grouping_id(course, earnings):int>
 -- !query 12 output
-NULL	113000	3
+NULL	113000	7
 Java	20000	0
 Java	30000	0
 Java	50000	1
@@ -198,7 +198,7 @@ Java	2013	0	0	0
 Java	NULL	0	1	1
 NULL	2012	1	0	2
 NULL	2013	1	0	2
-NULL	NULL	1	1	3
+NULL	NULL	1	1	7
 dotNET	2012	0	0	0
 dotNET	2013	0	0	0
 dotNET	NULL	0	1	1
@@ -235,18 +235,32 @@ Java	NULL	1
 dotNET	NULL	1
 NULL	2012	2
 NULL	2013	2
-NULL	NULL	3
+NULL	NULL	7
 
 
 -- !query 17
 SELECT course, year FROM courseSales GROUP BY CUBE(course, year)
 HAVING GROUPING(year) = 1 AND GROUPING_ID(course, year) > 0 ORDER BY course, year
 -- !query 17 schema
-struct<course:string,year:int>
+struct<>
 -- !query 17 output
-NULL	NULL
-Java	NULL
-dotNET	NULL
+org.apache.spark.sql.catalyst.errors.package$TreeNodeException
+Max iterations (100) reached for batch Resolution, tree:
+Sort [course#7747 ASC NULLS FIRST, year#7748 ASC NULLS FIRST], true
++- !Filter ((cast(cast((shiftright(grouping_id() AS grouping__id#8142 AS grouping_id()#8140 AS grouping__id#8138 AS grouping_id()#8136 AS grouping__id#8134 AS grouping_id()#8132 AS grouping__id#8130 AS grouping_id()#8128 AS grouping__id#8126 AS grouping_id()#8124 AS grouping__id#8122 AS grouping_id()#8120 AS grouping__id#8118 AS grouping_id()#8116 AS grouping__id#8114 AS grouping_id()#8112 AS grouping__id#8110 AS grouping_id()#8108 AS grouping__id#8106 AS grouping_id()#8104 AS grouping__id#8102 AS grouping_id()#8100 AS grouping__id#8098 AS grouping_id()#8096 AS grouping__id#8094 AS grouping_id()#8092 AS grouping__id#8090 AS grouping_id()#8088 AS grouping__id#8086 AS grouping_id()#8084 AS grouping__id#8082 AS grouping_id()#8080 AS grouping__id#8078 AS grouping_id()#8076 AS grouping__id#8074 AS grouping_id()#8072 AS grouping__id#8070 AS grouping_id()#8068 AS grouping__id#8066 AS grouping_id()#8064 AS grouping__id#8062 AS grouping_id()#8060 AS grouping__id#8058 AS grouping_id()#8056 AS grouping__id#8054 AS grouping_id()#8052 AS grouping__id#8050 AS grouping_id()#8048 AS grouping__id#8046 AS grouping_id()#8044 AS grouping__id#8042 AS grouping_id()#8040 AS grouping__id#8038 AS grouping_id()#8036 AS grouping__id#8034 AS grouping_id()#8032 AS grouping__id#8030 AS grouping_id()#8028 AS grouping__id#8026 AS grouping_id()#8024 AS grouping__id#8022 AS grouping_id()#8020 AS grouping__id#8018 AS grouping_id()#8016 AS grouping__id#8014 AS grouping_id()#8012 AS grouping__id#8010 AS grouping_id()#8008 AS grouping__id#8006 AS grouping_id()#8004 AS grouping__id#8002 AS grouping_id()#8000 AS grouping__id#7998 AS grouping_id()#7996 AS grouping__id#7994 AS grouping_id()#7992 AS grouping__id#7990 AS grouping_id()#7988 AS grouping__id#7986 AS grouping_id()#7984 AS grouping__id#7982 AS grouping_id()#7980 AS grouping__id#7978 AS grouping_id()#7976 AS grouping__id#7974 AS grouping_id()#7972 AS grouping__id#7970 AS grouping_id()#7968 AS grouping__id#7966 AS grouping_id()#7964 AS grouping__id#7962 AS grouping_id()#7960 AS grouping__id#7958 AS grouping_id()#7956 AS grouping__id#7954 AS grouping_id()#7952 AS grouping__id#7950 AS grouping_id()#7948 AS grouping__id#7946 AS grouping_id()#7944 AS grouping__id#7942 AS grouping_id()#7940 AS grouping__id#7938 AS grouping_id()#7936 AS grouping__id#7934 AS grouping_id()#7932 AS grouping__id#7930 AS grouping_id()#7928 AS grouping__id#7926 AS grouping_id()#7924 AS grouping__id#7922 AS grouping_id()#7920 AS grouping__id#7918 AS grouping_id()#7916 AS grouping__id#7914 AS grouping_id()#7912 AS grouping__id#7910 AS grouping_id()#7908 AS grouping__id#7906 AS grouping_id()#7904 AS grouping__id#7902 AS grouping_id()#7900 AS grouping__id#7898 AS grouping_id()#7896 AS grouping__id#7894 AS grouping_id()#7892 AS grouping__id#7890 AS grouping_id()#7888 AS grouping__id#7886 AS grouping_id()#7884 AS grouping__id#7882 AS grouping_id()#7880 AS grouping__id#7878 AS grouping_id()#7876 AS grouping__id#7874 AS grouping_id()#7872 AS grouping__id#7870 AS grouping_id()#7868 AS grouping__id#7866 AS grouping_id()#7864 AS grouping__id#7862 AS grouping_id()#7860 AS grouping__id#7858 AS grouping_id()#7856 AS grouping__id#7854 AS grouping_id()#7852 AS grouping__id#7850 AS grouping_id()#7848 AS grouping__id#7846 AS grouping_id()#7844 AS grouping__id#7842 AS grouping_id()#7840 AS grouping__id#7838 AS grouping_id()#7836 AS grouping__id#7834 AS grouping_id()#7832 AS grouping__id#7830 AS grouping_id()#7828 AS grouping__id#7826 AS grouping_id()#7824 AS grouping__id#7822 AS grouping_id()#7820 AS grouping__id#7818 AS grouping_id()#7816 AS grouping__id#7814 AS grouping_id()#7812 AS grouping__id#7810 AS grouping_id()#7808 AS grouping__id#7806 AS grouping_id()#7804 AS grouping__id#7802 AS grouping_id()#7800 AS grouping__id#7798 AS grouping_id()#7796 AS grouping__id#7794 AS grouping_id()#7792 AS grouping__id#7790 AS grouping_id()#7788 AS grouping__id#7786 AS grouping_id()#7784 AS grouping__id#7782 AS grouping_id()#7780 AS grouping__id#7778 AS grouping_id()#7776 AS grouping__id#7774 AS grouping_id()#7772 AS grouping__id#7770 AS grouping_id()#7768 AS grouping__id#7766 AS grouping_id()#7764 AS grouping__id#7762 AS grouping_id()#7760 AS grouping__id#7758 AS grouping_id()#7756 AS grouping__id#7754, 0) & 1) as tinyint) AS grouping(year)#7752 as int) = 1) AND (grouping_id() AS grouping__id#8143 AS grouping_id()#8141 AS grouping__id#8139 AS grouping_id()#8137 AS grouping__id#8135 AS grouping_id()#8133 AS grouping__id#8131 AS grouping_id()#8129 AS grouping__id#8127 AS grouping_id()#8125 AS grouping__id#8123 AS grouping_id()#8121 AS grouping__id#8119 AS grouping_id()#8117 AS grouping__id#8115 AS grouping_id()#8113 AS grouping__id#8111 AS grouping_id()#8109 AS grouping__id#8107 AS grouping_id()#8105 AS grouping__id#8103 AS grouping_id()#8101 AS grouping__id#8099 AS grouping_id()#8097 AS grouping__id#8095 AS grouping_id()#8093 AS grouping__id#8091 AS grouping_id()#8089 AS grouping__id#8087 AS grouping_id()#8085 AS grouping__id#8083 AS grouping_id()#8081 AS grouping__id#8079 AS grouping_id()#8077 AS grouping__id#8075 AS grouping_id()#8073 AS grouping__id#8071 AS grouping_id()#8069 AS grouping__id#8067 AS grouping_id()#8065 AS grouping__id#8063 AS grouping_id()#8061 AS grouping__id#8059 AS grouping_id()#8057 AS grouping__id#8055 AS grouping_id()#8053 AS grouping__id#8051 AS grouping_id()#8049 AS grouping__id#8047 AS grouping_id()#8045 AS grouping__id#8043 AS grouping_id()#8041 AS grouping__id#8039 AS grouping_id()#8037 AS grouping__id#8035 AS grouping_id()#8033 AS grouping__id#8031 AS grouping_id()#8029 AS grouping__id#8027 AS grouping_id()#8025 AS grouping__id#8023 AS grouping_id()#8021 AS grouping__id#8019 AS grouping_id()#8017 AS grouping__id#8015 AS grouping_id()#8013 AS grouping__id#8011 AS grouping_id()#8009 AS grouping__id#8007 AS grouping_id()#8005 AS grouping__id#8003 AS grouping_id()#8001 AS grouping__id#7999 AS grouping_id()#7997 AS grouping__id#7995 AS grouping_id()#7993 AS grouping__id#7991 AS grouping_id()#7989 AS grouping__id#7987 AS grouping_id()#7985 AS grouping__id#7983 AS grouping_id()#7981 AS grouping__id#7979 AS grouping_id()#7977 AS grouping__id#7975 AS grouping_id()#7973 AS grouping__id#7971 AS grouping_id()#7969 AS grouping__id#7967 AS grouping_id()#7965 AS grouping__id#7963 AS grouping_id()#7961 AS grouping__id#7959 AS grouping_id()#7957 AS grouping__id#7955 AS grouping_id()#7953 AS grouping__id#7951 AS grouping_id()#7949 AS grouping__id#7947 AS grouping_id()#7945 AS grouping__id#7943 AS grouping_id()#7941 AS grouping__id#7939 AS grouping_id()#7937 AS grouping__id#7935 AS grouping_id()#7933 AS grouping__id#7931 AS grouping_id()#7929 AS grouping__id#7927 AS grouping_id()#7925 AS grouping__id#7923 AS grouping_id()#7921 AS grouping__id#7919 AS grouping_id()#7917 AS grouping__id#7915 AS grouping_id()#7913 AS grouping__id#7911 AS grouping_id()#7909 AS grouping__id#7907 AS grouping_id()#7905 AS grouping__id#7903 AS grouping_id()#7901 AS grouping__id#7899 AS grouping_id()#7897 AS grouping__id#7895 AS grouping_id()#7893 AS grouping__id#7891 AS grouping_id()#7889 AS grouping__id#7887 AS grouping_id()#7885 AS grouping__id#7883 AS grouping_id()#7881 AS grouping__id#7879 AS grouping_id()#7877 AS grouping__id#7875 AS grouping_id()#7873 AS grouping__id#7871 AS grouping_id()#7869 AS grouping__id#7867 AS grouping_id()#7865 AS grouping__id#7863 AS grouping_id()#7861 AS grouping__id#7859 AS grouping_id()#7857 AS grouping__id#7855 AS grouping_id()#7853 AS grouping__id#7851 AS grouping_id()#7849 AS grouping__id#7847 AS grouping_id()#7845 AS grouping__id#7843 AS grouping_id()#7841 AS grouping__id#7839 AS grouping_id()#7837 AS grouping__id#7835 AS grouping_id()#7833 AS grouping__id#7831 AS grouping_id()#7829 AS grouping__id#7827 AS grouping_id()#7825 AS grouping__id#7823 AS grouping_id()#7821 AS grouping__id#7819 AS grouping_id()#7817 AS grouping__id#7815 AS grouping_id()#7813 AS grouping__id#7811 AS grouping_id()#7809 AS grouping__id#7807 AS grouping_id()#7805 AS grouping__id#7803 AS grouping_id()#7801 AS grouping__id#7799 AS grouping_id()#7797 AS grouping__id#7795 AS grouping_id()#7793 AS grouping__id#7791 AS grouping_id()#7789 AS grouping__id#7787 AS grouping_id()#7785 AS grouping__id#7783 AS grouping_id()#7781 AS grouping__id#7779 AS grouping_id()#7777 AS grouping__id#7775 AS grouping_id()#7773 AS grouping__id#7771 AS grouping_id()#7769 AS grouping__id#7767 AS grouping_id()#7765 AS grouping__id#7763 AS grouping_id()#7761 AS grouping__id#7759 AS grouping_id()#7757 AS grouping__id#7755 AS grouping_id(course, year)#7753 > 0))
+   +- Union
+      :- Aggregate [course#7747, year#7748, spark_grouping_id#7744], [course#7747, year#7748]
+      :  +- Expand [List(course#7578, year#7579, earnings#7580, course#7745, year#7746, 0), List(course#7578, year#7579, earnings#7580, course#7745, null, 1), List(course#7578, year#7579, earnings#7580, null, year#7746, 2)], [course#7578, year#7579, earnings#7580, course#7747, year#7748, spark_grouping_id#7744]
+      :     +- Project [course#7578, year#7579, earnings#7580, course#7578 AS course#7745, year#7579 AS year#7746]
+      :        +- SubqueryAlias `coursesales`
+      :           +- Project [course#7578, year#7579, earnings#7580]
+      :              +- SubqueryAlias `courseSales`
+      :                 +- LocalRelation [course#7578, year#7579, earnings#7580]
+      +- Aggregate [null AS course#7750, null AS year#7751]
+         +- SubqueryAlias `coursesales`
+            +- Project [course#7578, year#7579, earnings#7580]
+               +- SubqueryAlias `courseSales`
+                  +- LocalRelation [course#7578, year#7579, earnings#7580]
 
 
 -- !query 18
@@ -270,47 +284,74 @@ grouping()/grouping_id() can only be used with GroupingSets/Cube/Rollup;
 -- !query 20
 SELECT course, year FROM courseSales GROUP BY CUBE(course, year) HAVING grouping__id > 0
 -- !query 20 schema
-struct<course:string,year:int>
+struct<>
 -- !query 20 output
-Java	NULL
-NULL	2012
-NULL	2013
-NULL	NULL
-dotNET	NULL
+org.apache.spark.sql.catalyst.errors.package$TreeNodeException
+Max iterations (100) reached for batch Resolution, tree:
+!Filter (grouping_id() AS grouping__id#8352 AS grouping_id()#8351 AS grouping__id#8350 AS grouping_id()#8349 AS grouping__id#8348 AS grouping_id()#8347 AS grouping__id#8346 AS grouping_id()#8345 AS grouping__id#8344 AS grouping_id()#8343 AS grouping__id#8342 AS grouping_id()#8341 AS grouping__id#8340 AS grouping_id()#8339 AS grouping__id#8338 AS grouping_id()#8337 AS grouping__id#8336 AS grouping_id()#8335 AS grouping__id#8334 AS grouping_id()#8333 AS grouping__id#8332 AS grouping_id()#8331 AS grouping__id#8330 AS grouping_id()#8329 AS grouping__id#8328 AS grouping_id()#8327 AS grouping__id#8326 AS grouping_id()#8325 AS grouping__id#8324 AS grouping_id()#8323 AS grouping__id#8322 AS grouping_id()#8321 AS grouping__id#8320 AS grouping_id()#8319 AS grouping__id#8318 AS grouping_id()#8317 AS grouping__id#8316 AS grouping_id()#8315 AS grouping__id#8314 AS grouping_id()#8313 AS grouping__id#8312 AS grouping_id()#8311 AS grouping__id#8310 AS grouping_id()#8309 AS grouping__id#8308 AS grouping_id()#8307 AS grouping__id#8306 AS grouping_id()#8305 AS grouping__id#8304 AS grouping_id()#8303 AS grouping__id#8302 AS grouping_id()#8301 AS grouping__id#8300 AS grouping_id()#8299 AS grouping__id#8298 AS grouping_id()#8297 AS grouping__id#8296 AS grouping_id()#8295 AS grouping__id#8294 AS grouping_id()#8293 AS grouping__id#8292 AS grouping_id()#8291 AS grouping__id#8290 AS grouping_id()#8289 AS grouping__id#8288 AS grouping_id()#8287 AS grouping__id#8286 AS grouping_id()#8285 AS grouping__id#8284 AS grouping_id()#8283 AS grouping__id#8282 AS grouping_id()#8281 AS grouping__id#8280 AS grouping_id()#8279 AS grouping__id#8278 AS grouping_id()#8277 AS grouping__id#8276 AS grouping_id()#8275 AS grouping__id#8274 AS grouping_id()#8273 AS grouping__id#8272 AS grouping_id()#8271 AS grouping__id#8270 AS grouping_id()#8269 AS grouping__id#8268 AS grouping_id()#8267 AS grouping__id#8266 AS grouping_id()#8265 AS grouping__id#8264 AS grouping_id()#8263 AS grouping__id#8262 AS grouping_id()#8261 AS grouping__id#8260 AS grouping_id()#8259 AS grouping__id#8258 AS grouping_id()#8257 AS grouping__id#8256 AS grouping_id()#8255 AS grouping__id#8254 AS grouping_id()#8253 AS grouping__id#8252 AS grouping_id()#8251 AS grouping__id#8250 AS grouping_id()#8249 AS grouping__id#8248 AS grouping_id()#8247 AS grouping__id#8246 AS grouping_id()#8245 AS grouping__id#8244 AS grouping_id()#8243 AS grouping__id#8242 AS grouping_id()#8241 AS grouping__id#8240 AS grouping_id()#8239 AS grouping__id#8238 AS grouping_id()#8237 AS grouping__id#8236 AS grouping_id()#8235 AS grouping__id#8234 AS grouping_id()#8233 AS grouping__id#8232 AS grouping_id()#8231 AS grouping__id#8230 AS grouping_id()#8229 AS grouping__id#8228 AS grouping_id()#8227 AS grouping__id#8226 AS grouping_id()#8225 AS grouping__id#8224 AS grouping_id()#8223 AS grouping__id#8222 AS grouping_id()#8221 AS grouping__id#8220 AS grouping_id()#8219 AS grouping__id#8218 AS grouping_id()#8217 AS grouping__id#8216 AS grouping_id()#8215 AS grouping__id#8214 AS grouping_id()#8213 AS grouping__id#8212 AS grouping_id()#8211 AS grouping__id#8210 AS grouping_id()#8209 AS grouping__id#8208 AS grouping_id()#8207 AS grouping__id#8206 AS grouping_id()#8205 AS grouping__id#8204 AS grouping_id()#8203 AS grouping__id#8202 AS grouping_id()#8201 AS grouping__id#8200 AS grouping_id()#8199 AS grouping__id#8198 AS grouping_id()#8197 AS grouping__id#8196 AS grouping_id()#8195 AS grouping__id#8194 AS grouping_id()#8193 AS grouping__id#8192 AS grouping_id()#8191 AS grouping__id#8190 AS grouping_id()#8189 AS grouping__id#8188 AS grouping_id()#8187 AS grouping__id#8186 AS grouping_id()#8185 AS grouping__id#8184 AS grouping_id()#8183 AS grouping__id#8182 AS grouping_id()#8181 AS grouping__id#8180 AS grouping_id()#8179 AS grouping__id#8178 AS grouping_id()#8177 AS grouping__id#8176 AS grouping_id()#8175 AS grouping__id#8174 AS grouping_id()#8173 AS grouping__id#8172 AS grouping_id()#8171 AS grouping__id#8170 AS grouping_id()#8169 AS grouping__id#8168 AS grouping_id()#8167 AS grouping__id#8166 AS grouping_id()#8165 AS grouping__id#8164 AS grouping_id()#8163 AS grouping__id#8162 AS grouping_id()#8161 AS grouping__id#8160 AS grouping_id()#8159 AS grouping__id#8158 AS grouping_id()#8157 AS grouping__id#8156 AS grouping_id()#8155 AS grouping__id#8146 > 0)
++- Union
+   :- Aggregate [course#8150, year#8151, spark_grouping_id#8147], [course#8150, year#8151]
+   :  +- Expand [List(course#7578, year#7579, earnings#7580, course#8148, year#8149, 0), List(course#7578, year#7579, earnings#7580, course#8148, null, 1), List(course#7578, year#7579, earnings#7580, null, year#8149, 2)], [course#7578, year#7579, earnings#7580, course#8150, year#8151, spark_grouping_id#8147]
+   :     +- Project [course#7578, year#7579, earnings#7580, course#7578 AS course#8148, year#7579 AS year#8149]
+   :        +- SubqueryAlias `coursesales`
+   :           +- Project [course#7578, year#7579, earnings#7580]
+   :              +- SubqueryAlias `courseSales`
+   :                 +- LocalRelation [course#7578, year#7579, earnings#7580]
+   +- Aggregate [null AS course#8153, null AS year#8154]
+      +- SubqueryAlias `coursesales`
+         +- Project [course#7578, year#7579, earnings#7580]
+            +- SubqueryAlias `courseSales`
+               +- LocalRelation [course#7578, year#7579, earnings#7580]
 
 
 -- !query 21
 SELECT course, year, GROUPING(course), GROUPING(year) FROM courseSales GROUP BY CUBE(course, year)
 ORDER BY GROUPING(course), GROUPING(year), course, year
 -- !query 21 schema
-struct<course:string,year:int,grouping(course):tinyint,grouping(year):tinyint>
+struct<>
 -- !query 21 output
-Java	2012	0	0
-Java	2013	0	0
-dotNET	2012	0	0
-dotNET	2013	0	0
-Java	NULL	0	1
-dotNET	NULL	0	1
-NULL	2012	1	0
-NULL	2013	1	0
-NULL	NULL	1	1
+org.apache.spark.sql.catalyst.errors.package$TreeNodeException
+Max iterations (100) reached for batch Resolution, tree:
+!Sort [cast((shiftright(grouping_id() AS grouping__id#8761 AS grouping_id()#8759 AS grouping__id#8757 AS grouping_id()#8755 AS grouping__id#8753 AS grouping_id()#8751 AS grouping__id#8749 AS grouping_id()#8747 AS grouping__id#8745 AS grouping_id()#8743 AS grouping__id#8741 AS grouping_id()#8739 AS grouping__id#8737 AS grouping_id()#8735 AS grouping__id#8733 AS grouping_id()#8731 AS grouping__id#8729 AS grouping_id()#8727 AS grouping__id#8725 AS grouping_id()#8723 AS grouping__id#8721 AS grouping_id()#8719 AS grouping__id#8717 AS grouping_id()#8715 AS grouping__id#8713 AS grouping_id()#8711 AS grouping__id#8709 AS grouping_id()#8707 AS grouping__id#8705 AS grouping_id()#8703 AS grouping__id#8701 AS grouping_id()#8699 AS grouping__id#8697 AS grouping_id()#8695 AS grouping__id#8693 AS grouping_id()#8691 AS grouping__id#8689 AS grouping_id()#8687 AS grouping__id#8685 AS grouping_id()#8683 AS grouping__id#8681 AS grouping_id()#8679 AS grouping__id#8677 AS grouping_id()#8675 AS grouping__id#8673 AS grouping_id()#8671 AS grouping__id#8669 AS grouping_id()#8667 AS grouping__id#8665 AS grouping_id()#8663 AS grouping__id#8661 AS grouping_id()#8659 AS grouping__id#8657 AS grouping_id()#8655 AS grouping__id#8653 AS grouping_id()#8651 AS grouping__id#8649 AS grouping_id()#8647 AS grouping__id#8645 AS grouping_id()#8643 AS grouping__id#8641 AS grouping_id()#8639 AS grouping__id#8637 AS grouping_id()#8635 AS grouping__id#8633 AS grouping_id()#8631 AS grouping__id#8629 AS grouping_id()#8627 AS grouping__id#8625 AS grouping_id()#8623 AS grouping__id#8621 AS grouping_id()#8619 AS grouping__id#8617 AS grouping_id()#8615 AS grouping__id#8613 AS grouping_id()#8611 AS grouping__id#8609 AS grouping_id()#8607 AS grouping__id#8605 AS grouping_id()#8603 AS grouping__id#8601 AS grouping_id()#8599 AS grouping__id#8597 AS grouping_id()#8595 AS grouping__id#8593 AS grouping_id()#8591 AS grouping__id#8589 AS grouping_id()#8587 AS grouping__id#8585 AS grouping_id()#8583 AS grouping__id#8581 AS grouping_id()#8579 AS grouping__id#8577 AS grouping_id()#8575 AS grouping__id#8573 AS grouping_id()#8571 AS grouping__id#8569 AS grouping_id()#8567 AS grouping__id#8565 AS grouping_id()#8563 AS grouping__id#8561 AS grouping_id()#8559 AS grouping__id#8557 AS grouping_id()#8555 AS grouping__id#8553 AS grouping_id()#8551 AS grouping__id#8549 AS grouping_id()#8547 AS grouping__id#8545 AS grouping_id()#8543 AS grouping__id#8541 AS grouping_id()#8539 AS grouping__id#8537 AS grouping_id()#8535 AS grouping__id#8533 AS grouping_id()#8531 AS grouping__id#8529 AS grouping_id()#8527 AS grouping__id#8525 AS grouping_id()#8523 AS grouping__id#8521 AS grouping_id()#8519 AS grouping__id#8517 AS grouping_id()#8515 AS grouping__id#8513 AS grouping_id()#8511 AS grouping__id#8509 AS grouping_id()#8507 AS grouping__id#8505 AS grouping_id()#8503 AS grouping__id#8501 AS grouping_id()#8499 AS grouping__id#8497 AS grouping_id()#8495 AS grouping__id#8493 AS grouping_id()#8491 AS grouping__id#8489 AS grouping_id()#8487 AS grouping__id#8485 AS grouping_id()#8483 AS grouping__id#8481 AS grouping_id()#8479 AS grouping__id#8477 AS grouping_id()#8475 AS grouping__id#8473 AS grouping_id()#8471 AS grouping__id#8469 AS grouping_id()#8467 AS grouping__id#8465 AS grouping_id()#8463 AS grouping__id#8461 AS grouping_id()#8459 AS grouping__id#8457 AS grouping_id()#8455 AS grouping__id#8453 AS grouping_id()#8451 AS grouping__id#8449 AS grouping_id()#8447 AS grouping__id#8445 AS grouping_id()#8443 AS grouping__id#8441 AS grouping_id()#8439 AS grouping__id#8437 AS grouping_id()#8435 AS grouping__id#8433 AS grouping_id()#8431 AS grouping__id#8429 AS grouping_id()#8427 AS grouping__id#8425 AS grouping_id()#8423 AS grouping__id#8421 AS grouping_id()#8419 AS grouping__id#8417 AS grouping_id()#8415 AS grouping__id#8413 AS grouping_id()#8411 AS grouping__id#8409 AS grouping_id()#8407 AS grouping__id#8405 AS grouping_id()#8403 AS grouping__id#8401 AS grouping_id()#8399 AS grouping__id#8397 AS grouping_id()#8395 AS grouping__id#8393 AS grouping_id()#8391 AS grouping__id#8389 AS grouping_id()#8387 AS grouping__id#8385 AS grouping_id()#8383 AS grouping__id#8381 AS grouping_id()#8379 AS grouping__id#8377 AS grouping_id()#8375 AS grouping__id#8373, 1) & 1) as tinyint) AS grouping(course)#8371 ASC NULLS FIRST, cast((shiftright(grouping_id() AS grouping__id#8762 AS grouping_id()#8760 AS grouping__id#8758 AS grouping_id()#8756 AS grouping__id#8754 AS grouping_id()#8752 AS grouping__id#8750 AS grouping_id()#8748 AS grouping__id#8746 AS grouping_id()#8744 AS grouping__id#8742 AS grouping_id()#8740 AS grouping__id#8738 AS grouping_id()#8736 AS grouping__id#8734 AS grouping_id()#8732 AS grouping__id#8730 AS grouping_id()#8728 AS grouping__id#8726 AS grouping_id()#8724 AS grouping__id#8722 AS grouping_id()#8720 AS grouping__id#8718 AS grouping_id()#8716 AS grouping__id#8714 AS grouping_id()#8712 AS grouping__id#8710 AS grouping_id()#8708 AS grouping__id#8706 AS grouping_id()#8704 AS grouping__id#8702 AS grouping_id()#8700 AS grouping__id#8698 AS grouping_id()#8696 AS grouping__id#8694 AS grouping_id()#8692 AS grouping__id#8690 AS grouping_id()#8688 AS grouping__id#8686 AS grouping_id()#8684 AS grouping__id#8682 AS grouping_id()#8680 AS grouping__id#8678 AS grouping_id()#8676 AS grouping__id#8674 AS grouping_id()#8672 AS grouping__id#8670 AS grouping_id()#8668 AS grouping__id#8666 AS grouping_id()#8664 AS grouping__id#8662 AS grouping_id()#8660 AS grouping__id#8658 AS grouping_id()#8656 AS grouping__id#8654 AS grouping_id()#8652 AS grouping__id#8650 AS grouping_id()#8648 AS grouping__id#8646 AS grouping_id()#8644 AS grouping__id#8642 AS grouping_id()#8640 AS grouping__id#8638 AS grouping_id()#8636 AS grouping__id#8634 AS grouping_id()#8632 AS grouping__id#8630 AS grouping_id()#8628 AS grouping__id#8626 AS grouping_id()#8624 AS grouping__id#8622 AS grouping_id()#8620 AS grouping__id#8618 AS grouping_id()#8616 AS grouping__id#8614 AS grouping_id()#8612 AS grouping__id#8610 AS grouping_id()#8608 AS grouping__id#8606 AS grouping_id()#8604 AS grouping__id#8602 AS grouping_id()#8600 AS grouping__id#8598 AS grouping_id()#8596 AS grouping__id#8594 AS grouping_id()#8592 AS grouping__id#8590 AS grouping_id()#8588 AS grouping__id#8586 AS grouping_id()#8584 AS grouping__id#8582 AS grouping_id()#8580 AS grouping__id#8578 AS grouping_id()#8576 AS grouping__id#8574 AS grouping_id()#8572 AS grouping__id#8570 AS grouping_id()#8568 AS grouping__id#8566 AS grouping_id()#8564 AS grouping__id#8562 AS grouping_id()#8560 AS grouping__id#8558 AS grouping_id()#8556 AS grouping__id#8554 AS grouping_id()#8552 AS grouping__id#8550 AS grouping_id()#8548 AS grouping__id#8546 AS grouping_id()#8544 AS grouping__id#8542 AS grouping_id()#8540 AS grouping__id#8538 AS grouping_id()#8536 AS grouping__id#8534 AS grouping_id()#8532 AS grouping__id#8530 AS grouping_id()#8528 AS grouping__id#8526 AS grouping_id()#8524 AS grouping__id#8522 AS grouping_id()#8520 AS grouping__id#8518 AS grouping_id()#8516 AS grouping__id#8514 AS grouping_id()#8512 AS grouping__id#8510 AS grouping_id()#8508 AS grouping__id#8506 AS grouping_id()#8504 AS grouping__id#8502 AS grouping_id()#8500 AS grouping__id#8498 AS grouping_id()#8496 AS grouping__id#8494 AS grouping_id()#8492 AS grouping__id#8490 AS grouping_id()#8488 AS grouping__id#8486 AS grouping_id()#8484 AS grouping__id#8482 AS grouping_id()#8480 AS grouping__id#8478 AS grouping_id()#8476 AS grouping__id#8474 AS grouping_id()#8472 AS grouping__id#8470 AS grouping_id()#8468 AS grouping__id#8466 AS grouping_id()#8464 AS grouping__id#8462 AS grouping_id()#8460 AS grouping__id#8458 AS grouping_id()#8456 AS grouping__id#8454 AS grouping_id()#8452 AS grouping__id#8450 AS grouping_id()#8448 AS grouping__id#8446 AS grouping_id()#8444 AS grouping__id#8442 AS grouping_id()#8440 AS grouping__id#8438 AS grouping_id()#8436 AS grouping__id#8434 AS grouping_id()#8432 AS grouping__id#8430 AS grouping_id()#8428 AS grouping__id#8426 AS grouping_id()#8424 AS grouping__id#8422 AS grouping_id()#8420 AS grouping__id#8418 AS grouping_id()#8416 AS grouping__id#8414 AS grouping_id()#8412 AS grouping__id#8410 AS grouping_id()#8408 AS grouping__id#8406 AS grouping_id()#8404 AS grouping__id#8402 AS grouping_id()#8400 AS grouping__id#8398 AS grouping_id()#8396 AS grouping__id#8394 AS grouping_id()#8392 AS grouping__id#8390 AS grouping_id()#8388 AS grouping__id#8386 AS grouping_id()#8384 AS grouping__id#8382 AS grouping_id()#8380 AS grouping__id#8378 AS grouping_id()#8376 AS grouping__id#8374, 0) & 1) as tinyint) AS grouping(year)#8372 ASC NULLS FIRST, course#8358 ASC NULLS FIRST, year#8359 ASC NULLS FIRST], true
++- Union
+   :- Aggregate [course#8358, year#8359, spark_grouping_id#8355], [course#8358, year#8359, cast((shiftright(spark_grouping_id#8355, 1) & 1) as tinyint) AS grouping(course)#8360 AS grouping(course)#8353, cast((shiftright(spark_grouping_id#8355, 0) & 1) as tinyint) AS grouping(year)#8361 AS grouping(year)#8354]
+   :  +- Expand [List(course#7578, year#7579, earnings#7580, course#8356, year#8357, 0), List(course#7578, year#7579, earnings#7580, course#8356, null, 1), List(course#7578, year#7579, earnings#7580, null, year#8357, 2)], [course#7578, year#7579, earnings#7580, course#8358, year#8359, spark_grouping_id#8355]
+   :     +- Project [course#7578, year#7579, earnings#7580, course#7578 AS course#8356, year#7579 AS year#8357]
+   :        +- SubqueryAlias `coursesales`
+   :           +- Project [course#7578, year#7579, earnings#7580]
+   :              +- SubqueryAlias `courseSales`
+   :                 +- LocalRelation [course#7578, year#7579, earnings#7580]
+   +- Project [course#8363 AS course#8367, year#8364 AS year#8368, grouping(course)#8353 AS grouping(course)#8369, grouping(year)#8354 AS grouping(year)#8370]
+      +- Aggregate [null AS course#8363, null AS year#8364, cast((shiftright(7 AS gid#8362, 1) & 1) as tinyint) AS grouping(course)#8365 AS grouping(course)#8353, cast((shiftright(7 AS gid#8362, 0) & 1) as tinyint) AS grouping(year)#8366 AS grouping(year)#8354]
+         +- SubqueryAlias `coursesales`
+            +- Project [course#7578, year#7579, earnings#7580]
+               +- SubqueryAlias `courseSales`
+                  +- LocalRelation [course#7578, year#7579, earnings#7580]
 
 
 -- !query 22
 SELECT course, year, GROUPING_ID(course, year) FROM courseSales GROUP BY CUBE(course, year)
 ORDER BY GROUPING(course), GROUPING(year), course, year
 -- !query 22 schema
-struct<course:string,year:int,grouping_id(course, year):int>
+struct<>
 -- !query 22 output
-Java	2012	0
-Java	2013	0
-dotNET	2012	0
-dotNET	2013	0
-Java	NULL	1
-dotNET	NULL	1
-NULL	2012	2
-NULL	2013	2
-NULL	NULL	3
+org.apache.spark.sql.catalyst.errors.package$TreeNodeException
+Max iterations (100) reached for batch Resolution, tree:
+!Sort [cast((shiftright(grouping_id() AS grouping__id#9167 AS grouping_id()#9165 AS grouping__id#9163 AS grouping_id()#9161 AS grouping__id#9159 AS grouping_id()#9157 AS grouping__id#9155 AS grouping_id()#9153 AS grouping__id#9151 AS grouping_id()#9149 AS grouping__id#9147 AS grouping_id()#9145 AS grouping__id#9143 AS grouping_id()#9141 AS grouping__id#9139 AS grouping_id()#9137 AS grouping__id#9135 AS grouping_id()#9133 AS grouping__id#9131 AS grouping_id()#9129 AS grouping__id#9127 AS grouping_id()#9125 AS grouping__id#9123 AS grouping_id()#9121 AS grouping__id#9119 AS grouping_id()#9117 AS grouping__id#9115 AS grouping_id()#9113 AS grouping__id#9111 AS grouping_id()#9109 AS grouping__id#9107 AS grouping_id()#9105 AS grouping__id#9103 AS grouping_id()#9101 AS grouping__id#9099 AS grouping_id()#9097 AS grouping__id#9095 AS grouping_id()#9093 AS grouping__id#9091 AS grouping_id()#9089 AS grouping__id#9087 AS grouping_id()#9085 AS grouping__id#9083 AS grouping_id()#9081 AS grouping__id#9079 AS grouping_id()#9077 AS grouping__id#9075 AS grouping_id()#9073 AS grouping__id#9071 AS grouping_id()#9069 AS grouping__id#9067 AS grouping_id()#9065 AS grouping__id#9063 AS grouping_id()#9061 AS grouping__id#9059 AS grouping_id()#9057 AS grouping__id#9055 AS grouping_id()#9053 AS grouping__id#9051 AS grouping_id()#9049 AS grouping__id#9047 AS grouping_id()#9045 AS grouping__id#9043 AS grouping_id()#9041 AS grouping__id#9039 AS grouping_id()#9037 AS grouping__id#9035 AS grouping_id()#9033 AS grouping__id#9031 AS grouping_id()#9029 AS grouping__id#9027 AS grouping_id()#9025 AS grouping__id#9023 AS grouping_id()#9021 AS grouping__id#9019 AS grouping_id()#9017 AS grouping__id#9015 AS grouping_id()#9013 AS grouping__id#9011 AS grouping_id()#9009 AS grouping__id#9007 AS grouping_id()#9005 AS grouping__id#9003 AS grouping_id()#9001 AS grouping__id#8999 AS grouping_id()#8997 AS grouping__id#8995 AS grouping_id()#8993 AS grouping__id#8991 AS grouping_id()#8989 AS grouping__id#8987 AS grouping_id()#8985 AS grouping__id#8983 AS grouping_id()#8981 AS grouping__id#8979 AS grouping_id()#8977 AS grouping__id#8975 AS grouping_id()#8973 AS grouping__id#8971 AS grouping_id()#8969 AS grouping__id#8967 AS grouping_id()#8965 AS grouping__id#8963 AS grouping_id()#8961 AS grouping__id#8959 AS grouping_id()#8957 AS grouping__id#8955 AS grouping_id()#8953 AS grouping__id#8951 AS grouping_id()#8949 AS grouping__id#8947 AS grouping_id()#8945 AS grouping__id#8943 AS grouping_id()#8941 AS grouping__id#8939 AS grouping_id()#8937 AS grouping__id#8935 AS grouping_id()#8933 AS grouping__id#8931 AS grouping_id()#8929 AS grouping__id#8927 AS grouping_id()#8925 AS grouping__id#8923 AS grouping_id()#8921 AS grouping__id#8919 AS grouping_id()#8917 AS grouping__id#8915 AS grouping_id()#8913 AS grouping__id#8911 AS grouping_id()#8909 AS grouping__id#8907 AS grouping_id()#8905 AS grouping__id#8903 AS grouping_id()#8901 AS grouping__id#8899 AS grouping_id()#8897 AS grouping__id#8895 AS grouping_id()#8893 AS grouping__id#8891 AS grouping_id()#8889 AS grouping__id#8887 AS grouping_id()#8885 AS grouping__id#8883 AS grouping_id()#8881 AS grouping__id#8879 AS grouping_id()#8877 AS grouping__id#8875 AS grouping_id()#8873 AS grouping__id#8871 AS grouping_id()#8869 AS grouping__id#8867 AS grouping_id()#8865 AS grouping__id#8863 AS grouping_id()#8861 AS grouping__id#8859 AS grouping_id()#8857 AS grouping__id#8855 AS grouping_id()#8853 AS grouping__id#8851 AS grouping_id()#8849 AS grouping__id#8847 AS grouping_id()#8845 AS grouping__id#8843 AS grouping_id()#8841 AS grouping__id#8839 AS grouping_id()#8837 AS grouping__id#8835 AS grouping_id()#8833 AS grouping__id#8831 AS grouping_id()#8829 AS grouping__id#8827 AS grouping_id()#8825 AS grouping__id#8823 AS grouping_id()#8821 AS grouping__id#8819 AS grouping_id()#8817 AS grouping__id#8815 AS grouping_id()#8813 AS grouping__id#8811 AS grouping_id()#8809 AS grouping__id#8807 AS grouping_id()#8805 AS grouping__id#8803 AS grouping_id()#8801 AS grouping__id#8799 AS grouping_id()#8797 AS grouping__id#8795 AS grouping_id()#8793 AS grouping__id#8791 AS grouping_id()#8789 AS grouping__id#8787 AS grouping_id()#8785 AS grouping__id#8783 AS grouping_id()#8781 AS grouping__id#8779, 1) & 1) as tinyint) AS grouping(course)#8777 ASC NULLS FIRST, cast((shiftright(grouping_id() AS grouping__id#9168 AS grouping_id()#9166 AS grouping__id#9164 AS grouping_id()#9162 AS grouping__id#9160 AS grouping_id()#9158 AS grouping__id#9156 AS grouping_id()#9154 AS grouping__id#9152 AS grouping_id()#9150 AS grouping__id#9148 AS grouping_id()#9146 AS grouping__id#9144 AS grouping_id()#9142 AS grouping__id#9140 AS grouping_id()#9138 AS grouping__id#9136 AS grouping_id()#9134 AS grouping__id#9132 AS grouping_id()#9130 AS grouping__id#9128 AS grouping_id()#9126 AS grouping__id#9124 AS grouping_id()#9122 AS grouping__id#9120 AS grouping_id()#9118 AS grouping__id#9116 AS grouping_id()#9114 AS grouping__id#9112 AS grouping_id()#9110 AS grouping__id#9108 AS grouping_id()#9106 AS grouping__id#9104 AS grouping_id()#9102 AS grouping__id#9100 AS grouping_id()#9098 AS grouping__id#9096 AS grouping_id()#9094 AS grouping__id#9092 AS grouping_id()#9090 AS grouping__id#9088 AS grouping_id()#9086 AS grouping__id#9084 AS grouping_id()#9082 AS grouping__id#9080 AS grouping_id()#9078 AS grouping__id#9076 AS grouping_id()#9074 AS grouping__id#9072 AS grouping_id()#9070 AS grouping__id#9068 AS grouping_id()#9066 AS grouping__id#9064 AS grouping_id()#9062 AS grouping__id#9060 AS grouping_id()#9058 AS grouping__id#9056 AS grouping_id()#9054 AS grouping__id#9052 AS grouping_id()#9050 AS grouping__id#9048 AS grouping_id()#9046 AS grouping__id#9044 AS grouping_id()#9042 AS grouping__id#9040 AS grouping_id()#9038 AS grouping__id#9036 AS grouping_id()#9034 AS grouping__id#9032 AS grouping_id()#9030 AS grouping__id#9028 AS grouping_id()#9026 AS grouping__id#9024 AS grouping_id()#9022 AS grouping__id#9020 AS grouping_id()#9018 AS grouping__id#9016 AS grouping_id()#9014 AS grouping__id#9012 AS grouping_id()#9010 AS grouping__id#9008 AS grouping_id()#9006 AS grouping__id#9004 AS grouping_id()#9002 AS grouping__id#9000 AS grouping_id()#8998 AS grouping__id#8996 AS grouping_id()#8994 AS grouping__id#8992 AS grouping_id()#8990 AS grouping__id#8988 AS grouping_id()#8986 AS grouping__id#8984 AS grouping_id()#8982 AS grouping__id#8980 AS grouping_id()#8978 AS grouping__id#8976 AS grouping_id()#8974 AS grouping__id#8972 AS grouping_id()#8970 AS grouping__id#8968 AS grouping_id()#8966 AS grouping__id#8964 AS grouping_id()#8962 AS grouping__id#8960 AS grouping_id()#8958 AS grouping__id#8956 AS grouping_id()#8954 AS grouping__id#8952 AS grouping_id()#8950 AS grouping__id#8948 AS grouping_id()#8946 AS grouping__id#8944 AS grouping_id()#8942 AS grouping__id#8940 AS grouping_id()#8938 AS grouping__id#8936 AS grouping_id()#8934 AS grouping__id#8932 AS grouping_id()#8930 AS grouping__id#8928 AS grouping_id()#8926 AS grouping__id#8924 AS grouping_id()#8922 AS grouping__id#8920 AS grouping_id()#8918 AS grouping__id#8916 AS grouping_id()#8914 AS grouping__id#8912 AS grouping_id()#8910 AS grouping__id#8908 AS grouping_id()#8906 AS grouping__id#8904 AS grouping_id()#8902 AS grouping__id#8900 AS grouping_id()#8898 AS grouping__id#8896 AS grouping_id()#8894 AS grouping__id#8892 AS grouping_id()#8890 AS grouping__id#8888 AS grouping_id()#8886 AS grouping__id#8884 AS grouping_id()#8882 AS grouping__id#8880 AS grouping_id()#8878 AS grouping__id#8876 AS grouping_id()#8874 AS grouping__id#8872 AS grouping_id()#8870 AS grouping__id#8868 AS grouping_id()#8866 AS grouping__id#8864 AS grouping_id()#8862 AS grouping__id#8860 AS grouping_id()#8858 AS grouping__id#8856 AS grouping_id()#8854 AS grouping__id#8852 AS grouping_id()#8850 AS grouping__id#8848 AS grouping_id()#8846 AS grouping__id#8844 AS grouping_id()#8842 AS grouping__id#8840 AS grouping_id()#8838 AS grouping__id#8836 AS grouping_id()#8834 AS grouping__id#8832 AS grouping_id()#8830 AS grouping__id#8828 AS grouping_id()#8826 AS grouping__id#8824 AS grouping_id()#8822 AS grouping__id#8820 AS grouping_id()#8818 AS grouping__id#8816 AS grouping_id()#8814 AS grouping__id#8812 AS grouping_id()#8810 AS grouping__id#8808 AS grouping_id()#8806 AS grouping__id#8804 AS grouping_id()#8802 AS grouping__id#8800 AS grouping_id()#8798 AS grouping__id#8796 AS grouping_id()#8794 AS grouping__id#8792 AS grouping_id()#8790 AS grouping__id#8788 AS grouping_id()#8786 AS grouping__id#8784 AS grouping_id()#8782 AS grouping__id#8780, 0) & 1) as tinyint) AS grouping(year)#8778 ASC NULLS FIRST, course#8767 ASC NULLS FIRST, year#8768 ASC NULLS FIRST], true
++- Union
+   :- Aggregate [course#8767, year#8768, spark_grouping_id#8764], [course#8767, year#8768, spark_grouping_id#8764 AS grouping_id(course, year)#8769 AS grouping_id(course, year)#8763]
+   :  +- Expand [List(course#7578, year#7579, earnings#7580, course#8765, year#8766, 0), List(course#7578, year#7579, earnings#7580, course#8765, null, 1), List(course#7578, year#7579, earnings#7580, null, year#8766, 2)], [course#7578, year#7579, earnings#7580, course#8767, year#8768, spark_grouping_id#8764]
+   :     +- Project [course#7578, year#7579, earnings#7580, course#7578 AS course#8765, year#7579 AS year#8766]
+   :        +- SubqueryAlias `coursesales`
+   :           +- Project [course#7578, year#7579, earnings#7580]
+   :              +- SubqueryAlias `courseSales`
+   :                 +- LocalRelation [course#7578, year#7579, earnings#7580]
+   +- Project [course#8771 AS course#8774, year#8772 AS year#8775, grouping_id(course, year)#8763 AS grouping_id(course, year)#8776]
+      +- Aggregate [null AS course#8771, null AS year#8772, 7 AS gid#8770 AS grouping_id(course, year)#8773 AS grouping_id(course, year)#8763]
+         +- SubqueryAlias `coursesales`
+            +- Project [course#7578, year#7579, earnings#7580]
+               +- SubqueryAlias `courseSales`
+                  +- LocalRelation [course#7578, year#7579, earnings#7580]
 
 
 -- !query 23
@@ -334,55 +375,42 @@ grouping()/grouping_id() can only be used with GroupingSets/Cube/Rollup;
 -- !query 25
 SELECT course, year FROM courseSales GROUP BY CUBE(course, year) ORDER BY grouping__id, course, year
 -- !query 25 schema
-struct<course:string,year:int>
+struct<>
 -- !query 25 output
-Java	2012
-Java	2013
-dotNET	2012
-dotNET	2013
-Java	NULL
-dotNET	NULL
-NULL	2012
-NULL	2013
-NULL	NULL
+org.apache.spark.sql.catalyst.errors.package$TreeNodeException
+Max iterations (100) reached for batch Resolution, tree:
+!Sort [grouping_id() AS grouping__id#9375 AS grouping_id()#9374 AS grouping__id#9373 AS grouping_id()#9372 AS grouping__id#9371 AS grouping_id()#9370 AS grouping__id#9369 AS grouping_id()#9368 AS grouping__id#9367 AS grouping_id()#9366 AS grouping__id#9365 AS grouping_id()#9364 AS grouping__id#9363 AS grouping_id()#9362 AS grouping__id#9361 AS grouping_id()#9360 AS grouping__id#9359 AS grouping_id()#9358 AS grouping__id#9357 AS grouping_id()#9356 AS grouping__id#9355 AS grouping_id()#9354 AS grouping__id#9353 AS grouping_id()#9352 AS grouping__id#9351 AS grouping_id()#9350 AS grouping__id#9349 AS grouping_id()#9348 AS grouping__id#9347 AS grouping_id()#9346 AS grouping__id#9345 AS grouping_id()#9344 AS grouping__id#9343 AS grouping_id()#9342 AS grouping__id#9341 AS grouping_id()#9340 AS grouping__id#9339 AS grouping_id()#9338 AS grouping__id#9337 AS grouping_id()#9336 AS grouping__id#9335 AS grouping_id()#9334 AS grouping__id#9333 AS grouping_id()#9332 AS grouping__id#9331 AS grouping_id()#9330 AS grouping__id#9329 AS grouping_id()#9328 AS grouping__id#9327 AS grouping_id()#9326 AS grouping__id#9325 AS grouping_id()#9324 AS grouping__id#9323 AS grouping_id()#9322 AS grouping__id#9321 AS grouping_id()#9320 AS grouping__id#9319 AS grouping_id()#9318 AS grouping__id#9317 AS grouping_id()#9316 AS grouping__id#9315 AS grouping_id()#9314 AS grouping__id#9313 AS grouping_id()#9312 AS grouping__id#9311 AS grouping_id()#9310 AS grouping__id#9309 AS grouping_id()#9308 AS grouping__id#9307 AS grouping_id()#9306 AS grouping__id#9305 AS grouping_id()#9304 AS grouping__id#9303 AS grouping_id()#9302 AS grouping__id#9301 AS grouping_id()#9300 AS grouping__id#9299 AS grouping_id()#9298 AS grouping__id#9297 AS grouping_id()#9296 AS grouping__id#9295 AS grouping_id()#9294 AS grouping__id#9293 AS grouping_id()#9292 AS grouping__id#9291 AS grouping_id()#9290 AS grouping__id#9289 AS grouping_id()#9288 AS grouping__id#9287 AS grouping_id()#9286 AS grouping__id#9285 AS grouping_id()#9284 AS grouping__id#9283 AS grouping_id()#9282 AS grouping__id#9281 AS grouping_id()#9280 AS grouping__id#9279 AS grouping_id()#9278 AS grouping__id#9277 AS grouping_id()#9276 AS grouping__id#9275 AS grouping_id()#9274 AS grouping__id#9273 AS grouping_id()#9272 AS grouping__id#9271 AS grouping_id()#9270 AS grouping__id#9269 AS grouping_id()#9268 AS grouping__id#9267 AS grouping_id()#9266 AS grouping__id#9265 AS grouping_id()#9264 AS grouping__id#9263 AS grouping_id()#9262 AS grouping__id#9261 AS grouping_id()#9260 AS grouping__id#9259 AS grouping_id()#9258 AS grouping__id#9257 AS grouping_id()#9256 AS grouping__id#9255 AS grouping_id()#9254 AS grouping__id#9253 AS grouping_id()#9252 AS grouping__id#9251 AS grouping_id()#9250 AS grouping__id#9249 AS grouping_id()#9248 AS grouping__id#9247 AS grouping_id()#9246 AS grouping__id#9245 AS grouping_id()#9244 AS grouping__id#9243 AS grouping_id()#9242 AS grouping__id#9241 AS grouping_id()#9240 AS grouping__id#9239 AS grouping_id()#9238 AS grouping__id#9237 AS grouping_id()#9236 AS grouping__id#9235 AS grouping_id()#9234 AS grouping__id#9233 AS grouping_id()#9232 AS grouping__id#9231 AS grouping_id()#9230 AS grouping__id#9229 AS grouping_id()#9228 AS grouping__id#9227 AS grouping_id()#9226 AS grouping__id#9225 AS grouping_id()#9224 AS grouping__id#9223 AS grouping_id()#9222 AS grouping__id#9221 AS grouping_id()#9220 AS grouping__id#9219 AS grouping_id()#9218 AS grouping__id#9217 AS grouping_id()#9216 AS grouping__id#9215 AS grouping_id()#9214 AS grouping__id#9213 AS grouping_id()#9212 AS grouping__id#9211 AS grouping_id()#9210 AS grouping__id#9209 AS grouping_id()#9208 AS grouping__id#9207 AS grouping_id()#9206 AS grouping__id#9205 AS grouping_id()#9204 AS grouping__id#9203 AS grouping_id()#9202 AS grouping__id#9201 AS grouping_id()#9200 AS grouping__id#9199 AS grouping_id()#9198 AS grouping__id#9197 AS grouping_id()#9196 AS grouping__id#9195 AS grouping_id()#9194 AS grouping__id#9193 AS grouping_id()#9192 AS grouping__id#9191 AS grouping_id()#9190 AS grouping__id#9189 AS grouping_id()#9188 AS grouping__id#9187 AS grouping_id()#9186 AS grouping__id#9185 AS grouping_id()#9184 AS grouping__id#9183 AS grouping_id()#9182 AS grouping__id#9181 AS grouping_id()#9180 AS grouping__id#9171 ASC NULLS FIRST, course#9175 ASC NULLS FIRST, year#9176 ASC NULLS FIRST], true
++- Union
+   :- Aggregate [course#9175, year#9176, spark_grouping_id#9172], [course#9175, year#9176]
+   :  +- Expand [List(course#7578, year#7579, earnings#7580, course#9173, year#9174, 0), List(course#7578, year#7579, earnings#7580, course#9173, null, 1), List(course#7578, year#7579, earnings#7580, null, year#9174, 2)], [course#7578, year#7579, earnings#7580, course#9175, year#9176, spark_grouping_id#9172]
+   :     +- Project [course#7578, year#7579, earnings#7580, course#7578 AS course#9173, year#7579 AS year#9174]
+   :        +- SubqueryAlias `coursesales`
+   :           +- Project [course#7578, year#7579, earnings#7580]
+   :              +- SubqueryAlias `courseSales`
+   :                 +- LocalRelation [course#7578, year#7579, earnings#7580]
+   +- Aggregate [null AS course#9178, null AS year#9179]
+      +- SubqueryAlias `coursesales`
+         +- Project [course#7578, year#7579, earnings#7580]
+            +- SubqueryAlias `courseSales`
+               +- LocalRelation [course#7578, year#7579, earnings#7580]
 
 
 -- !query 26
 SELECT a + b AS k1, b AS k2, SUM(a - b) FROM testData GROUP BY CUBE(k1, k2)
 -- !query 26 schema
-struct<k1:int,k2:int,sum((a - b)):bigint>
+struct<>
 -- !query 26 output
-2	1	0
-2	NULL	0
-3	1	1
-3	2	-1
-3	NULL	0
-4	1	2
-4	2	0
-4	NULL	2
-5	2	1
-5	NULL	1
-NULL	1	3
-NULL	2	0
-NULL	NULL	3
+org.apache.spark.sql.AnalysisException
+grouping expressions sequence is empty, and '`k1`' is not an aggregate function. Wrap '(sum(CAST((testdata.`a` - testdata.`b`) AS BIGINT)) AS `sum((a - b))`)' in windowing function(s) or wrap '`k1`' in first() (or first_value) if you don't care which value you get.;
 
 
 -- !query 27
 SELECT a + b AS k, b, SUM(a - b) FROM testData GROUP BY ROLLUP(k, b)
 -- !query 27 schema
-struct<k:int,b:int,sum((a - b)):bigint>
+struct<>
 -- !query 27 output
-2	1	0
-2	NULL	0
-3	1	1
-3	2	-1
-3	NULL	0
-4	1	2
-4	2	0
-4	NULL	2
-5	2	1
-5	NULL	1
-NULL	NULL	3
+org.apache.spark.sql.AnalysisException
+grouping expressions sequence is empty, and '`k`' is not an aggregate function. Wrap '(sum(CAST((testdata.`a` - testdata.`b`) AS BIGINT)) AS `sum((a - b))`)' in windowing function(s) or wrap '`k`' in first() (or first_value) if you don't care which value you get.;
 
 
 -- !query 28
