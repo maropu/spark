@@ -37,7 +37,7 @@ CREATE OR REPLACE TEMPORARY VIEW FLOAT8_TBL AS SELECT * FROM
 CREATE OR REPLACE TEMPORARY VIEW TEXT_TBL AS SELECT * FROM
   (VALUES ('doh!'), ('hi de ho neighbor'))
   AS v(f1);
-CREATE OR REPLACE TEMPORARY VIEW tenk2 AS SELECT * FROM tenk1;
+CREATE OR REPLACE TEMPORARY VIEW tenk2 AS SELECT * FROM global_temp.tenk1;
 
 CREATE TABLE J1_TBL (
   i integer,
@@ -244,8 +244,8 @@ SELECT '' AS `xxx`, *
 -- semijoin selectivity for <>
 --
 -- explain (costs off)
--- select * from int4_tbl i4, tenk1 a
--- where exists(select * from tenk1 b
+-- select * from int4_tbl i4, global_temp.tenk1 a
+-- where exists(select * from global_temp.tenk1 b
 --              where a.twothousand = b.twothousand and a.fivethous <> b.fivethous)
 --       and i4.f1 = a.tenthous;
 
@@ -388,15 +388,15 @@ on (x1 = xx1) where (xx2 is not null);
 -- regression test: check for bug with propagation of implied equality
 -- to outside an IN
 --
-select count(*) from tenk1 a where unique1 in
-  (select unique1 from tenk1 b join tenk1 c using (unique1)
+select count(*) from global_temp.tenk1 a where unique1 in
+  (select unique1 from global_temp.tenk1 b join global_temp.tenk1 c using (unique1)
    where b.unique2 = 42);
 
 --
 -- regression test: check for failure to generate a plan with multiple
 -- degenerate IN clauses
 --
-select count(*) from tenk1 x where
+select count(*) from global_temp.tenk1 x where
   x.unique1 in (select a.f1 from int4_tbl a,float8_tbl b where a.f1=b.f1) and
   x.unique1 = 0 and
   x.unique1 in (select aa.f1 from int4_tbl aa,float8_tbl bb where aa.f1=bb.f1);
@@ -405,7 +405,7 @@ select count(*) from tenk1 x where
 -- begin;
 -- set geqo = on;
 -- set geqo_threshold = 2;
-select count(*) from tenk1 x where
+select count(*) from global_temp.tenk1 x where
   x.unique1 in (select a.f1 from int4_tbl a,float8_tbl b where a.f1=b.f1) and
   x.unique1 = 0 and
   x.unique1 in (select aa.f1 from int4_tbl aa,float8_tbl bb where aa.f1=bb.f1);
@@ -417,11 +417,11 @@ select count(*) from tenk1 x where
 --
 -- explain (costs off)
 -- select aa, bb, unique1, unique1
---   from tenk1 right join b on aa = unique1
+--   from global_temp.tenk1 right join b on aa = unique1
 --   where bb < bb and bb is null;
 
 -- select aa, bb, unique1, unique1
---   from tenk1 right join b on aa = unique1
+--   from global_temp.tenk1 right join b on aa = unique1
 --   where bb < bb and bb is null;
 
 --
@@ -443,11 +443,11 @@ order by 1, 2;
 select count(*)
 from
   (select t3.tenthous as x1, coalesce(t1.stringu1, t2.stringu1) as x2
-   from tenk1 t1
-   left join tenk1 t2 on t1.unique1 = t2.unique1
-   join tenk1 t3 on t1.unique2 = t3.unique2) ss,
-  tenk1 t4,
-  tenk1 t5
+   from global_temp.tenk1 t1
+   left join global_temp.tenk1 t2 on t1.unique1 = t2.unique1
+   join global_temp.tenk1 t3 on t1.unique2 = t3.unique2) ss,
+  global_temp.tenk1 t4,
+  global_temp.tenk1 t5
 where t4.thousand = t5.unique1 and ss.x1 = t4.tenthous and ss.x2 = t5.stringu1;
 
 --
@@ -456,13 +456,13 @@ where t4.thousand = t5.unique1 and ss.x1 = t4.tenthous and ss.x2 = t5.stringu1;
 --
 -- explain (costs off)
 -- select a.f1, b.f1, t.thousand, t.tenthous from
---   tenk1 t,
+--   global_temp.tenk1 t,
 --   (select sum(f1)+1 as f1 from int4_tbl i4a) a,
 --   (select sum(f1) as f1 from int4_tbl i4b) b
 -- where b.f1 = t.thousand and a.f1 = b.f1 and (a.f1+b.f1+999) = t.tenthous;
 
 select a.f1, b.f1, t.thousand, t.tenthous from
-  tenk1 t,
+  global_temp.tenk1 t,
   (select sum(f1)+1 as f1 from int4_tbl i4a) a,
   (select sum(f1) as f1 from int4_tbl i4b) b
 where b.f1 = t.thousand and a.f1 = b.f1 and (a.f1+b.f1+999) = t.tenthous;
@@ -487,15 +487,15 @@ select * from
 --
 -- explain (costs off)
 -- select count(*) from
---   (select * from tenk1 x order by x.thousand, x.twothousand, x.fivethous) x
+--   (select * from global_temp.tenk1 x order by x.thousand, x.twothousand, x.fivethous) x
 --   left join
---   (select * from tenk1 y order by y.unique2) y
+--   (select * from global_temp.tenk1 y order by y.unique2) y
 --   on x.thousand = y.unique2 and x.twothousand = y.hundred and x.fivethous = y.unique2;
 
 select count(*) from
-  (select * from tenk1 x order by x.thousand, x.twothousand, x.fivethous) x
+  (select * from global_temp.tenk1 x order by x.thousand, x.twothousand, x.fivethous) x
   left join
-  (select * from tenk1 y order by y.unique2) y
+  (select * from global_temp.tenk1 y order by y.unique2) y
   on x.thousand = y.unique2 and x.twothousand = y.hundred and x.fivethous = y.unique2;
 
 
@@ -578,9 +578,9 @@ select tt1.*, tt2.* from tt2 right join tt1 on tt1.joincol = tt2.joincol;
 -- set enable_mergejoin to off;
 
 -- explain (costs off)
--- select count(*) from tenk1 a, tenk1 b
+-- select count(*) from global_temp.tenk1 a, global_temp.tenk1 b
 --   where a.hundred = b.thousand and (b.fivethous % 10) < 10;
-select count(*) from tenk1 a, tenk1 b
+select count(*) from global_temp.tenk1 a, global_temp.tenk1 b
   where a.hundred = b.thousand and (b.fivethous % 10) < 10;
 
 -- reset work_mem;
@@ -689,7 +689,7 @@ where f2 = 53;
 --
 
 select a.unique2, a.ten, b.tenthous, b.unique2, b.hundred
-from tenk1 a left join tenk1 b on a.unique2 = b.tenthous
+from global_temp.tenk1 a left join global_temp.tenk1 b on a.unique2 = b.tenthous
 where a.unique1 = 42 and
       ((b.unique2 is null and a.ten = 2) or b.hundred = 3);
 
@@ -697,9 +697,9 @@ where a.unique1 = 42 and
 -- test proper positioning of one-time quals in EXISTS (8.4devel bug)
 --
 -- prepare foo(bool) as
---   select count(*) from tenk1 a left join tenk1 b
+--   select count(*) from global_temp.tenk1 a left join global_temp.tenk1 b
 --     on (a.unique2 = b.unique1 and exists
---         (select 1 from tenk1 c where c.thousand = b.unique2 and $1));
+--         (select 1 from global_temp.tenk1 c where c.thousand = b.unique2 and $1));
 -- execute foo(true);
 -- execute foo(false);
 
@@ -836,7 +836,7 @@ ON sub1.key1 = sub2.key3;
 --   FULL OUTER JOIN
 --   ( SELECT COALESCE(q2, -1) AS qq FROM int8_tbl b ) AS ss2
 --   USING (qq)
---   INNER JOIN tenk1 c ON qq = unique2;
+--   INNER JOIN global_temp.tenk1 c ON qq = unique2;
 
 SELECT qq, unique1
   FROM
@@ -844,7 +844,7 @@ SELECT qq, unique1
   FULL OUTER JOIN
   ( SELECT COALESCE(q2, -1) AS qq FROM int8_tbl b ) AS ss2
   USING (qq)
-  INNER JOIN tenk1 c ON qq = unique2;
+  INNER JOIN global_temp.tenk1 c ON qq = unique2;
 
 --
 -- nested nestloops can require nested PlaceHolderVars
@@ -918,14 +918,14 @@ select * from int4_tbl a full join int4_tbl b on false;
 
 -- explain (costs off)
 -- select * from
---   tenk1 join int4_tbl on f1 = twothousand,
+--   global_temp.tenk1 join int4_tbl on f1 = twothousand,
 --   int4(sin(1)) q1,
 --   int4(sin(0)) q2
 -- where q1 = thousand or q2 = thousand;
 
 -- explain (costs off)
 -- select * from
---   tenk1 join int4_tbl on f1 = twothousand,
+--   global_temp.tenk1 join int4_tbl on f1 = twothousand,
 --   int4(sin(1)) q1,
 --   int4(sin(0)) q2
 -- where thousand = (q1 + q2);
@@ -936,7 +936,7 @@ select * from int4_tbl a full join int4_tbl b on false;
 
 -- explain (costs off)
 -- select * from
---   tenk1, int8_tbl a, int8_tbl b
+--   global_temp.tenk1, int8_tbl a, int8_tbl b
 -- where thousand = a.q1 and tenthous = b.q1 and a.q2 = 1 and b.q2 = 2;
 
 --
@@ -945,7 +945,7 @@ select * from int4_tbl a full join int4_tbl b on false;
 
 -- explain (costs off)
 -- select t1.unique2, t1.stringu1, t2.unique1, t2.stringu2 from
---   tenk1 t1
+--   global_temp.tenk1 t1
 --   inner join int4_tbl i1
 --     left join (select v1.x2, v2.y1, 11 AS d1
 --                from (select 1,0 from onerow) v1(x1,x2)
@@ -953,13 +953,13 @@ select * from int4_tbl a full join int4_tbl b on false;
 --                on v1.x1 = v2.y2) subq1
 --     on (i1.f1 = subq1.x2)
 --   on (t1.unique2 = subq1.d1)
---   left join tenk1 t2
+--   left join global_temp.tenk1 t2
 --   on (subq1.y1 = t2.unique1)
 -- where t1.unique2 < 42 and t1.stringu1 > t2.stringu2;
 
 -- [SPARK-20856] support statement using nested joins
 -- select t1.unique2, t1.stringu1, t2.unique1, t2.stringu2 from
---   tenk1 t1
+--   global_temp.tenk1 t1
 --   inner join int4_tbl i1
 --     left join (select v1.x2, v2.y1, 11 AS d1
 --                from (select 1,0 from onerow) v1(x1,x2)
@@ -967,7 +967,7 @@ select * from int4_tbl a full join int4_tbl b on false;
 --                on v1.x1 = v2.y2) subq1
 --     on (i1.f1 = subq1.x2)
 --   on (t1.unique2 = subq1.d1)
---   left join tenk1 t2
+--   left join global_temp.tenk1 t2
 --   on (subq1.y1 = t2.unique1)
 -- where t1.unique2 < 42 and t1.stringu1 > t2.stringu2;
 
@@ -975,14 +975,14 @@ select * from int4_tbl a full join int4_tbl b on false;
 
 -- [SPARK-16452] basic INFORMATION_SCHEMA support
 -- select ss1.d1 from
---   tenk1 as t1
---   inner join tenk1 as t2
+--   global_temp.tenk1 as t1
+--   inner join global_temp.tenk1 as t2
 --   on t1.tenthous = t2.ten
 --   inner join
 --     int8_tbl as i8
 --     left join int4_tbl as i4
 --       inner join (select 64::information_schema.cardinal_number as d1
---                   from tenk1 t3,
+--                   from global_temp.tenk1 t3,
 --                        lateral (select abs(t3.unique1) + random()) ss0(x)
 --                   where t3.fivethous < 0) as ss1
 --       on i4.f1 = ss1.d1
@@ -994,7 +994,7 @@ select * from int4_tbl a full join int4_tbl b on false;
 
 -- explain (costs off)
 -- select t1.unique2, t1.stringu1, t2.unique1, t2.stringu2 from
---   tenk1 t1
+--   global_temp.tenk1 t1
 --   inner join int4_tbl i1
 --     left join (select v1.x2, v2.y1, 11 AS d1
 --                from (values(1,0)) v1(x1,x2)
@@ -1002,13 +1002,13 @@ select * from int4_tbl a full join int4_tbl b on false;
 --                on v1.x1 = v2.y2) subq1
 --     on (i1.f1 = subq1.x2)
 --   on (t1.unique2 = subq1.d1)
---   left join tenk1 t2
+--   left join global_temp.tenk1 t2
 --   on (subq1.y1 = t2.unique1)
 -- where t1.unique2 < 42 and t1.stringu1 > t2.stringu2;
 
 -- [SPARK-20856] support statement using nested joins
 -- select t1.unique2, t1.stringu1, t2.unique1, t2.stringu2 from
---   tenk1 t1
+--   global_temp.tenk1 t1
 --   inner join int4_tbl i1
 --     left join (select v1.x2, v2.y1, 11 AS d1
 --                from (values(1,0)) v1(x1,x2)
@@ -1016,7 +1016,7 @@ select * from int4_tbl a full join int4_tbl b on false;
 --                on v1.x1 = v2.y2) subq1
 --     on (i1.f1 = subq1.x2)
 --   on (t1.unique2 = subq1.d1)
---   left join tenk1 t2
+--   left join global_temp.tenk1 t2
 --   on (subq1.y1 = t2.unique1)
 -- where t1.unique2 < 42 and t1.stringu1 > t2.stringu2;
 
@@ -1026,13 +1026,13 @@ select * from int4_tbl a full join int4_tbl b on false;
 --
 
 -- explain (costs off)
--- select * from tenk1 a join tenk1 b on
+-- select * from global_temp.tenk1 a join global_temp.tenk1 b on
 --   (a.unique1 = 1 and b.unique1 = 2) or (a.unique2 = 3 and b.hundred = 4);
 -- explain (costs off)
--- select * from tenk1 a join tenk1 b on
+-- select * from global_temp.tenk1 a join global_temp.tenk1 b on
 --   (a.unique1 = 1 and b.unique1 = 2) or (a.unique2 = 3 and b.ten = 4);
 -- explain (costs off)
--- select * from tenk1 a join tenk1 b on
+-- select * from global_temp.tenk1 a join global_temp.tenk1 b on
 --   (a.unique1 = 1 and b.unique1 = 2) or
 --   ((a.unique2 = 3 or a.unique2 = 7) and b.hundred = 4);
 
@@ -1041,39 +1041,39 @@ select * from int4_tbl a full join int4_tbl b on false;
 --
 
 -- explain (costs off)
--- select * from tenk1 t1 left join
---   (tenk1 t2 join tenk1 t3 on t2.thousand = t3.unique2)
+-- select * from global_temp.tenk1 t1 left join
+--   (global_temp.tenk1 t2 join global_temp.tenk1 t3 on t2.thousand = t3.unique2)
 --   on t1.hundred = t2.hundred and t1.ten = t3.ten
 -- where t1.unique1 = 1;
 
 -- explain (costs off)
--- select * from tenk1 t1 left join
---   (tenk1 t2 join tenk1 t3 on t2.thousand = t3.unique2)
+-- select * from global_temp.tenk1 t1 left join
+--   (global_temp.tenk1 t2 join global_temp.tenk1 t3 on t2.thousand = t3.unique2)
 --   on t1.hundred = t2.hundred and t1.ten + t2.ten = t3.ten
 -- where t1.unique1 = 1;
 
 -- explain (costs off)
 -- select count(*) from
---   tenk1 a join tenk1 b on a.unique1 = b.unique2
---   left join tenk1 c on a.unique2 = b.unique1 and c.thousand = a.thousand
+--   global_temp.tenk1 a join global_temp.tenk1 b on a.unique1 = b.unique2
+--   left join global_temp.tenk1 c on a.unique2 = b.unique1 and c.thousand = a.thousand
 --   join int4_tbl on b.thousand = f1;
 
 select count(*) from
-  tenk1 a join tenk1 b on a.unique1 = b.unique2
-  left join tenk1 c on a.unique2 = b.unique1 and c.thousand = a.thousand
+  global_temp.tenk1 a join global_temp.tenk1 b on a.unique1 = b.unique2
+  left join global_temp.tenk1 c on a.unique2 = b.unique1 and c.thousand = a.thousand
   join int4_tbl on b.thousand = f1;
 
 -- explain (costs off)
 -- select b.unique1 from
---   tenk1 a join tenk1 b on a.unique1 = b.unique2
---   left join tenk1 c on b.unique1 = 42 and c.thousand = a.thousand
+--   global_temp.tenk1 a join global_temp.tenk1 b on a.unique1 = b.unique2
+--   left join global_temp.tenk1 c on b.unique1 = 42 and c.thousand = a.thousand
 --   join int4_tbl i1 on b.thousand = f1
 --   right join int4_tbl i2 on i2.f1 = b.tenthous
 --   order by 1;
 
 select b.unique1 from
-  tenk1 a join tenk1 b on a.unique1 = b.unique2
-  left join tenk1 c on b.unique1 = 42 and c.thousand = a.thousand
+  global_temp.tenk1 a join global_temp.tenk1 b on a.unique1 = b.unique2
+  left join global_temp.tenk1 c on b.unique1 = 42 and c.thousand = a.thousand
   join int4_tbl i1 on b.thousand = f1
   right join int4_tbl i2 on i2.f1 = b.tenthous
   order by 1;
@@ -1082,7 +1082,7 @@ select b.unique1 from
 -- select * from
 -- (
 --   select unique1, q1, coalesce(unique1, -1) + q1 as fault
---   from int8_tbl left join tenk1 on (q2 = unique2)
+--   from int8_tbl left join global_temp.tenk1 on (q2 = unique2)
 -- ) ss
 -- where fault = 122
 -- order by fault;
@@ -1090,7 +1090,7 @@ select b.unique1 from
 select * from
 (
   select unique1, q1, coalesce(unique1, -1) + q1 as fault
-  from int8_tbl left join tenk1 on (q2 = unique2)
+  from int8_tbl left join global_temp.tenk1 on (q2 = unique2)
 ) ss
 where fault = 122
 order by fault;
@@ -1113,20 +1113,20 @@ order by fault;
 
 -- explain (costs off)
 -- select q1, unique2, thousand, hundred
---   from int8_tbl a left join tenk1 b on q1 = unique2
+--   from int8_tbl a left join global_temp.tenk1 b on q1 = unique2
 --   where coalesce(thousand,123) = q1 and q1 = coalesce(hundred,123);
 
 select q1, unique2, thousand, hundred
-  from int8_tbl a left join tenk1 b on q1 = unique2
+  from int8_tbl a left join global_temp.tenk1 b on q1 = unique2
   where coalesce(thousand,123) = q1 and q1 = coalesce(hundred,123);
 
 -- explain (costs off)
 -- select f1, unique2, case when unique2 is null then f1 else 0 end
---   from int4_tbl a left join tenk1 b on f1 = unique2
+--   from int4_tbl a left join global_temp.tenk1 b on f1 = unique2
 --   where (case when unique2 is null then f1 else 0 end) = 0;
 
 select f1, unique2, case when unique2 is null then f1 else 0 end
-  from int4_tbl a left join tenk1 b on f1 = unique2
+  from int4_tbl a left join global_temp.tenk1 b on f1 = unique2
   where (case when unique2 is null then f1 else 0 end) = 0;
 
 --
@@ -1135,11 +1135,11 @@ select f1, unique2, case when unique2 is null then f1 else 0 end
 
 -- explain (costs off)
 -- select a.unique1, b.unique1, c.unique1, coalesce(b.twothousand, a.twothousand)
---   from tenk1 a left join tenk1 b on b.thousand = a.unique1                        left join tenk1 c on c.unique2 = coalesce(b.twothousand, a.twothousand)
+--   from global_temp.tenk1 a left join global_temp.tenk1 b on b.thousand = a.unique1                        left join global_temp.tenk1 c on c.unique2 = coalesce(b.twothousand, a.twothousand)
 --   where a.unique2 < 10 and coalesce(b.twothousand, a.twothousand) = 44;
 
 select a.unique1, b.unique1, c.unique1, coalesce(b.twothousand, a.twothousand)
-  from tenk1 a left join tenk1 b on b.thousand = a.unique1                        left join tenk1 c on c.unique2 = coalesce(b.twothousand, a.twothousand)
+  from global_temp.tenk1 a left join global_temp.tenk1 b on b.thousand = a.unique1                        left join global_temp.tenk1 c on c.unique2 = coalesce(b.twothousand, a.twothousand)
   where a.unique2 < 10 and coalesce(b.twothousand, a.twothousand) = 44;
 
 --
@@ -1155,7 +1155,7 @@ select a.unique1, b.unique1, c.unique1, coalesce(b.twothousand, a.twothousand)
 --       (select f1 as join_key, 666 as bug_field from int4_tbl i1) ss1
 --     ) foo2
 --    left join
---     (select unique2 as join_key from tenk1 i2) ss2
+--     (select unique2 as join_key from global_temp.tenk1 i2) ss2
 --    using (join_key)
 --   ) foo3
 -- using (join_key);
@@ -1170,7 +1170,7 @@ select a.unique1, b.unique1, c.unique1, coalesce(b.twothousand, a.twothousand)
 --       (select f1 as join_key, 666 as bug_field from int4_tbl i1) ss1
 --     ) foo2
 --    left join
---     (select unique2 as join_key from tenk1 i2) ss2
+--     (select unique2 as join_key from global_temp.tenk1 i2) ss2
 --    using (join_key)
 --   ) foo3
 -- using (join_key);
@@ -1357,13 +1357,13 @@ select * from
 -- select * from
 --   (select 1 as id) as xx
 --   left join
---     (tenk1 as a1 full join (select 1 as id) as yy on (a1.unique1 = yy.id))
+--     (global_temp.tenk1 as a1 full join (select 1 as id) as yy on (a1.unique1 = yy.id))
 --   on (xx.id = coalesce(yy.id));
 
 select * from
   (select 1 as id) as xx
   left join
-    (tenk1 as a1 full join (select 1 as id) as yy on (a1.unique1 = yy.id))
+    (global_temp.tenk1 as a1 full join (select 1 as id) as yy on (a1.unique1 = yy.id))
   on (xx.id = coalesce(yy.id));
 
 --
@@ -1371,10 +1371,10 @@ select * from
 --
 
 -- explain (costs off)
---   select * from int4_tbl a left join tenk1 b on f1 = unique2 where f1 = 0;
+--   select * from int4_tbl a left join global_temp.tenk1 b on f1 = unique2 where f1 = 0;
 
 -- explain (costs off)
---   select * from tenk1 a full join tenk1 b using(unique2) where unique2 = 42;
+--   select * from global_temp.tenk1 a full join global_temp.tenk1 b using(unique2) where unique2 = 42;
 
 --
 -- test that quals attached to an outer join have correct semantics,
@@ -1556,7 +1556,7 @@ SELECT * FROM
 --  left join
 --    (select case t1.ten when 0 then 'doh!'::text else null::text end as case1,
 --            t1.stringu2
---      from tenk1 t1
+--      from global_temp.tenk1 t1
 --      join int4_tbl i4 ON i4.f1 = t1.unique2
 --      left join uniquetbl u1 ON u1.f1 = t1.string4) ss
 --   on t0.f1 = ss.case1
@@ -1569,7 +1569,7 @@ SELECT * FROM
 --  left join
 --    (select case t1.ten when 0 then 'doh!'::text else null::text end as case1,
 --            t1.stringu2
---      from tenk1 t1
+--      from global_temp.tenk1 t1
 --      join int4_tbl i4 ON i4.f1 = t1.unique2
 --      left join uniquetbl u1 ON u1.f1 = t1.string4) ss
 --   on t0.f1 = ss.case1
@@ -1591,11 +1591,11 @@ select * from
 --
 
 select t1.uunique1 from
-  tenk1 t1 join tenk2 t2 on t1.two = t2.two; -- error, prefer "t1" suggestion
+  global_temp.tenk1 t1 join tenk2 t2 on t1.two = t2.two; -- error, prefer "t1" suggestion
 select t2.uunique1 from
-  tenk1 t1 join tenk2 t2 on t1.two = t2.two; -- error, prefer "t2" suggestion
+  global_temp.tenk1 t1 join tenk2 t2 on t1.two = t2.two; -- error, prefer "t2" suggestion
 select uunique1 from
-  tenk1 t1 join tenk2 t2 on t1.two = t2.two; -- error, suggest both at once
+  global_temp.tenk1 t1 join tenk2 t2 on t1.two = t2.two; -- error, suggest both at once
 
 -- Skip this test because it is a PostgreSQL specific case
 --
@@ -1614,23 +1614,23 @@ select uunique1 from
 --
 
 -- select unique2, x.*
--- from tenk1 a, lateral (select * from int4_tbl b where f1 = a.unique1) x;
+-- from global_temp.tenk1 a, lateral (select * from int4_tbl b where f1 = a.unique1) x;
 -- explain (costs off)
 --   select unique2, x.*
---   from tenk1 a, lateral (select * from int4_tbl b where f1 = a.unique1) x;
+--   from global_temp.tenk1 a, lateral (select * from int4_tbl b where f1 = a.unique1) x;
 -- select unique2, x.*
--- from int4_tbl x, lateral (select unique2 from tenk1 where f1 = unique1) ss;
+-- from int4_tbl x, lateral (select unique2 from global_temp.tenk1 where f1 = unique1) ss;
 -- explain (costs off)
 --   select unique2, x.*
---   from int4_tbl x, lateral (select unique2 from tenk1 where f1 = unique1) ss;
+--   from int4_tbl x, lateral (select unique2 from global_temp.tenk1 where f1 = unique1) ss;
 -- explain (costs off)
 --   select unique2, x.*
---   from int4_tbl x cross join lateral (select unique2 from tenk1 where f1 = unique1) ss;
+--   from int4_tbl x cross join lateral (select unique2 from global_temp.tenk1 where f1 = unique1) ss;
 -- select unique2, x.*
--- from int4_tbl x left join lateral (select unique1, unique2 from tenk1 where f1 = unique1) ss on true;
+-- from int4_tbl x left join lateral (select unique1, unique2 from global_temp.tenk1 where f1 = unique1) ss on true;
 -- explain (costs off)
 --   select unique2, x.*
---   from int4_tbl x left join lateral (select unique1, unique2 from tenk1 where f1 = unique1) ss on true;
+--   from int4_tbl x left join lateral (select unique1, unique2 from global_temp.tenk1 where f1 = unique1) ss on true;
 
 -- [SPARK-27877] ANSI SQL: LATERAL derived table(T491)
 -- check scoping of lateral versus parent references
@@ -1639,14 +1639,14 @@ select uunique1 from
 -- select *, (select r from (select q1 as q2) x, lateral (select q2 as r) y) from int8_tbl;
 
 -- lateral with function in FROM
--- select count(*) from tenk1 a, lateral generate_series(1,two) g;
+-- select count(*) from global_temp.tenk1 a, lateral generate_series(1,two) g;
 -- explain (costs off)
---   select count(*) from tenk1 a, lateral generate_series(1,two) g;
+--   select count(*) from global_temp.tenk1 a, lateral generate_series(1,two) g;
 -- explain (costs off)
---   select count(*) from tenk1 a cross join lateral generate_series(1,two) g;
+--   select count(*) from global_temp.tenk1 a cross join lateral generate_series(1,two) g;
 -- don't need the explicit LATERAL keyword for functions
 -- explain (costs off)
---   select count(*) from tenk1 a, generate_series(1,two) g;
+--   select count(*) from global_temp.tenk1 a, generate_series(1,two) g;
 
 -- lateral with UNION ALL subselect
 -- explain (costs off)
@@ -1659,17 +1659,17 @@ select uunique1 from
 
 -- lateral with VALUES
 -- explain (costs off)
---   select count(*) from tenk1 a,
---     tenk1 b join lateral (values(a.unique1)) ss(x) on b.unique2 = ss.x;
--- select count(*) from tenk1 a,
---   tenk1 b join lateral (values(a.unique1)) ss(x) on b.unique2 = ss.x;
+--   select count(*) from global_temp.tenk1 a,
+--     global_temp.tenk1 b join lateral (values(a.unique1)) ss(x) on b.unique2 = ss.x;
+-- select count(*) from global_temp.tenk1 a,
+--   global_temp.tenk1 b join lateral (values(a.unique1)) ss(x) on b.unique2 = ss.x;
 
 -- lateral with VALUES, no flattening possible
 -- explain (costs off)
---   select count(*) from tenk1 a,
---     tenk1 b join lateral (values(a.unique1),(-1)) ss(x) on b.unique2 = ss.x;
--- select count(*) from tenk1 a,
---   tenk1 b join lateral (values(a.unique1),(-1)) ss(x) on b.unique2 = ss.x;
+--   select count(*) from global_temp.tenk1 a,
+--     global_temp.tenk1 b join lateral (values(a.unique1),(-1)) ss(x) on b.unique2 = ss.x;
+-- select count(*) from global_temp.tenk1 a,
+--   global_temp.tenk1 b join lateral (values(a.unique1),(-1)) ss(x) on b.unique2 = ss.x;
 
 -- lateral injecting a strange outer join condition
 -- explain (costs off)
@@ -1826,12 +1826,12 @@ select uunique1 from
 -- select * from
 --   (values (0,9998), (1,1000)) v(id,x),
 --   lateral (select f1 from int4_tbl
---            where f1 = any (select unique1 from tenk1
+--            where f1 = any (select unique1 from global_temp.tenk1
 --                            where unique2 = v.x offset 0)) ss;
 -- select * from
 --   (values (0,9998), (1,1000)) v(id,x),
 --   lateral (select f1 from int4_tbl
---            where f1 = any (select unique1 from tenk1
+--            where f1 = any (select unique1 from global_temp.tenk1
 --                            where unique2 = v.x offset 0)) ss;
 
 -- check proper extParam/allParam handling (this isn't exactly a LATERAL issue,
@@ -1867,7 +1867,7 @@ select f1,g from int4_tbl a cross join (select a.f1 as g) ss;
 -- select * from
 --   int8_tbl x cross join (int4_tbl x cross join lateral (select x.f1) ss);
 -- LATERAL can be used to put an aggregate into the FROM clause of its query
--- select 1 from tenk1 a, lateral (select max(a.unique1) from int4_tbl b) ss;
+-- select 1 from global_temp.tenk1 a, lateral (select max(a.unique1) from int4_tbl b) ss;
 
 -- check behavior of LATERAL in UPDATE/DELETE
 
@@ -2072,19 +2072,19 @@ drop table j2;
 -- check that semijoin inner is not seen as unique for a portion of the outerrel
 -- explain (verbose, costs off)
 -- select t1.unique1, t2.hundred
--- from onek t1, tenk1 t2
--- where exists (select 1 from tenk1 t3
+-- from global_temp.onek t1, global_temp.tenk1 t2
+-- where exists (select 1 from global_temp.tenk1 t3
 --               where t3.thousand = t1.unique1 and t3.tenthous = t2.hundred)
 --       and t1.unique1 < 1;
 
 -- ... unless it actually is unique
--- create table j3 as select unique1, tenthous from onek;
+-- create table j3 as select unique1, tenthous from global_temp.onek;
 -- vacuum analyze j3;
 -- create unique index on j3(unique1, tenthous);
 
 -- explain (verbose, costs off)
 -- select t1.unique1, t2.hundred
--- from onek t1, tenk1 t2
+-- from global_temp.onek t1, global_temp.tenk1 t2
 -- where exists (select 1 from j3
 --               where j3.unique1 = t1.unique1 and j3.tenthous = t2.hundred)
 --       and t1.unique1 < 1;

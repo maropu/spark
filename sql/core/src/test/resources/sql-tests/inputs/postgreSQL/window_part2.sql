@@ -36,50 +36,50 @@ INSERT INTO empsalary VALUES
 
 SELECT sum(unique1) over (order by four range between 2 preceding and 1 preceding),
 unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM global_temp.tenk1 WHERE unique1 < 10;
 
 SELECT sum(unique1) over (order by four desc range between 2 preceding and 1 preceding),
 unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT sum(unique1) over (order by four range between 2 preceding and 1 preceding exclude no others),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT sum(unique1) over (order by four range between 2 preceding and 1 preceding exclude current row),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT sum(unique1) over (order by four range between 2 preceding and 1 preceding exclude group),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT sum(unique1) over (order by four range between 2 preceding and 1 preceding exclude ties),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT sum(unique1) over (order by four range between 2 preceding and 6 following exclude ties),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT sum(unique1) over (order by four range between 2 preceding and 6 following exclude group),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 SELECT sum(unique1) over (partition by four order by unique1 range between 5 preceding and 6 following),
 unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT sum(unique1) over (partition by four order by unique1 range between 5 preceding and 6 following
 --   exclude current row),unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28429] SQL Datetime util function being casted to double instead of timestamp
 -- select sum(salary) over (order by enroll_date range between '1 year' preceding and '1 year' following),

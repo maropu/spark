@@ -15,11 +15,11 @@
 
 -- Spark doesn't handle UDFs in SQL
 -- SELECT nth_value_def(n := 2, val := ten) OVER (PARTITION BY four), ten, four
---   FROM (SELECT * FROM tenk1 WHERE unique2 < 10 ORDER BY four, ten) s;
+--   FROM (SELECT * FROM global_temp.tenk1 WHERE unique2 < 10 ORDER BY four, ten) s;
 
 -- Spark doesn't handle UDFs in SQL
 -- SELECT nth_value_def(ten) OVER (PARTITION BY four), ten, four
---   FROM (SELECT * FROM tenk1 WHERE unique2 < 10 ORDER BY four, ten) s;
+--   FROM (SELECT * FROM global_temp.tenk1 WHERE unique2 < 10 ORDER BY four, ten) s;
 
 --
 -- Test the basic moving-aggregate machinery

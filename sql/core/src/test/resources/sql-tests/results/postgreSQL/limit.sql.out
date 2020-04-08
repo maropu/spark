@@ -4,7 +4,7 @@
 
 -- !query
 SELECT '' AS two, unique1, unique2, stringu1
-		FROM onek WHERE unique1 > 50
+		FROM global_temp.onek WHERE unique1 > 50
 		ORDER BY unique1 LIMIT 2
 -- !query schema
 struct<two:string,unique1:int,unique2:int,stringu1:string>
@@ -15,7 +15,7 @@ struct<two:string,unique1:int,unique2:int,stringu1:string>
 
 -- !query
 SELECT '' AS five, unique1, unique2, stringu1
-		FROM onek WHERE unique1 > 60
+		FROM global_temp.onek WHERE unique1 > 60
 		ORDER BY unique1 LIMIT 5
 -- !query schema
 struct<five:string,unique1:int,unique2:int,stringu1:string>
@@ -29,7 +29,7 @@ struct<five:string,unique1:int,unique2:int,stringu1:string>
 
 -- !query
 SELECT '' AS two, unique1, unique2, stringu1
-		FROM onek WHERE unique1 > 60 AND unique1 < 63
+		FROM global_temp.onek WHERE unique1 > 60 AND unique1 < 63
 		ORDER BY unique1 LIMIT 5
 -- !query schema
 struct<two:string,unique1:int,unique2:int,stringu1:string>
@@ -72,7 +72,7 @@ struct<>
 
 -- !query
 select sum(tenthous) as s1, sum(tenthous) + random()*0 as s2
-  from tenk1 group by thousand order by thousand limit 3
+  from global_temp.tenk1 group by thousand order by thousand limit 3
 -- !query schema
 struct<s1:bigint,s2:double>
 -- !query output

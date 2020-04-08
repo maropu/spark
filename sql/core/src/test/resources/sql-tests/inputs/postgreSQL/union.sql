@@ -146,25 +146,25 @@ SELECT q1 FROM int8_tbl EXCEPT ALL SELECT DISTINCT q2 FROM int8_tbl ORDER BY 1;
 
 -- explain (costs off)
 -- select count(*) from
---   ( select unique1 from tenk1 intersect select fivethous from tenk1 ) ss;
+--   ( select unique1 from global_temp.tenk1 intersect select fivethous from global_temp.tenk1 ) ss;
 select count(*) from
-  ( select unique1 from tenk1 intersect select fivethous from tenk1 ) ss;
+  ( select unique1 from global_temp.tenk1 intersect select fivethous from global_temp.tenk1 ) ss;
 
 -- explain (costs off)
--- select unique1 from tenk1 except select unique2 from tenk1 where unique2 != 10;
-select unique1 from tenk1 except select unique2 from tenk1 where unique2 != 10;
+-- select unique1 from global_temp.tenk1 except select unique2 from global_temp.tenk1 where unique2 != 10;
+select unique1 from global_temp.tenk1 except select unique2 from global_temp.tenk1 where unique2 != 10;
 
 -- set enable_hashagg to off;
 
 -- explain (costs off)
 -- select count(*) from
---   ( select unique1 from tenk1 intersect select fivethous from tenk1 ) ss;
+--   ( select unique1 from global_temp.tenk1 intersect select fivethous from global_temp.tenk1 ) ss;
 select count(*) from
-  ( select unique1 from tenk1 intersect select fivethous from tenk1 ) ss;
+  ( select unique1 from global_temp.tenk1 intersect select fivethous from global_temp.tenk1 ) ss;
 
 -- explain (costs off)
--- select unique1 from tenk1 except select unique2 from tenk1 where unique2 != 10;
-select unique1 from tenk1 except select unique2 from tenk1 where unique2 != 10;
+-- select unique1 from global_temp.tenk1 except select unique2 from global_temp.tenk1 where unique2 != 10;
+select unique1 from global_temp.tenk1 except select unique2 from global_temp.tenk1 where unique2 != 10;
 
 -- reset enable_hashagg;
 
@@ -355,9 +355,9 @@ SELECT cast('3.4' as decimal(38, 18)) UNION SELECT 'foo';
 -- Test constraint exclusion of UNION ALL subqueries
 -- explain (costs off)
 --  SELECT * FROM
---   (SELECT 1 AS t, * FROM tenk1 a
+--   (SELECT 1 AS t, * FROM global_temp.tenk1 a
 --    UNION ALL
---    SELECT 2 AS t, * FROM tenk1 b) c
+--    SELECT 2 AS t, * FROM global_temp.tenk1 b) c
 --  WHERE t = 2;
 
 -- Test that we push quals into UNION sub-selects only when it's safe

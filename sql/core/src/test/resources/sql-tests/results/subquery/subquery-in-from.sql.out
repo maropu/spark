@@ -3,7 +3,7 @@
 
 
 -- !query
-SELECT * FROM (SELECT * FROM testData) AS t WHERE key = 1
+SELECT * FROM (SELECT * FROM global_temp.testdata) AS t WHERE key = 1
 -- !query schema
 struct<key:int,value:string>
 -- !query output
@@ -11,7 +11,7 @@ struct<key:int,value:string>
 
 
 -- !query
-FROM (SELECT * FROM testData WHERE key = 1) AS t SELECT *
+FROM (SELECT * FROM global_temp.testdata WHERE key = 1) AS t SELECT *
 -- !query schema
 struct<key:int,value:string>
 -- !query output
@@ -19,7 +19,7 @@ struct<key:int,value:string>
 
 
 -- !query
-SELECT * FROM (SELECT * FROM testData) t WHERE key = 1
+SELECT * FROM (SELECT * FROM global_temp.testdata) t WHERE key = 1
 -- !query schema
 struct<key:int,value:string>
 -- !query output
@@ -27,7 +27,7 @@ struct<key:int,value:string>
 
 
 -- !query
-FROM (SELECT * FROM testData WHERE key = 1) t SELECT *
+FROM (SELECT * FROM global_temp.testdata WHERE key = 1) t SELECT *
 -- !query schema
 struct<key:int,value:string>
 -- !query output
@@ -35,7 +35,7 @@ struct<key:int,value:string>
 
 
 -- !query
-SELECT * FROM (SELECT * FROM testData) WHERE key = 1
+SELECT * FROM (SELECT * FROM global_temp.testdata) WHERE key = 1
 -- !query schema
 struct<key:int,value:string>
 -- !query output
@@ -43,7 +43,7 @@ struct<key:int,value:string>
 
 
 -- !query
-FROM (SELECT * FROM testData WHERE key = 1) SELECT *
+FROM (SELECT * FROM global_temp.testdata WHERE key = 1) SELECT *
 -- !query schema
 struct<key:int,value:string>
 -- !query output

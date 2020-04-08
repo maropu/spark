@@ -210,12 +210,12 @@ select a, b, grouping(a), grouping(b), sum(t1.v), max(t2.c)
 
 -- check that pulled-up subquery outputs still go to null when appropriate
 select four, x
-  from (select four, ten, 'foo' as x from tenk1) as t
+  from (select four, ten, 'foo' as x from global_temp.tenk1) as t
   group by grouping sets (four, x)
   having x = 'foo';
 
 select four, x || 'x'
-  from (select four, ten, 'foo' as x from tenk1) as t
+  from (select four, ten, 'foo' as x from global_temp.tenk1) as t
   group by grouping sets (four, x)
   order by four;
 
@@ -251,7 +251,7 @@ DROP VIEW int8_tbl;
 
 -- min max optimization should still work with GROUP BY ()
 -- explain (costs off)
---   select min(unique1) from tenk1 GROUP BY ();
+--   select min(unique1) from global_temp.tenk1 GROUP BY ();
 
 -- Views with GROUPING SET queries
 -- [SPARK-29698] Support grouping function with multiple arguments
@@ -300,9 +300,9 @@ DROP VIEW int8_tbl;
 -- select a, b, sum(c), count(*) from gstest2 group by grouping sets (rollup(a,b),a);
 
 -- HAVING queries
-select ten, sum(distinct four) from onek a
+select ten, sum(distinct four) from global_temp.onek a
 group by grouping sets((ten,four),(ten))
-having exists (select 1 from onek b where sum(distinct a.four) = b.four);
+having exists (select 1 from global_temp.onek b where sum(distinct a.four) = b.four);
 
 -- Tests around pushdown of HAVING clauses, partially testing against previous bugs
 select a,count(*) from gstest2 group by rollup(a) order by a;
@@ -318,38 +318,38 @@ select a,count(*) from gstest2 group by rollup(a) having a is distinct from 1 or
 --     from (values (false),(true)) v(c) order by v.c;
 
 -- HAVING with GROUPING queries
-select ten, grouping(ten) from onek
+select ten, grouping(ten) from global_temp.onek
 group by grouping sets(ten) having grouping(ten) >= 0
 order by 2,1;
-select ten, grouping(ten) from onek
+select ten, grouping(ten) from global_temp.onek
 group by grouping sets(ten, four) having grouping(ten) > 0
 order by 2,1;
-select ten, grouping(ten) from onek
+select ten, grouping(ten) from global_temp.onek
 group by rollup(ten) having grouping(ten) > 0
 order by 2,1;
-select ten, grouping(ten) from onek
+select ten, grouping(ten) from global_temp.onek
 group by cube(ten) having grouping(ten) > 0
 order by 2,1;
 -- [SPARK-29703] grouping() can only be used with GroupingSets/Cube/Rollup
--- select ten, grouping(ten) from onek
+-- select ten, grouping(ten) from global_temp.onek
 -- group by (ten) having grouping(ten) >= 0
 -- order by 2,1;
 
 -- FILTER queries
 -- [SPARK-30276] Support Filter expression allows simultaneous use of DISTINCT
--- select ten, sum(distinct four) filter (where string(four) like '123') from onek a
+-- select ten, sum(distinct four) filter (where string(four) like '123') from global_temp.onek a
 -- group by rollup(ten);
 
 -- More rescan tests
 -- [SPARK-27877] ANSI SQL: LATERAL derived table(T491)
--- select * from (values (1),(2)) v(a) left join lateral (select v.a, four, ten, count(*) from onek group by cube(four,ten)) s on true order by v.a,four,ten;
+-- select * from (values (1),(2)) v(a) left join lateral (select v.a, four, ten, count(*) from global_temp.onek group by cube(four,ten)) s on true order by v.a,four,ten;
 -- [SPARK-27878] Support ARRAY(sub-SELECT) expressions
--- select array(select row(v.a,s1.*) from (select two,four, count(*) from onek group by cube(two,four) order by two,four) s1) from (values (1),(2)) v(a);
+-- select array(select row(v.a,s1.*) from (select two,four, count(*) from global_temp.onek group by cube(two,four) order by two,four) s1) from (values (1),(2)) v(a);
 
 -- [SPARK-29704] Support the combinations of grouping operations
 -- Grouping on text columns
--- select sum(ten) from onek group by two, rollup(string(four)) order by 1;
--- select sum(ten) from onek group by rollup(string(four)), two order by 1;
+-- select sum(ten) from global_temp.onek group by two, rollup(string(four)) order by 1;
+-- select sum(ten) from global_temp.onek group by rollup(string(four)), two order by 1;
 
 -- hashing support
 
@@ -501,16 +501,16 @@ SELECT a, b, count(*), max(a), max(b) FROM gstest3 GROUP BY GROUPING SETS(a, b,(
 
 -- More rescan tests
 -- [SPARK-27877] ANSI SQL: LATERAL derived table(T491)
--- select * from (values (1),(2)) v(a) left join lateral (select v.a, four, ten, count(*) from onek group by cube(four,ten)) s on true order by v.a,four,ten;
+-- select * from (values (1),(2)) v(a) left join lateral (select v.a, four, ten, count(*) from global_temp.onek group by cube(four,ten)) s on true order by v.a,four,ten;
 -- [SPARK-27878] Support ARRAY(sub-SELECT) expressions
--- select array(select row(v.a,s1.*) from (select two,four, count(*) from onek group by cube(two,four) order by two,four) s1) from (values (1),(2)) v(a);
+-- select array(select row(v.a,s1.*) from (select two,four, count(*) from global_temp.onek group by cube(two,four) order by two,four) s1) from (values (1),(2)) v(a);
 
 -- Rescan logic changes when there are no empty grouping sets, so test
 -- that too:
 -- [SPARK-27877] ANSI SQL: LATERAL derived table(T491)
--- select * from (values (1),(2)) v(a) left join lateral (select v.a, four, ten, count(*) from onek group by grouping sets(four,ten)) s on true order by v.a,four,ten;
+-- select * from (values (1),(2)) v(a) left join lateral (select v.a, four, ten, count(*) from global_temp.onek group by grouping sets(four,ten)) s on true order by v.a,four,ten;
 -- [SPARK-27878] Support ARRAY(sub-SELECT) expressions
--- select array(select row(v.a,s1.*) from (select two,four, count(*) from onek group by grouping sets(two,four) order by two,four) s1) from (values (1),(2)) v(a);
+-- select array(select row(v.a,s1.*) from (select two,four, count(*) from global_temp.onek group by grouping sets(two,four) order by two,four) s1) from (values (1),(2)) v(a);
 
 -- test the knapsack
 
@@ -522,13 +522,13 @@ SELECT a, b, count(*), max(a), max(b) FROM gstest3 GROUP BY GROUPING SETS(a, b,(
 --          count(two), count(four), count(ten),
 --          count(hundred), count(thousand), count(twothousand),
 --          count(*)
---     from tenk1 group by grouping sets (unique1,twothousand,thousand,hundred,ten,four,two);
+--     from global_temp.tenk1 group by grouping sets (unique1,twothousand,thousand,hundred,ten,four,two);
 -- explain (costs off)
 --   select unique1,
 --          count(two), count(four), count(ten),
 --          count(hundred), count(thousand), count(twothousand),
 --          count(*)
---     from tenk1 group by grouping sets (unique1,hundred,ten,four,two);
+--     from global_temp.tenk1 group by grouping sets (unique1,hundred,ten,four,two);
 
 -- Ignore a PostgreSQL-specific option
 -- set work_mem = '384kB';
@@ -537,7 +537,7 @@ SELECT a, b, count(*), max(a), max(b) FROM gstest3 GROUP BY GROUPING SETS(a, b,(
 --          count(two), count(four), count(ten),
 --          count(hundred), count(thousand), count(twothousand),
 --          count(*)
---     from tenk1 group by grouping sets (unique1,twothousand,thousand,hundred,ten,four,two);
+--     from global_temp.tenk1 group by grouping sets (unique1,twothousand,thousand,hundred,ten,four,two);
 
 -- check collation-sensitive matching between grouping expressions
 -- (similar to a check for aggregates, but there are additional code

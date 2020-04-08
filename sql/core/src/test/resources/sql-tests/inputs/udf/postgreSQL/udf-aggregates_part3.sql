@@ -35,8 +35,8 @@
 -- drop table minmaxtest cascade;
 
 -- check for correct detection of nested-aggregate errors
-select udf(max(min(unique1))) from tenk1;
--- select (select max(min(unique1)) from int8_tbl) from tenk1;
+select udf(max(min(unique1))) from global_temp.tenk1;
+-- select (select max(min(unique1)) from int8_tbl) from global_temp.tenk1;
 
 -- These tests only test the explain. Skip these tests.
 --
@@ -231,16 +231,16 @@ select udf(max(min(unique1))) from tenk1;
 
 -- FILTER tests
 
--- select min(unique1) filter (where unique1 > 100) from tenk1;
+-- select min(unique1) filter (where unique1 > 100) from global_temp.tenk1;
 
--- select sum(1/ten) filter (where ten > 0) from tenk1;
+-- select sum(1/ten) filter (where ten > 0) from global_temp.tenk1;
 
--- select ten, sum(distinct four) filter (where four::text ~ '123') from onek a
+-- select ten, sum(distinct four) filter (where four::text ~ '123') from global_temp.onek a
 -- group by ten;
 
--- select ten, sum(distinct four) filter (where four > 10) from onek a
+-- select ten, sum(distinct four) filter (where four > 10) from global_temp.onek a
 -- group by ten
--- having exists (select 1 from onek b where sum(distinct a.four) = b.four);
+-- having exists (select 1 from global_temp.onek b where sum(distinct a.four) = b.four);
 
 -- [SPARK-28682] ANSI SQL: Collation Support
 -- select max(foo COLLATE "C") filter (where (bar collate "POSIX") > '0')
@@ -257,13 +257,13 @@ from (values (2),(3)) t1(outer_c); -- inner query is aggregation query
 --         from (values (1)) t0(inner_c))
 -- from (values (2),(3)) t1(outer_c); -- inner query is aggregation query
 -- select
---   (select max((select i.unique2 from tenk1 i where i.unique1 = o.unique1))
+--   (select max((select i.unique2 from global_temp.tenk1 i where i.unique1 = o.unique1))
 --      filter (where o.unique1 < 10))
--- from tenk1 o;					-- outer query is aggregation query
+-- from global_temp.tenk1 o;					-- outer query is aggregation query
 
 -- subquery in FILTER clause (PostgreSQL extension)
 -- select sum(unique1) FILTER (WHERE
---  unique1 IN (SELECT unique1 FROM onek where unique1 < 100)) FROM tenk1;
+--  unique1 IN (SELECT unique1 FROM global_temp.onek where unique1 < 100)) FROM global_temp.tenk1;
 
 -- exercise lots of aggregate parts with FILTER
 -- select aggfns(distinct a,b,c order by a,c using ~<~,b) filter (where a > 1)

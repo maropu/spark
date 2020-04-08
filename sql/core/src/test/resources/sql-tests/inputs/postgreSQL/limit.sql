@@ -4,32 +4,32 @@
 -- https://github.com/postgres/postgres/blob/REL_12_STABLE/src/test/regress/sql/limit.sql
 
 SELECT '' AS two, unique1, unique2, stringu1
-		FROM onek WHERE unique1 > 50
+		FROM global_temp.onek WHERE unique1 > 50
 		ORDER BY unique1 LIMIT 2;
 SELECT '' AS five, unique1, unique2, stringu1
-		FROM onek WHERE unique1 > 60
+		FROM global_temp.onek WHERE unique1 > 60
 		ORDER BY unique1 LIMIT 5;
 SELECT '' AS two, unique1, unique2, stringu1
-		FROM onek WHERE unique1 > 60 AND unique1 < 63
+		FROM global_temp.onek WHERE unique1 > 60 AND unique1 < 63
 		ORDER BY unique1 LIMIT 5;
 -- [SPARK-28330] ANSI SQL: Top-level <result offset clause> in <query expression>
 -- SELECT '' AS three, unique1, unique2, stringu1
--- 		FROM onek WHERE unique1 > 100
+-- 		FROM global_temp.onek WHERE unique1 > 100
 -- 		ORDER BY unique1 LIMIT 3 OFFSET 20;
 -- SELECT '' AS zero, unique1, unique2, stringu1
--- 		FROM onek WHERE unique1 < 50
+-- 		FROM global_temp.onek WHERE unique1 < 50
 -- 		ORDER BY unique1 DESC LIMIT 8 OFFSET 99;
 -- SELECT '' AS eleven, unique1, unique2, stringu1
--- 		FROM onek WHERE unique1 < 50
+-- 		FROM global_temp.onek WHERE unique1 < 50
 -- 		ORDER BY unique1 DESC LIMIT 20 OFFSET 39;
 -- SELECT '' AS ten, unique1, unique2, stringu1
--- 		FROM onek
+-- 		FROM global_temp.onek
 -- 		ORDER BY unique1 OFFSET 990;
 -- SELECT '' AS five, unique1, unique2, stringu1
--- 		FROM onek
+-- 		FROM global_temp.onek
 -- 		ORDER BY unique1 OFFSET 990 LIMIT 5;
 -- SELECT '' AS five, unique1, unique2, stringu1
--- 		FROM onek
+-- 		FROM global_temp.onek
 -- 		ORDER BY unique1 LIMIT 5 OFFSET 900;
 
 CREATE OR REPLACE TEMPORARY VIEW INT8_TBL AS SELECT * FROM
@@ -108,37 +108,37 @@ DROP VIEW INT8_TBL;
 
 -- explain (verbose, costs off)
 -- select unique1, unique2, nextval('testseq')
---   from tenk1 order by unique2 limit 10;
+--   from global_temp.tenk1 order by unique2 limit 10;
 
 -- select unique1, unique2, nextval('testseq')
---   from tenk1 order by unique2 limit 10;
+--   from global_temp.tenk1 order by unique2 limit 10;
 
 -- select currval('testseq');
 
 -- explain (verbose, costs off)
 -- select unique1, unique2, nextval('testseq')
---   from tenk1 order by tenthous limit 10;
+--   from global_temp.tenk1 order by tenthous limit 10;
 
 -- select unique1, unique2, nextval('testseq')
---   from tenk1 order by tenthous limit 10;
+--   from global_temp.tenk1 order by tenthous limit 10;
 
 -- select currval('testseq');
 
 -- explain (verbose, costs off)
 -- select unique1, unique2, generate_series(1,10)
---   from tenk1 order by unique2 limit 7;
+--   from global_temp.tenk1 order by unique2 limit 7;
 
 -- [SPARK-27767] Built-in function: generate_series
 -- select unique1, unique2, generate_series(1,10)
---   from tenk1 order by unique2 limit 7;
+--   from global_temp.tenk1 order by unique2 limit 7;
 
 -- explain (verbose, costs off)
 -- select unique1, unique2, generate_series(1,10)
---   from tenk1 order by tenthous limit 7;
+--   from global_temp.tenk1 order by tenthous limit 7;
 
 -- [SPARK-27767] Built-in function: generate_series
 -- select unique1, unique2, generate_series(1,10)
---   from tenk1 order by tenthous limit 7;
+--   from global_temp.tenk1 order by tenthous limit 7;
 
 -- use of random() is to keep planner from folding the expressions together
 -- explain (verbose, costs off)
@@ -158,7 +158,7 @@ DROP VIEW INT8_TBL;
 -- test for failure to set all aggregates' aggtranstype
 -- explain (verbose, costs off)
 -- select sum(tenthous) as s1, sum(tenthous) + random()*0 as s2
---   from tenk1 group by thousand order by thousand limit 3;
+--   from global_temp.tenk1 group by thousand order by thousand limit 3;
 
 select sum(tenthous) as s1, sum(tenthous) + random()*0 as s2
-  from tenk1 group by thousand order by thousand limit 3;
+  from global_temp.tenk1 group by thousand order by thousand limit 3;

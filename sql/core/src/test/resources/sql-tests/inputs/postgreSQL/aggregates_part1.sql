@@ -13,38 +13,38 @@
 --CONFIG_DIM1 spark.sql.codegen.wholeStage=false,spark.sql.codegen.factoryMode=CODEGEN_ONLY
 --CONFIG_DIM1 spark.sql.codegen.wholeStage=false,spark.sql.codegen.factoryMode=NO_CODEGEN
 
-SELECT avg(four) AS avg_1 FROM onek;
+SELECT avg(four) AS avg_1 FROM global_temp.onek;
 
-SELECT avg(a) AS avg_32 FROM aggtest WHERE a < 100;
+SELECT avg(a) AS avg_32 FROM global_temp.aggtest WHERE a < 100;
 
 -- In 7.1, avg(float4) is computed using float8 arithmetic.
 -- Round the result to 3 digits to avoid platform-specific results.
 
-select CAST(avg(b) AS Decimal(10,3)) AS avg_107_943 FROM aggtest;
+select CAST(avg(b) AS Decimal(10,3)) AS avg_107_943 FROM global_temp.aggtest;
 -- `student` has a column with data type POINT, which is not supported by Spark [SPARK-27766]
 -- SELECT avg(gpa) AS avg_3_4 FROM ONLY student;
 
-SELECT sum(four) AS sum_1500 FROM onek;
-SELECT sum(a) AS sum_198 FROM aggtest;
-SELECT sum(b) AS avg_431_773 FROM aggtest;
+SELECT sum(four) AS sum_1500 FROM global_temp.onek;
+SELECT sum(a) AS sum_198 FROM global_temp.aggtest;
+SELECT sum(b) AS avg_431_773 FROM global_temp.aggtest;
 -- `student` has a column with data type POINT, which is not supported by Spark [SPARK-27766]
 -- SELECT sum(gpa) AS avg_6_8 FROM ONLY student;
 
-SELECT max(four) AS max_3 FROM onek;
-SELECT max(a) AS max_100 FROM aggtest;
-SELECT max(aggtest.b) AS max_324_78 FROM aggtest;
+SELECT max(four) AS max_3 FROM global_temp.onek;
+SELECT max(a) AS max_100 FROM global_temp.aggtest;
+SELECT max(global_temp.aggtest.b) AS max_324_78 FROM global_temp.aggtest;
 -- `student` has a column with data type POINT, which is not supported by Spark [SPARK-27766]
 -- SELECT max(student.gpa) AS max_3_7 FROM student;
 
-SELECT stddev_pop(b) FROM aggtest;
-SELECT stddev_samp(b) FROM aggtest;
-SELECT var_pop(b) FROM aggtest;
-SELECT var_samp(b) FROM aggtest;
+SELECT stddev_pop(b) FROM global_temp.aggtest;
+SELECT stddev_samp(b) FROM global_temp.aggtest;
+SELECT var_pop(b) FROM global_temp.aggtest;
+SELECT var_samp(b) FROM global_temp.aggtest;
 
-SELECT stddev_pop(CAST(b AS Decimal(38,0))) FROM aggtest;
-SELECT stddev_samp(CAST(b AS Decimal(38,0))) FROM aggtest;
-SELECT var_pop(CAST(b AS Decimal(38,0))) FROM aggtest;
-SELECT var_samp(CAST(b AS Decimal(38,0))) FROM aggtest;
+SELECT stddev_pop(CAST(b AS Decimal(38,0))) FROM global_temp.aggtest;
+SELECT stddev_samp(CAST(b AS Decimal(38,0))) FROM global_temp.aggtest;
+SELECT var_pop(CAST(b AS Decimal(38,0))) FROM global_temp.aggtest;
+SELECT var_samp(CAST(b AS Decimal(38,0))) FROM global_temp.aggtest;
 
 -- population variance is defined for a single tuple, sample variance
 -- is not
@@ -80,15 +80,15 @@ SELECT avg(CAST(x AS DOUBLE)), var_pop(CAST(x AS DOUBLE))
 FROM (VALUES (7000000000005), (7000000000007)) v(x);
 
 -- SQL2003 binary aggregates [SPARK-23907]
--- SELECT regr_count(b, a) FROM aggtest;
--- SELECT regr_sxx(b, a) FROM aggtest;
--- SELECT regr_syy(b, a) FROM aggtest;
--- SELECT regr_sxy(b, a) FROM aggtest;
--- SELECT regr_avgx(b, a), regr_avgy(b, a) FROM aggtest;
--- SELECT regr_r2(b, a) FROM aggtest;
--- SELECT regr_slope(b, a), regr_intercept(b, a) FROM aggtest;
-SELECT covar_pop(b, a), covar_samp(b, a) FROM aggtest;
-SELECT corr(b, a) FROM aggtest;
+-- SELECT regr_count(b, a) FROM global_temp.aggtest;
+-- SELECT regr_sxx(b, a) FROM global_temp.aggtest;
+-- SELECT regr_syy(b, a) FROM global_temp.aggtest;
+-- SELECT regr_sxy(b, a) FROM global_temp.aggtest;
+-- SELECT regr_avgx(b, a), regr_avgy(b, a) FROM global_temp.aggtest;
+-- SELECT regr_r2(b, a) FROM global_temp.aggtest;
+-- SELECT regr_slope(b, a), regr_intercept(b, a) FROM global_temp.aggtest;
+SELECT covar_pop(b, a), covar_samp(b, a) FROM global_temp.aggtest;
+SELECT corr(b, a) FROM global_temp.aggtest;
 
 
 -- test accum and combine functions directly [SPARK-23907]
@@ -117,38 +117,38 @@ SELECT corr(b, a) FROM aggtest;
 
 
 -- test count, distinct
-SELECT count(four) AS cnt_1000 FROM onek;
-SELECT count(DISTINCT four) AS cnt_4 FROM onek;
+SELECT count(four) AS cnt_1000 FROM global_temp.onek;
+SELECT count(DISTINCT four) AS cnt_4 FROM global_temp.onek;
 
-select ten, count(*), sum(four) from onek
+select ten, count(*), sum(four) from global_temp.onek
 group by ten order by ten;
 
-select ten, count(four), sum(DISTINCT four) from onek
+select ten, count(four), sum(DISTINCT four) from global_temp.onek
 group by ten order by ten;
 
 -- user-defined aggregates
--- SELECT newavg(four) AS avg_1 FROM onek;
--- SELECT newsum(four) AS sum_1500 FROM onek;
--- SELECT newcnt(four) AS cnt_1000 FROM onek;
--- SELECT newcnt(*) AS cnt_1000 FROM onek;
--- SELECT oldcnt(*) AS cnt_1000 FROM onek;
+-- SELECT newavg(four) AS avg_1 FROM global_temp.onek;
+-- SELECT newsum(four) AS sum_1500 FROM global_temp.onek;
+-- SELECT newcnt(four) AS cnt_1000 FROM global_temp.onek;
+-- SELECT newcnt(*) AS cnt_1000 FROM global_temp.onek;
+-- SELECT oldcnt(*) AS cnt_1000 FROM global_temp.onek;
 -- SELECT sum2(q1,q2) FROM int8_tbl;
 
 -- test for outer-level aggregates
 
 -- this should work
-select ten, sum(distinct four) from onek a
+select ten, sum(distinct four) from global_temp.onek a
 group by ten
-having exists (select 1 from onek b where sum(distinct a.four) = b.four);
+having exists (select 1 from global_temp.onek b where sum(distinct a.four) = b.four);
 
 -- this should fail because subquery has an agg of its own in WHERE
-select ten, sum(distinct four) from onek a
+select ten, sum(distinct four) from global_temp.onek a
 group by ten
-having exists (select 1 from onek b
+having exists (select 1 from global_temp.onek b
                where sum(distinct a.four + b.four) = b.four);
 
 -- [SPARK-27769] Test handling of sublinks within outer-level aggregates.
 -- Per bug report from Daniel Grace.
 select
-  (select max((select i.unique2 from tenk1 i where i.unique1 = o.unique1)))
-from tenk1 o;
+  (select max((select i.unique2 from global_temp.tenk1 i where i.unique1 = o.unique1)))
+from global_temp.tenk1 o;

@@ -49,7 +49,7 @@ struct<>
 
 
 -- !query
-CREATE OR REPLACE TEMPORARY VIEW tenk2 AS SELECT * FROM tenk1
+CREATE OR REPLACE TEMPORARY VIEW tenk2 AS SELECT * FROM global_temp.tenk1
 -- !query schema
 struct<>
 -- !query output
@@ -2332,8 +2332,8 @@ struct<x1:int,x2:int,y1:int,y2:int,xx1:int,xx2:int>
 
 
 -- !query
-select count(*) from tenk1 a where unique1 in
-  (select unique1 from tenk1 b join tenk1 c using (unique1)
+select count(*) from global_temp.tenk1 a where unique1 in
+  (select unique1 from global_temp.tenk1 b join global_temp.tenk1 c using (unique1)
    where b.unique2 = 42)
 -- !query schema
 struct<count(1):bigint>
@@ -2342,7 +2342,7 @@ struct<count(1):bigint>
 
 
 -- !query
-select count(*) from tenk1 x where
+select count(*) from global_temp.tenk1 x where
   x.unique1 in (select a.f1 from int4_tbl a,float8_tbl b where a.f1=b.f1) and
   x.unique1 = 0 and
   x.unique1 in (select aa.f1 from int4_tbl aa,float8_tbl bb where aa.f1=bb.f1)
@@ -2353,7 +2353,7 @@ struct<count(1):bigint>
 
 
 -- !query
-select count(*) from tenk1 x where
+select count(*) from global_temp.tenk1 x where
   x.unique1 in (select a.f1 from int4_tbl a,float8_tbl b where a.f1=b.f1) and
   x.unique1 = 0 and
   x.unique1 in (select aa.f1 from int4_tbl aa,float8_tbl bb where aa.f1=bb.f1)
@@ -2381,11 +2381,11 @@ struct<q1:bigint,q2:bigint,q1:bigint,q2:bigint,x:int>
 select count(*)
 from
   (select t3.tenthous as x1, coalesce(t1.stringu1, t2.stringu1) as x2
-   from tenk1 t1
-   left join tenk1 t2 on t1.unique1 = t2.unique1
-   join tenk1 t3 on t1.unique2 = t3.unique2) ss,
-  tenk1 t4,
-  tenk1 t5
+   from global_temp.tenk1 t1
+   left join global_temp.tenk1 t2 on t1.unique1 = t2.unique1
+   join global_temp.tenk1 t3 on t1.unique2 = t3.unique2) ss,
+  global_temp.tenk1 t4,
+  global_temp.tenk1 t5
 where t4.thousand = t5.unique1 and ss.x1 = t4.tenthous and ss.x2 = t5.stringu1
 -- !query schema
 struct<count(1):bigint>
@@ -2395,7 +2395,7 @@ struct<count(1):bigint>
 
 -- !query
 select a.f1, b.f1, t.thousand, t.tenthous from
-  tenk1 t,
+  global_temp.tenk1 t,
   (select sum(f1)+1 as f1 from int4_tbl i4a) a,
   (select sum(f1) as f1 from int4_tbl i4b) b
 where b.f1 = t.thousand and a.f1 = b.f1 and (a.f1+b.f1+999) = t.tenthous
@@ -2436,9 +2436,9 @@ NULL	NULL	null	NULL	NULL
 
 -- !query
 select count(*) from
-  (select * from tenk1 x order by x.thousand, x.twothousand, x.fivethous) x
+  (select * from global_temp.tenk1 x order by x.thousand, x.twothousand, x.fivethous) x
   left join
-  (select * from tenk1 y order by y.unique2) y
+  (select * from global_temp.tenk1 y order by y.unique2) y
   on x.thousand = y.unique2 and x.twothousand = y.hundred and x.fivethous = y.unique2
 -- !query schema
 struct<count(1):bigint>
@@ -2527,7 +2527,7 @@ struct<tt1_id:int,joincol:int,tt2_id:int,joincol:int>
 
 
 -- !query
-select count(*) from tenk1 a, tenk1 b
+select count(*) from global_temp.tenk1 a, global_temp.tenk1 b
   where a.hundred = b.thousand and (b.fivethous % 10) < 10
 -- !query schema
 struct<count(1):bigint>
@@ -2695,7 +2695,7 @@ struct<f2:int,f3:int,f1:int,junk:string>
 
 -- !query
 select a.unique2, a.ten, b.tenthous, b.unique2, b.hundred
-from tenk1 a left join tenk1 b on a.unique2 = b.tenthous
+from global_temp.tenk1 a left join global_temp.tenk1 b on a.unique2 = b.tenthous
 where a.unique1 = 42 and
       ((b.unique2 is null and a.ten = 2) or b.hundred = 3)
 -- !query schema
@@ -2868,7 +2868,7 @@ SELECT qq, unique1
   FULL OUTER JOIN
   ( SELECT COALESCE(q2, -1) AS qq FROM int8_tbl b ) AS ss2
   USING (qq)
-  INNER JOIN tenk1 c ON qq = unique2
+  INNER JOIN global_temp.tenk1 c ON qq = unique2
 -- !query schema
 struct<qq:bigint,unique1:int>
 -- !query output
@@ -2976,8 +2976,8 @@ NULL	2147483647
 
 -- !query
 select count(*) from
-  tenk1 a join tenk1 b on a.unique1 = b.unique2
-  left join tenk1 c on a.unique2 = b.unique1 and c.thousand = a.thousand
+  global_temp.tenk1 a join global_temp.tenk1 b on a.unique1 = b.unique2
+  left join global_temp.tenk1 c on a.unique2 = b.unique1 and c.thousand = a.thousand
   join int4_tbl on b.thousand = f1
 -- !query schema
 struct<count(1):bigint>
@@ -2987,8 +2987,8 @@ struct<count(1):bigint>
 
 -- !query
 select b.unique1 from
-  tenk1 a join tenk1 b on a.unique1 = b.unique2
-  left join tenk1 c on b.unique1 = 42 and c.thousand = a.thousand
+  global_temp.tenk1 a join global_temp.tenk1 b on a.unique1 = b.unique2
+  left join global_temp.tenk1 c on b.unique1 = 42 and c.thousand = a.thousand
   join int4_tbl i1 on b.thousand = f1
   right join int4_tbl i2 on i2.f1 = b.tenthous
   order by 1
@@ -3006,7 +3006,7 @@ NULL
 select * from
 (
   select unique1, q1, coalesce(unique1, -1) + q1 as fault
-  from int8_tbl left join tenk1 on (q2 = unique2)
+  from int8_tbl left join global_temp.tenk1 on (q2 = unique2)
 ) ss
 where fault = 122
 order by fault
@@ -3018,7 +3018,7 @@ NULL	123	122
 
 -- !query
 select q1, unique2, thousand, hundred
-  from int8_tbl a left join tenk1 b on q1 = unique2
+  from int8_tbl a left join global_temp.tenk1 b on q1 = unique2
   where coalesce(thousand,123) = q1 and q1 = coalesce(hundred,123)
 -- !query schema
 struct<q1:bigint,unique2:int,thousand:int,hundred:int>
@@ -3028,7 +3028,7 @@ struct<q1:bigint,unique2:int,thousand:int,hundred:int>
 
 -- !query
 select f1, unique2, case when unique2 is null then f1 else 0 end
-  from int4_tbl a left join tenk1 b on f1 = unique2
+  from int4_tbl a left join global_temp.tenk1 b on f1 = unique2
   where (case when unique2 is null then f1 else 0 end) = 0
 -- !query schema
 struct<f1:int,unique2:int,CASE WHEN (unique2 IS NULL) THEN f1 ELSE 0 END:int>
@@ -3038,7 +3038,7 @@ struct<f1:int,unique2:int,CASE WHEN (unique2 IS NULL) THEN f1 ELSE 0 END:int>
 
 -- !query
 select a.unique1, b.unique1, c.unique1, coalesce(b.twothousand, a.twothousand)
-  from tenk1 a left join tenk1 b on b.thousand = a.unique1                        left join tenk1 c on c.unique2 = coalesce(b.twothousand, a.twothousand)
+  from global_temp.tenk1 a left join global_temp.tenk1 b on b.thousand = a.unique1                        left join global_temp.tenk1 c on c.unique2 = coalesce(b.twothousand, a.twothousand)
   where a.unique2 < 10 and coalesce(b.twothousand, a.twothousand) = 44
 -- !query schema
 struct<unique1:int,unique1:int,unique1:int,coalesce(twothousand, twothousand):int>
@@ -3066,7 +3066,7 @@ doh!	123	456	hi de ho neighbor	NULL
 select * from
   (select 1 as id) as xx
   left join
-    (tenk1 as a1 full join (select 1 as id) as yy on (a1.unique1 = yy.id))
+    (global_temp.tenk1 as a1 full join (select 1 as id) as yy on (a1.unique1 = yy.id))
   on (xx.id = coalesce(yy.id))
 -- !query schema
 struct<id:int,unique1:int,unique2:int,two:int,four:int,ten:int,twenty:int,hundred:int,thousand:int,twothousand:int,fivethous:int,tenthous:int,odd:int,even:int,stringu1:string,stringu2:string,string4:string,id:int>
@@ -3249,7 +3249,7 @@ struct<q1:bigint,q2:bigint,f1:int,ff:int>
 
 -- !query
 select t1.uunique1 from
-  tenk1 t1 join tenk2 t2 on t1.two = t2.two
+  global_temp.tenk1 t1 join tenk2 t2 on t1.two = t2.two
 -- !query schema
 struct<>
 -- !query output
@@ -3259,7 +3259,7 @@ cannot resolve '`t1.uunique1`' given input columns: [t1.even, t2.even, t1.fiveth
 
 -- !query
 select t2.uunique1 from
-  tenk1 t1 join tenk2 t2 on t1.two = t2.two
+  global_temp.tenk1 t1 join tenk2 t2 on t1.two = t2.two
 -- !query schema
 struct<>
 -- !query output
@@ -3269,7 +3269,7 @@ cannot resolve '`t2.uunique1`' given input columns: [t1.even, t2.even, t1.fiveth
 
 -- !query
 select uunique1 from
-  tenk1 t1 join tenk2 t2 on t1.two = t2.two
+  global_temp.tenk1 t1 join tenk2 t2 on t1.two = t2.two
 -- !query schema
 struct<>
 -- !query output

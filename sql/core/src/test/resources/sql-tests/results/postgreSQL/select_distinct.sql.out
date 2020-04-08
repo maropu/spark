@@ -5,7 +5,7 @@
 -- !query
 CREATE OR REPLACE TEMPORARY VIEW tmp AS
 SELECT two, stringu1, ten, string4
-FROM onek
+FROM global_temp.onek
 -- !query schema
 struct<>
 -- !query output
@@ -100,7 +100,7 @@ struct<two:int,string4:string,ten:int>
 
 -- !query
 SELECT count(*) FROM
-  (SELECT DISTINCT two, four, two FROM tenk1) ss
+  (SELECT DISTINCT two, four, two FROM global_temp.tenk1) ss
 -- !query schema
 struct<count(1):bigint>
 -- !query output

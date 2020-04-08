@@ -8,7 +8,7 @@
 --CONFIG_DIM1 spark.sql.codegen.wholeStage=false,spark.sql.codegen.factoryMode=CODEGEN_ONLY
 --CONFIG_DIM1 spark.sql.codegen.wholeStage=false,spark.sql.codegen.factoryMode=NO_CODEGEN
 
-CREATE TEMPORARY VIEW tenk2 AS SELECT * FROM tenk1;
+CREATE TEMPORARY VIEW tenk2 AS SELECT * FROM global_temp.tenk1;
 
 CREATE TABLE empsalary (
     depname string,
@@ -154,85 +154,85 @@ insert into datetimes values
 -- [SPARK-28648] Adds support to `groups` unit type in window clauses
 -- SELECT sum(unique1) over (order by four groups between unbounded preceding and current row),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28648] Adds support to `groups` unit type in window clauses
 -- SELECT sum(unique1) over (order by four groups between unbounded preceding and unbounded following),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28648] Adds support to `groups` unit type in window clauses
 -- SELECT sum(unique1) over (order by four groups between current row and unbounded following),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28648] Adds support to `groups` unit type in window clauses
 -- SELECT sum(unique1) over (order by four groups between 1 preceding and unbounded following),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28648] Adds support to `groups` unit type in window clauses
 -- SELECT sum(unique1) over (order by four groups between 1 following and unbounded following),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28648] Adds support to `groups` unit type in window clauses
 -- SELECT sum(unique1) over (order by four groups between unbounded preceding and 2 following),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28648] Adds support to `groups` unit type in window clauses
 -- SELECT sum(unique1) over (order by four groups between 2 preceding and 1 preceding),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28648] Adds support to `groups` unit type in window clauses
 -- SELECT sum(unique1) over (order by four groups between 2 preceding and 1 following),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28648] Adds support to `groups` unit type in window clauses
 -- SELECT sum(unique1) over (order by four groups between 0 preceding and 0 following),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT sum(unique1) over (order by four groups between 2 preceding and 1 following
 --   exclude current row), unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT sum(unique1) over (order by four range between 2 preceding and 1 following
 --   exclude group), unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT sum(unique1) over (order by four range between 2 preceding and 1 following
 --   exclude ties), unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28648] Adds support to `groups` unit type in window clauses
 -- SELECT sum(unique1) over (partition by ten
 --   order by four groups between 0 preceding and 0 following),unique1, four, ten
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- [SPARK-28648] Adds support to `groups` unit type in window clauses
 -- SELECT sum(unique1) over (partition by ten
 --   order by four groups between 0 preceding and 0 following exclude current row), unique1, four, ten
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- [SPARK-28648] Adds support to `groups` unit type in window clauses
 -- SELECT sum(unique1) over (partition by ten
 --   order by four groups between 0 preceding and 0 following exclude group), unique1, four, ten
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- [SPARK-28648] Adds support to `groups` unit type in window clauses
 -- SELECT sum(unique1) over (partition by ten
 --   order by four groups between 0 preceding and 0 following exclude ties), unique1, four, ten
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-27951] ANSI SQL: NTH_VALUE function
 -- [SPARK-28648] Adds support to `groups` unit type in window clauses
@@ -310,7 +310,7 @@ WINDOW w AS (ORDER BY x range between 1 preceding and 1 following);
 -- WINDOW w AS (ORDER BY x groups between 1 preceding and 1 following);
 
 -- with UNION
-SELECT count(*) OVER (PARTITION BY four) FROM (SELECT * FROM tenk1 UNION ALL SELECT * FROM tenk2)s LIMIT 0;
+SELECT count(*) OVER (PARTITION BY four) FROM (SELECT * FROM global_temp.tenk1 UNION ALL SELECT * FROM tenk2)s LIMIT 0;
 
 -- check some degenerate cases
 create table t1 (f1 int, f2 int) using parquet;
@@ -374,7 +374,7 @@ SELECT rank() OVER (ORDER BY length('abc'));
 -- some other errors
 SELECT * FROM empsalary WHERE row_number() OVER (ORDER BY salary) < 10;
 
-SELECT * FROM empsalary INNER JOIN tenk1 ON row_number() OVER (ORDER BY salary) < 10;
+SELECT * FROM empsalary INNER JOIN global_temp.tenk1 ON row_number() OVER (ORDER BY salary) < 10;
 
 SELECT rank() OVER (ORDER BY 1), count(*) FROM empsalary GROUP BY 1;
 
@@ -387,20 +387,20 @@ SELECT * FROM empsalary WHERE (rank() OVER (ORDER BY random())) > 10;
 SELECT * FROM empsalary WHERE rank() OVER (ORDER BY random());
 
 -- [SPARK-28645] Throw an error on window redefinition
--- select count(*) OVER w FROM tenk1 WINDOW w AS (ORDER BY unique1), w AS (ORDER BY unique1);
+-- select count(*) OVER w FROM global_temp.tenk1 WINDOW w AS (ORDER BY unique1), w AS (ORDER BY unique1);
 
-select rank() OVER (PARTITION BY four, ORDER BY ten) FROM tenk1;
+select rank() OVER (PARTITION BY four, ORDER BY ten) FROM global_temp.tenk1;
 
 -- [SPARK-28646] Allow usage of `count` only for parameterless aggregate function
--- select count() OVER () FROM tenk1;
+-- select count() OVER () FROM global_temp.tenk1;
 
 -- The output is the expected one: `range` is not a window or aggregate function.
 SELECT range(1, 100) OVER () FROM empsalary;
 
-SELECT ntile(0) OVER (ORDER BY ten), ten, four FROM tenk1;
+SELECT ntile(0) OVER (ORDER BY ten), ten, four FROM global_temp.tenk1;
 
 -- [SPARK-27951] ANSI SQL: NTH_VALUE function
--- SELECT nth_value(four, 0) OVER (ORDER BY ten), ten, four FROM tenk1;
+-- SELECT nth_value(four, 0) OVER (ORDER BY ten), ten, four FROM global_temp.tenk1;
 
 -- filter
 

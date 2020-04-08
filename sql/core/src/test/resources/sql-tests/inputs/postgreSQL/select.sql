@@ -6,7 +6,7 @@
 -- Test int8 64-bit integers.
 -- https://github.com/postgres/postgres/blob/REL_12_BETA2/src/test/regress/sql/select.sql
 --
-create or replace temporary view onek2 as select * from onek;
+create or replace temporary view onek2 as select * from global_temp.onek;
 create or replace temporary view INT8_TBL as select * from values
   (cast(trim('  123   ') as bigint), cast(trim('  456') as bigint)),
   (cast(trim('123   ') as bigint),cast('4567890123456789' as bigint)),
@@ -16,57 +16,57 @@ create or replace temporary view INT8_TBL as select * from values
   as INT8_TBL(q1, q2);
 
 -- btree index
--- awk '{if($1<10){print;}else{next;}}' onek.data | sort +0n -1
+-- awk '{if($1<10){print;}else{next;}}' global_temp.onek.data | sort +0n -1
 --
-SELECT * FROM onek
-   WHERE onek.unique1 < 10
-   ORDER BY onek.unique1;
+SELECT * FROM global_temp.onek
+   WHERE global_temp.onek.unique1 < 10
+   ORDER BY global_temp.onek.unique1;
 
 -- [SPARK-28010] Support ORDER BY ... USING syntax
 --
--- awk '{if($1<20){print $1,$14;}else{next;}}' onek.data | sort +0nr -1
+-- awk '{if($1<20){print $1,$14;}else{next;}}' global_temp.onek.data | sort +0nr -1
 --
-SELECT onek.unique1, onek.stringu1 FROM onek
-   WHERE onek.unique1 < 20
+SELECT global_temp.onek.unique1, global_temp.onek.stringu1 FROM global_temp.onek
+   WHERE global_temp.onek.unique1 < 20
    ORDER BY unique1 DESC;
 
 --
--- awk '{if($1>980){print $1,$14;}else{next;}}' onek.data | sort +1d -2
+-- awk '{if($1>980){print $1,$14;}else{next;}}' global_temp.onek.data | sort +1d -2
 --
-SELECT onek.unique1, onek.stringu1 FROM onek
-   WHERE onek.unique1 > 980
+SELECT global_temp.onek.unique1, global_temp.onek.stringu1 FROM global_temp.onek
+   WHERE global_temp.onek.unique1 > 980
    ORDER BY stringu1 ASC;
 
 --
--- awk '{if($1>980){print $1,$16;}else{next;}}' onek.data |
+-- awk '{if($1>980){print $1,$16;}else{next;}}' global_temp.onek.data |
 -- sort +1d -2 +0nr -1
 --
-SELECT onek.unique1, onek.string4 FROM onek
-   WHERE onek.unique1 > 980
+SELECT global_temp.onek.unique1, global_temp.onek.string4 FROM global_temp.onek
+   WHERE global_temp.onek.unique1 > 980
    ORDER BY string4 ASC, unique1 DESC;
 
 --
--- awk '{if($1>980){print $1,$16;}else{next;}}' onek.data |
+-- awk '{if($1>980){print $1,$16;}else{next;}}' global_temp.onek.data |
 -- sort +1dr -2 +0n -1
 --
-SELECT onek.unique1, onek.string4 FROM onek
-   WHERE onek.unique1 > 980
+SELECT global_temp.onek.unique1, global_temp.onek.string4 FROM global_temp.onek
+   WHERE global_temp.onek.unique1 > 980
    ORDER BY string4 DESC, unique1 ASC;
 
 --
--- awk '{if($1<20){print $1,$16;}else{next;}}' onek.data |
+-- awk '{if($1<20){print $1,$16;}else{next;}}' global_temp.onek.data |
 -- sort +0nr -1 +1d -2
 --
-SELECT onek.unique1, onek.string4 FROM onek
-   WHERE onek.unique1 < 20
+SELECT global_temp.onek.unique1, global_temp.onek.string4 FROM global_temp.onek
+   WHERE global_temp.onek.unique1 < 20
    ORDER BY unique1 DESC, string4 ASC;
 
 --
--- awk '{if($1<20){print $1,$16;}else{next;}}' onek.data |
+-- awk '{if($1<20){print $1,$16;}else{next;}}' global_temp.onek.data |
 -- sort +0n -1 +1dr -2
 --
-SELECT onek.unique1, onek.string4 FROM onek
-   WHERE onek.unique1 < 20
+SELECT global_temp.onek.unique1, global_temp.onek.string4 FROM global_temp.onek
+   WHERE global_temp.onek.unique1 < 20
    ORDER BY unique1 ASC, string4 DESC;
 
 --
@@ -83,19 +83,19 @@ SELECT onek.unique1, onek.string4 FROM onek
 -- SET enable_sort TO off;
 
 --
--- awk '{if($1<10){print $0;}else{next;}}' onek.data | sort +0n -1
+-- awk '{if($1<10){print $0;}else{next;}}' global_temp.onek.data | sort +0n -1
 --
 SELECT onek2.* FROM onek2 WHERE onek2.unique1 < 10;
 
 --
--- awk '{if($1<20){print $1,$14;}else{next;}}' onek.data | sort +0nr -1
+-- awk '{if($1<20){print $1,$14;}else{next;}}' global_temp.onek.data | sort +0nr -1
 --
 SELECT onek2.unique1, onek2.stringu1 FROM onek2
     WHERE onek2.unique1 < 20
     ORDER BY unique1 DESC;
 
 --
--- awk '{if($1>980){print $1,$14;}else{next;}}' onek.data | sort +1d -2
+-- awk '{if($1>980){print $1,$14;}else{next;}}' global_temp.onek.data | sort +1d -2
 --
 SELECT onek2.unique1, onek2.stringu1 FROM onek2
    WHERE onek2.unique1 > 980;
@@ -107,10 +107,10 @@ SELECT onek2.unique1, onek2.stringu1 FROM onek2
 -- [SPARK-28329] SELECT INTO syntax
 -- SELECT two, stringu1, ten, string4
 --    INTO TABLE tmp
---    FROM onek;
+--    FROM global_temp.onek;
 CREATE TABLE tmp USING parquet AS
 SELECT two, stringu1, ten, string4
-FROM onek;
+FROM global_temp.onek;
 
 -- Skip the person table because there is a point data type that we don't support.
 --
@@ -142,20 +142,20 @@ select foo.* from (select 'xyzzy',1,null) as foo;
 --
 -- Test VALUES lists
 --
-select * from onek, values(147, 'RFAAAA'), (931, 'VJAAAA') as v (i, j)
-    WHERE onek.unique1 = v.i and onek.stringu1 = v.j;
+select * from global_temp.onek, values(147, 'RFAAAA'), (931, 'VJAAAA') as v (i, j)
+    WHERE global_temp.onek.unique1 = v.i and global_temp.onek.stringu1 = v.j;
 
 -- [SPARK-28296] Improved VALUES support
 -- a more complex case
 -- looks like we're coding lisp :-)
--- select * from onek,
+-- select * from global_temp.onek,
 --   (values ((select i from
 --     (values(10000), (2), (389), (1000), (2000), ((select 10029))) as foo(i)
 --     order by i asc limit 1))) bar (i)
---   where onek.unique1 = bar.i;
+--   where global_temp.onek.unique1 = bar.i;
 
 -- try VALUES in a subquery
--- select * from onek
+-- select * from global_temp.onek
 --     where (unique1,ten) in (values (1,1), (20,0), (99,9), (17,99))
 --     order by unique1;
 

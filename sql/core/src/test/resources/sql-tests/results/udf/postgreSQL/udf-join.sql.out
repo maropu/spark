@@ -49,7 +49,7 @@ struct<>
 
 
 -- !query
-CREATE OR REPLACE TEMPORARY VIEW tenk2 AS SELECT * FROM tenk1
+CREATE OR REPLACE TEMPORARY VIEW tenk2 AS SELECT * FROM global_temp.tenk1
 -- !query schema
 struct<>
 -- !query output
@@ -2332,8 +2332,8 @@ struct<x1:int,x2:int,y1:int,y2:int,xx1:int,xx2:int>
 
 
 -- !query
-select udf(udf(count(*))) from tenk1 a where udf(udf(unique1)) in
-  (select udf(unique1) from tenk1 b join tenk1 c using (unique1)
+select udf(udf(count(*))) from global_temp.tenk1 a where udf(udf(unique1)) in
+  (select udf(unique1) from global_temp.tenk1 b join global_temp.tenk1 c using (unique1)
    where udf(udf(b.unique2)) = udf(42))
 -- !query schema
 struct<CAST(udf(ansi_cast(ansi_cast(udf(ansi_cast(count(1) as string)) as bigint) as string)) AS BIGINT):bigint>
@@ -2342,7 +2342,7 @@ struct<CAST(udf(ansi_cast(ansi_cast(udf(ansi_cast(count(1) as string)) as bigint
 
 
 -- !query
-select udf(count(*)) from tenk1 x where
+select udf(count(*)) from global_temp.tenk1 x where
   udf(x.unique1) in (select udf(a.f1) from int4_tbl a,float8_tbl b where udf(udf(a.f1))=b.f1) and
   udf(x.unique1) = 0 and
   udf(x.unique1) in (select aa.f1 from int4_tbl aa,float8_tbl bb where aa.f1=udf(udf(bb.f1)))
@@ -2353,7 +2353,7 @@ struct<CAST(udf(ansi_cast(count(1) as string)) AS BIGINT):bigint>
 
 
 -- !query
-select udf(udf(count(*))) from tenk1 x where
+select udf(udf(count(*))) from global_temp.tenk1 x where
   udf(x.unique1) in (select udf(a.f1) from int4_tbl a,float8_tbl b where udf(udf(a.f1))=b.f1) and
   udf(x.unique1) = 0 and
   udf(udf(x.unique1)) in (select udf(aa.f1) from int4_tbl aa,float8_tbl bb where udf(aa.f1)=udf(udf(bb.f1)))
@@ -2381,11 +2381,11 @@ struct<q1:bigint,q2:bigint,q1:bigint,q2:bigint,x:int>
 select udf(count(*))
 from
   (select udf(t3.tenthous) as x1, udf(coalesce(udf(t1.stringu1), udf(t2.stringu1))) as x2
-   from tenk1 t1
-   left join tenk1 t2 on udf(t1.unique1) = udf(t2.unique1)
-   join tenk1 t3 on t1.unique2 = udf(t3.unique2)) ss,
-  tenk1 t4,
-  tenk1 t5
+   from global_temp.tenk1 t1
+   left join global_temp.tenk1 t2 on udf(t1.unique1) = udf(t2.unique1)
+   join global_temp.tenk1 t3 on t1.unique2 = udf(t3.unique2)) ss,
+  global_temp.tenk1 t4,
+  global_temp.tenk1 t5
 where udf(t4.thousand) = udf(t5.unique1) and udf(udf(ss.x1)) = t4.tenthous and udf(ss.x2) = udf(udf(t5.stringu1))
 -- !query schema
 struct<CAST(udf(ansi_cast(count(1) as string)) AS BIGINT):bigint>
@@ -2395,7 +2395,7 @@ struct<CAST(udf(ansi_cast(count(1) as string)) AS BIGINT):bigint>
 
 -- !query
 select udf(a.f1), udf(b.f1), udf(t.thousand), udf(t.tenthous) from
-  tenk1 t,
+  global_temp.tenk1 t,
   (select udf(udf(sum(udf(f1))+1)) as f1 from int4_tbl i4a) a,
   (select udf(sum(udf(f1))) as f1 from int4_tbl i4b) b
 where b.f1 = udf(t.thousand) and udf(a.f1) = udf(b.f1) and udf((udf(a.f1)+udf(b.f1)+999)) = udf(udf(t.tenthous))
@@ -2436,9 +2436,9 @@ NULL	NULL	null	NULL	NULL
 
 -- !query
 select udf(count(*)) from
-  (select * from tenk1 x order by udf(x.thousand), udf(udf(x.twothousand)), x.fivethous) x
+  (select * from global_temp.tenk1 x order by udf(x.thousand), udf(udf(x.twothousand)), x.fivethous) x
   left join
-  (select * from tenk1 y order by udf(y.unique2)) y
+  (select * from global_temp.tenk1 y order by udf(y.unique2)) y
   on udf(x.thousand) = y.unique2 and x.twothousand = udf(y.hundred) and x.fivethous = y.unique2
 -- !query schema
 struct<CAST(udf(ansi_cast(count(1) as string)) AS BIGINT):bigint>
@@ -2527,7 +2527,7 @@ struct<tt1_id:int,joincol:int,tt2_id:int,joincol:int>
 
 
 -- !query
-select udf(count(*)) from tenk1 a, tenk1 b
+select udf(count(*)) from global_temp.tenk1 a, global_temp.tenk1 b
   where udf(a.hundred) = b.thousand and udf(udf((b.fivethous % 10)) < 10)
 -- !query schema
 struct<CAST(udf(ansi_cast(count(1) as string)) AS BIGINT):bigint>
@@ -2723,7 +2723,7 @@ struct<f2:int,f3:int,f1:int,junk:string>
 
 -- !query
 select udf(a.unique2), udf(a.ten), udf(b.tenthous), udf(b.unique2), udf(b.hundred)
-from tenk1 a left join tenk1 b on a.unique2 = udf(b.tenthous)
+from global_temp.tenk1 a left join global_temp.tenk1 b on a.unique2 = udf(b.tenthous)
 where udf(a.unique1) = 42 and
       ((udf(b.unique2) is null and udf(a.ten) = 2) or udf(udf(b.hundred)) = udf(udf(3)))
 -- !query schema
@@ -2896,7 +2896,7 @@ SELECT udf(qq), udf(udf(unique1))
   FULL OUTER JOIN
   ( SELECT udf(udf(COALESCE(q2, -1))) AS qq FROM int8_tbl b ) AS ss2
   USING (qq)
-  INNER JOIN tenk1 c ON udf(qq) = udf(unique2)
+  INNER JOIN global_temp.tenk1 c ON udf(qq) = udf(unique2)
 -- !query schema
 struct<CAST(udf(ansi_cast(qq as string)) AS BIGINT):bigint,CAST(udf(ansi_cast(ansi_cast(udf(ansi_cast(unique1 as string)) as int) as string)) AS INT):int>
 -- !query output
@@ -3004,8 +3004,8 @@ NULL	2147483647
 
 -- !query
 select udf(count(*)) from
-  tenk1 a join tenk1 b on udf(a.unique1) = udf(b.unique2)
-  left join tenk1 c on udf(a.unique2) = udf(b.unique1) and udf(c.thousand) = udf(udf(a.thousand))
+  global_temp.tenk1 a join global_temp.tenk1 b on udf(a.unique1) = udf(b.unique2)
+  left join global_temp.tenk1 c on udf(a.unique2) = udf(b.unique1) and udf(c.thousand) = udf(udf(a.thousand))
   join int4_tbl on udf(b.thousand) = f1
 -- !query schema
 struct<CAST(udf(ansi_cast(count(1) as string)) AS BIGINT):bigint>
@@ -3015,8 +3015,8 @@ struct<CAST(udf(ansi_cast(count(1) as string)) AS BIGINT):bigint>
 
 -- !query
 select udf(b.unique1) from
-  tenk1 a join tenk1 b on udf(a.unique1) = udf(b.unique2)
-  left join tenk1 c on udf(b.unique1) = 42 and c.thousand = udf(a.thousand)
+  global_temp.tenk1 a join global_temp.tenk1 b on udf(a.unique1) = udf(b.unique2)
+  left join global_temp.tenk1 c on udf(b.unique1) = 42 and c.thousand = udf(a.thousand)
   join int4_tbl i1 on udf(b.thousand) = udf(udf(f1))
   right join int4_tbl i2 on udf(udf(i2.f1)) = udf(b.tenthous)
   order by udf(1)
@@ -3034,7 +3034,7 @@ NULL
 select * from
 (
   select udf(unique1), udf(q1), udf(udf(coalesce(unique1, -1)) + udf(q1)) as fault
-  from int8_tbl left join tenk1 on (udf(q2) = udf(unique2))
+  from int8_tbl left join global_temp.tenk1 on (udf(q2) = udf(unique2))
 ) ss
 where udf(fault) = udf(122)
 order by udf(fault)
@@ -3046,7 +3046,7 @@ NULL	123	122
 
 -- !query
 select udf(q1), udf(unique2), udf(thousand), udf(hundred)
-  from int8_tbl a left join tenk1 b on udf(q1) = udf(unique2)
+  from int8_tbl a left join global_temp.tenk1 b on udf(q1) = udf(unique2)
   where udf(coalesce(thousand,123)) = udf(q1) and udf(q1) = udf(udf(coalesce(hundred,123)))
 -- !query schema
 struct<CAST(udf(ansi_cast(q1 as string)) AS BIGINT):bigint,CAST(udf(ansi_cast(unique2 as string)) AS INT):int,CAST(udf(ansi_cast(thousand as string)) AS INT):int,CAST(udf(ansi_cast(hundred as string)) AS INT):int>
@@ -3056,7 +3056,7 @@ struct<CAST(udf(ansi_cast(q1 as string)) AS BIGINT):bigint,CAST(udf(ansi_cast(un
 
 -- !query
 select udf(f1), udf(unique2), case when udf(udf(unique2)) is null then udf(f1) else 0 end
-  from int4_tbl a left join tenk1 b on udf(f1) = udf(udf(unique2))
+  from int4_tbl a left join global_temp.tenk1 b on udf(f1) = udf(udf(unique2))
   where (case when udf(unique2) is null then udf(f1) else 0 end) = 0
 -- !query schema
 struct<CAST(udf(ansi_cast(f1 as string)) AS INT):int,CAST(udf(ansi_cast(unique2 as string)) AS INT):int,CASE WHEN (CAST(udf(ansi_cast(ansi_cast(udf(ansi_cast(unique2 as string)) as int) as string)) AS INT) IS NULL) THEN CAST(udf(ansi_cast(f1 as string)) AS INT) ELSE 0 END:int>
@@ -3066,7 +3066,7 @@ struct<CAST(udf(ansi_cast(f1 as string)) AS INT):int,CAST(udf(ansi_cast(unique2 
 
 -- !query
 select udf(a.unique1), udf(b.unique1), udf(c.unique1), udf(coalesce(b.twothousand, a.twothousand))
-  from tenk1 a left join tenk1 b on udf(b.thousand) = a.unique1                       left join tenk1 c on udf(c.unique2) = udf(coalesce(b.twothousand, a.twothousand))
+  from global_temp.tenk1 a left join global_temp.tenk1 b on udf(b.thousand) = a.unique1                       left join global_temp.tenk1 c on udf(c.unique2) = udf(coalesce(b.twothousand, a.twothousand))
   where a.unique2 < udf(10) and udf(udf(coalesce(b.twothousand, a.twothousand))) = udf(44)
 -- !query schema
 struct<CAST(udf(ansi_cast(unique1 as string)) AS INT):int,CAST(udf(ansi_cast(unique1 as string)) AS INT):int,CAST(udf(ansi_cast(unique1 as string)) AS INT):int,CAST(udf(ansi_cast(coalesce(twothousand, twothousand) as string)) AS INT):int>
@@ -3094,7 +3094,7 @@ doh!	123	456	hi de ho neighbor	NULL
 select * from
   (select udf(udf(1)) as id) as xx
   left join
-    (tenk1 as a1 full join (select udf(1) as id) as yy on (udf(a1.unique1) = udf(yy.id)))
+    (global_temp.tenk1 as a1 full join (select udf(1) as id) as yy on (udf(a1.unique1) = udf(yy.id)))
   on (xx.id = udf(udf(coalesce(yy.id))))
 -- !query schema
 struct<id:int,unique1:int,unique2:int,two:int,four:int,ten:int,twenty:int,hundred:int,thousand:int,twothousand:int,fivethous:int,tenthous:int,odd:int,even:int,stringu1:string,stringu2:string,string4:string,id:int>
@@ -3277,7 +3277,7 @@ struct<q1:bigint,q2:bigint,f1:int,ff:int>
 
 -- !query
 select udf(t1.uunique1) from
-  tenk1 t1 join tenk2 t2 on t1.two = udf(t2.two)
+  global_temp.tenk1 t1 join tenk2 t2 on t1.two = udf(t2.two)
 -- !query schema
 struct<>
 -- !query output
@@ -3287,7 +3287,7 @@ cannot resolve '`t1.uunique1`' given input columns: [t1.even, t2.even, t1.fiveth
 
 -- !query
 select udf(udf(t2.uunique1)) from
-  tenk1 t1 join tenk2 t2 on udf(t1.two) = t2.two
+  global_temp.tenk1 t1 join tenk2 t2 on udf(t1.two) = t2.two
 -- !query schema
 struct<>
 -- !query output
@@ -3297,7 +3297,7 @@ cannot resolve '`t2.uunique1`' given input columns: [t1.even, t2.even, t1.fiveth
 
 -- !query
 select udf(uunique1) from
-  tenk1 t1 join tenk2 t2 on udf(t1.two) = udf(t2.two)
+  global_temp.tenk1 t1 join tenk2 t2 on udf(t1.two) = udf(t2.two)
 -- !query schema
 struct<>
 -- !query output

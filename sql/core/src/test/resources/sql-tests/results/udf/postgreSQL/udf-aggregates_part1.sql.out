@@ -3,7 +3,7 @@
 
 
 -- !query
-SELECT avg(udf(four)) AS avg_1 FROM onek
+SELECT avg(udf(four)) AS avg_1 FROM global_temp.onek
 -- !query schema
 struct<avg_1:double>
 -- !query output
@@ -11,7 +11,7 @@ struct<avg_1:double>
 
 
 -- !query
-SELECT udf(avg(a)) AS avg_32 FROM aggtest WHERE a < 100
+SELECT udf(avg(a)) AS avg_32 FROM global_temp.aggtest WHERE a < 100
 -- !query schema
 struct<avg_32:double>
 -- !query output
@@ -19,7 +19,7 @@ struct<avg_32:double>
 
 
 -- !query
-select CAST(avg(udf(b)) AS Decimal(10,3)) AS avg_107_943 FROM aggtest
+select CAST(avg(udf(b)) AS Decimal(10,3)) AS avg_107_943 FROM global_temp.aggtest
 -- !query schema
 struct<avg_107_943:decimal(10,3)>
 -- !query output
@@ -27,7 +27,7 @@ struct<avg_107_943:decimal(10,3)>
 
 
 -- !query
-SELECT sum(udf(four)) AS sum_1500 FROM onek
+SELECT sum(udf(four)) AS sum_1500 FROM global_temp.onek
 -- !query schema
 struct<sum_1500:bigint>
 -- !query output
@@ -35,7 +35,7 @@ struct<sum_1500:bigint>
 
 
 -- !query
-SELECT udf(sum(a)) AS sum_198 FROM aggtest
+SELECT udf(sum(a)) AS sum_198 FROM global_temp.aggtest
 -- !query schema
 struct<sum_198:bigint>
 -- !query output
@@ -43,7 +43,7 @@ struct<sum_198:bigint>
 
 
 -- !query
-SELECT udf(udf(sum(b))) AS avg_431_773 FROM aggtest
+SELECT udf(udf(sum(b))) AS avg_431_773 FROM global_temp.aggtest
 -- !query schema
 struct<avg_431_773:double>
 -- !query output
@@ -51,7 +51,7 @@ struct<avg_431_773:double>
 
 
 -- !query
-SELECT udf(max(four)) AS max_3 FROM onek
+SELECT udf(max(four)) AS max_3 FROM global_temp.onek
 -- !query schema
 struct<max_3:int>
 -- !query output
@@ -59,7 +59,7 @@ struct<max_3:int>
 
 
 -- !query
-SELECT max(udf(a)) AS max_100 FROM aggtest
+SELECT max(udf(a)) AS max_100 FROM global_temp.aggtest
 -- !query schema
 struct<max_100:int>
 -- !query output
@@ -67,7 +67,7 @@ struct<max_100:int>
 
 
 -- !query
-SELECT udf(udf(max(aggtest.b))) AS max_324_78 FROM aggtest
+SELECT udf(udf(max(global_temp.aggtest.b))) AS max_324_78 FROM global_temp.aggtest
 -- !query schema
 struct<max_324_78:float>
 -- !query output
@@ -75,7 +75,7 @@ struct<max_324_78:float>
 
 
 -- !query
-SELECT stddev_pop(udf(b)) FROM aggtest
+SELECT stddev_pop(udf(b)) FROM global_temp.aggtest
 -- !query schema
 struct<stddev_pop(CAST(CAST(udf(ansi_cast(b as string)) AS FLOAT) AS DOUBLE)):double>
 -- !query output
@@ -83,7 +83,7 @@ struct<stddev_pop(CAST(CAST(udf(ansi_cast(b as string)) AS FLOAT) AS DOUBLE)):do
 
 
 -- !query
-SELECT udf(stddev_samp(b)) FROM aggtest
+SELECT udf(stddev_samp(b)) FROM global_temp.aggtest
 -- !query schema
 struct<CAST(udf(ansi_cast(stddev_samp(ansi_cast(b as double)) as string)) AS DOUBLE):double>
 -- !query output
@@ -91,7 +91,7 @@ struct<CAST(udf(ansi_cast(stddev_samp(ansi_cast(b as double)) as string)) AS DOU
 
 
 -- !query
-SELECT var_pop(udf(b)) FROM aggtest
+SELECT var_pop(udf(b)) FROM global_temp.aggtest
 -- !query schema
 struct<var_pop(CAST(CAST(udf(ansi_cast(b as string)) AS FLOAT) AS DOUBLE)):double>
 -- !query output
@@ -99,7 +99,7 @@ struct<var_pop(CAST(CAST(udf(ansi_cast(b as string)) AS FLOAT) AS DOUBLE)):doubl
 
 
 -- !query
-SELECT udf(var_samp(b)) FROM aggtest
+SELECT udf(var_samp(b)) FROM global_temp.aggtest
 -- !query schema
 struct<CAST(udf(ansi_cast(var_samp(ansi_cast(b as double)) as string)) AS DOUBLE):double>
 -- !query output
@@ -107,7 +107,7 @@ struct<CAST(udf(ansi_cast(var_samp(ansi_cast(b as double)) as string)) AS DOUBLE
 
 
 -- !query
-SELECT udf(stddev_pop(CAST(b AS Decimal(38,0)))) FROM aggtest
+SELECT udf(stddev_pop(CAST(b AS Decimal(38,0)))) FROM global_temp.aggtest
 -- !query schema
 struct<CAST(udf(ansi_cast(stddev_pop(ansi_cast(ansi_cast(b as decimal(38,0)) as double)) as string)) AS DOUBLE):double>
 -- !query output
@@ -115,7 +115,7 @@ struct<CAST(udf(ansi_cast(stddev_pop(ansi_cast(ansi_cast(b as decimal(38,0)) as 
 
 
 -- !query
-SELECT stddev_samp(CAST(udf(b) AS Decimal(38,0))) FROM aggtest
+SELECT stddev_samp(CAST(udf(b) AS Decimal(38,0))) FROM global_temp.aggtest
 -- !query schema
 struct<stddev_samp(CAST(CAST(CAST(udf(ansi_cast(b as string)) AS FLOAT) AS DECIMAL(38,0)) AS DOUBLE)):double>
 -- !query output
@@ -123,7 +123,7 @@ struct<stddev_samp(CAST(CAST(CAST(udf(ansi_cast(b as string)) AS FLOAT) AS DECIM
 
 
 -- !query
-SELECT udf(var_pop(CAST(b AS Decimal(38,0)))) FROM aggtest
+SELECT udf(var_pop(CAST(b AS Decimal(38,0)))) FROM global_temp.aggtest
 -- !query schema
 struct<CAST(udf(ansi_cast(var_pop(ansi_cast(ansi_cast(b as decimal(38,0)) as double)) as string)) AS DOUBLE):double>
 -- !query output
@@ -131,7 +131,7 @@ struct<CAST(udf(ansi_cast(var_pop(ansi_cast(ansi_cast(b as decimal(38,0)) as dou
 
 
 -- !query
-SELECT var_samp(udf(CAST(b AS Decimal(38,0)))) FROM aggtest
+SELECT var_samp(udf(CAST(b AS Decimal(38,0)))) FROM global_temp.aggtest
 -- !query schema
 struct<var_samp(CAST(CAST(udf(ansi_cast(ansi_cast(b as decimal(38,0)) as string)) AS DECIMAL(38,0)) AS DOUBLE)):double>
 -- !query output
@@ -280,7 +280,7 @@ struct<avg(CAST(udf(ansi_cast(ansi_cast(x as double) as string)) AS DOUBLE)):dou
 
 
 -- !query
-SELECT udf(covar_pop(b, udf(a))), covar_samp(udf(b), a) FROM aggtest
+SELECT udf(covar_pop(b, udf(a))), covar_samp(udf(b), a) FROM global_temp.aggtest
 -- !query schema
 struct<CAST(udf(ansi_cast(covar_pop(ansi_cast(b as double), ansi_cast(ansi_cast(udf(ansi_cast(a as string)) as int) as double)) as string)) AS DOUBLE):double,covar_samp(CAST(CAST(udf(ansi_cast(b as string)) AS FLOAT) AS DOUBLE), CAST(a AS DOUBLE)):double>
 -- !query output
@@ -288,7 +288,7 @@ struct<CAST(udf(ansi_cast(covar_pop(ansi_cast(b as double), ansi_cast(ansi_cast(
 
 
 -- !query
-SELECT corr(b, udf(a)) FROM aggtest
+SELECT corr(b, udf(a)) FROM global_temp.aggtest
 -- !query schema
 struct<corr(CAST(b AS DOUBLE), CAST(CAST(udf(ansi_cast(a as string)) AS INT) AS DOUBLE)):double>
 -- !query output
@@ -296,7 +296,7 @@ struct<corr(CAST(b AS DOUBLE), CAST(CAST(udf(ansi_cast(a as string)) AS INT) AS 
 
 
 -- !query
-SELECT count(udf(four)) AS cnt_1000 FROM onek
+SELECT count(udf(four)) AS cnt_1000 FROM global_temp.onek
 -- !query schema
 struct<cnt_1000:bigint>
 -- !query output
@@ -304,7 +304,7 @@ struct<cnt_1000:bigint>
 
 
 -- !query
-SELECT udf(count(DISTINCT four)) AS cnt_4 FROM onek
+SELECT udf(count(DISTINCT four)) AS cnt_4 FROM global_temp.onek
 -- !query schema
 struct<cnt_4:bigint>
 -- !query output
@@ -312,7 +312,7 @@ struct<cnt_4:bigint>
 
 
 -- !query
-select ten, udf(count(*)), sum(udf(four)) from onek
+select ten, udf(count(*)), sum(udf(four)) from global_temp.onek
 group by ten order by ten
 -- !query schema
 struct<ten:int,CAST(udf(ansi_cast(count(1) as string)) AS BIGINT):bigint,sum(CAST(udf(ansi_cast(four as string)) AS INT)):bigint>
@@ -330,7 +330,7 @@ struct<ten:int,CAST(udf(ansi_cast(count(1) as string)) AS BIGINT):bigint,sum(CAS
 
 
 -- !query
-select ten, count(udf(four)), udf(sum(DISTINCT four)) from onek
+select ten, count(udf(four)), udf(sum(DISTINCT four)) from global_temp.onek
 group by ten order by ten
 -- !query schema
 struct<ten:int,count(CAST(udf(ansi_cast(four as string)) AS INT)):bigint,CAST(udf(ansi_cast(sum(distinct ansi_cast(four as bigint)) as string)) AS BIGINT):bigint>
@@ -348,9 +348,9 @@ struct<ten:int,count(CAST(udf(ansi_cast(four as string)) AS INT)):bigint,CAST(ud
 
 
 -- !query
-select ten, udf(sum(distinct four)) from onek a
+select ten, udf(sum(distinct four)) from global_temp.onek a
 group by ten
-having exists (select 1 from onek b where udf(sum(distinct a.four)) = b.four)
+having exists (select 1 from global_temp.onek b where udf(sum(distinct a.four)) = b.four)
 -- !query schema
 struct<ten:int,CAST(udf(ansi_cast(sum(distinct ansi_cast(four as bigint)) as string)) AS BIGINT):bigint>
 -- !query output
@@ -362,9 +362,9 @@ struct<ten:int,CAST(udf(ansi_cast(sum(distinct ansi_cast(four as bigint)) as str
 
 
 -- !query
-select ten, sum(distinct four) from onek a
+select ten, sum(distinct four) from global_temp.onek a
 group by ten
-having exists (select 1 from onek b
+having exists (select 1 from global_temp.onek b
                where sum(distinct a.four + b.four) = udf(b.four))
 -- !query schema
 struct<>
@@ -378,10 +378,10 @@ Invalid expressions: [sum(DISTINCT CAST((outer(a.`four`) + b.`four`) AS BIGINT))
 
 -- !query
 select
-  (select udf(max((select i.unique2 from tenk1 i where i.unique1 = o.unique1))))
-from tenk1 o
+  (select udf(max((select i.unique2 from global_temp.tenk1 i where i.unique1 = o.unique1))))
+from global_temp.tenk1 o
 -- !query schema
 struct<>
 -- !query output
 org.apache.spark.sql.AnalysisException
-cannot resolve '`o.unique1`' given input columns: [i.even, i.fivethous, i.four, i.hundred, i.odd, i.string4, i.stringu1, i.stringu2, i.ten, i.tenthous, i.thousand, i.twenty, i.two, i.twothousand, i.unique1, i.unique2]; line 2 pos 67
+cannot resolve '`o.unique1`' given input columns: [i.even, i.fivethous, i.four, i.hundred, i.odd, i.string4, i.stringu1, i.stringu2, i.ten, i.tenthous, i.thousand, i.twenty, i.two, i.twothousand, i.unique1, i.unique2]; line 2 pos 79

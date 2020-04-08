@@ -3,7 +3,7 @@
 
 
 -- !query
-CREATE TEMPORARY VIEW tenk2 AS SELECT * FROM tenk1
+CREATE TEMPORARY VIEW tenk2 AS SELECT * FROM global_temp.tenk1
 -- !query schema
 struct<>
 -- !query output
@@ -213,7 +213,7 @@ struct<x:bigint,sum(x) OVER (ORDER BY x ASC NULLS FIRST RANGE BETWEEN CAST((- 1)
 
 
 -- !query
-SELECT count(*) OVER (PARTITION BY four) FROM (SELECT * FROM tenk1 UNION ALL SELECT * FROM tenk2)s LIMIT 0
+SELECT count(*) OVER (PARTITION BY four) FROM (SELECT * FROM global_temp.tenk1 UNION ALL SELECT * FROM tenk2)s LIMIT 0
 -- !query schema
 struct<count(1) OVER (PARTITION BY four ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING):bigint>
 -- !query output
@@ -298,7 +298,7 @@ It is not allowed to use window functions inside WHERE and HAVING clauses;
 
 
 -- !query
-SELECT * FROM empsalary INNER JOIN tenk1 ON row_number() OVER (ORDER BY salary) < 10
+SELECT * FROM empsalary INNER JOIN global_temp.tenk1 ON row_number() OVER (ORDER BY salary) < 10
 -- !query schema
 struct<>
 -- !query output
@@ -354,7 +354,7 @@ It is not allowed to use window functions inside WHERE and HAVING clauses;
 
 
 -- !query
-select rank() OVER (PARTITION BY four, ORDER BY ten) FROM tenk1
+select rank() OVER (PARTITION BY four, ORDER BY ten) FROM global_temp.tenk1
 -- !query schema
 struct<>
 -- !query output
@@ -363,7 +363,7 @@ org.apache.spark.sql.catalyst.parser.ParseException
 no viable alternative at input 'ORDER'(line 1, pos 39)
 
 == SQL ==
-select rank() OVER (PARTITION BY four, ORDER BY ten) FROM tenk1
+select rank() OVER (PARTITION BY four, ORDER BY ten) FROM global_temp.tenk1
 ---------------------------------------^^^
 
 
@@ -377,7 +377,7 @@ Undefined function: 'range'. This function is neither a registered temporary fun
 
 
 -- !query
-SELECT ntile(0) OVER (ORDER BY ten), ten, four FROM tenk1
+SELECT ntile(0) OVER (ORDER BY ten), ten, four FROM global_temp.tenk1
 -- !query schema
 struct<>
 -- !query output

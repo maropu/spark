@@ -8,7 +8,7 @@
 --CONFIG_DIM1 spark.sql.codegen.wholeStage=false,spark.sql.codegen.factoryMode=CODEGEN_ONLY
 --CONFIG_DIM1 spark.sql.codegen.wholeStage=false,spark.sql.codegen.factoryMode=NO_CODEGEN
 
-CREATE TEMPORARY VIEW tenk2 AS SELECT * FROM tenk1;
+CREATE TEMPORARY VIEW tenk2 AS SELECT * FROM global_temp.tenk1;
 
 -- [SPARK-29540] Thrift in some cases can't parse string to date
 -- CREATE TABLE empsalary (
@@ -37,7 +37,7 @@ CREATE TEMPORARY VIEW tenk2 AS SELECT * FROM tenk1;
 -- SELECT depname, empno, salary, rank() OVER (PARTITION BY depname ORDER BY salary) FROM empsalary;
 
 -- with GROUP BY
-SELECT four, ten, SUM(SUM(four)) OVER (PARTITION BY four), AVG(ten) FROM tenk1
+SELECT four, ten, SUM(SUM(four)) OVER (PARTITION BY four), AVG(ten) FROM global_temp.tenk1
 GROUP BY four, ten ORDER BY four, ten;
 
 -- [SPARK-29540] Thrift in some cases can't parse string to date
@@ -47,66 +47,66 @@ GROUP BY four, ten ORDER BY four, ten;
 -- SELECT depname, empno, salary, rank() OVER w FROM empsalary WINDOW w AS (PARTITION BY depname ORDER BY salary) ORDER BY rank() OVER w;
 
 -- empty window specification
-SELECT COUNT(*) OVER () FROM tenk1 WHERE unique2 < 10;
+SELECT COUNT(*) OVER () FROM global_temp.tenk1 WHERE unique2 < 10;
 
-SELECT COUNT(*) OVER w FROM tenk1 WHERE unique2 < 10 WINDOW w AS ();
+SELECT COUNT(*) OVER w FROM global_temp.tenk1 WHERE unique2 < 10 WINDOW w AS ();
 
 -- no window operation
-SELECT four FROM tenk1 WHERE FALSE WINDOW w AS (PARTITION BY ten);
+SELECT four FROM global_temp.tenk1 WHERE FALSE WINDOW w AS (PARTITION BY ten);
 
 -- cumulative aggregate
-SELECT sum(four) OVER (PARTITION BY ten ORDER BY unique2) AS sum_1, ten, four FROM tenk1 WHERE unique2 < 10;
+SELECT sum(four) OVER (PARTITION BY ten ORDER BY unique2) AS sum_1, ten, four FROM global_temp.tenk1 WHERE unique2 < 10;
 
-SELECT row_number() OVER (ORDER BY unique2) FROM tenk1 WHERE unique2 < 10;
+SELECT row_number() OVER (ORDER BY unique2) FROM global_temp.tenk1 WHERE unique2 < 10;
 
-SELECT rank() OVER (PARTITION BY four ORDER BY ten) AS rank_1, ten, four FROM tenk1 WHERE unique2 < 10;
+SELECT rank() OVER (PARTITION BY four ORDER BY ten) AS rank_1, ten, four FROM global_temp.tenk1 WHERE unique2 < 10;
 
-SELECT dense_rank() OVER (PARTITION BY four ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10;
+SELECT dense_rank() OVER (PARTITION BY four ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10;
 
-SELECT percent_rank() OVER (PARTITION BY four ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10;
+SELECT percent_rank() OVER (PARTITION BY four ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10;
 
-SELECT cume_dist() OVER (PARTITION BY four ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10;
+SELECT cume_dist() OVER (PARTITION BY four ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10;
 
-SELECT ntile(3) OVER (ORDER BY ten, four), ten, four FROM tenk1 WHERE unique2 < 10;
+SELECT ntile(3) OVER (ORDER BY ten, four), ten, four FROM global_temp.tenk1 WHERE unique2 < 10;
 
 -- [SPARK-28065] ntile does not accept NULL as input
--- SELECT ntile(NULL) OVER (ORDER BY ten, four), ten, four FROM tenk1 LIMIT 2;
+-- SELECT ntile(NULL) OVER (ORDER BY ten, four), ten, four FROM global_temp.tenk1 LIMIT 2;
 
-SELECT lag(ten) OVER (PARTITION BY four ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10;
-
--- [SPARK-28068] `lag` second argument must be a literal in Spark
--- SELECT lag(ten, four) OVER (PARTITION BY four ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10;
+SELECT lag(ten) OVER (PARTITION BY four ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10;
 
 -- [SPARK-28068] `lag` second argument must be a literal in Spark
--- SELECT lag(ten, four, 0) OVER (PARTITION BY four ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10;
+-- SELECT lag(ten, four) OVER (PARTITION BY four ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10;
 
-SELECT lead(ten) OVER (PARTITION BY four ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10;
+-- [SPARK-28068] `lag` second argument must be a literal in Spark
+-- SELECT lag(ten, four, 0) OVER (PARTITION BY four ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10;
 
-SELECT lead(ten * 2, 1) OVER (PARTITION BY four ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10;
+SELECT lead(ten) OVER (PARTITION BY four ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10;
 
-SELECT lead(ten * 2, 1, -1) OVER (PARTITION BY four ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10;
+SELECT lead(ten * 2, 1) OVER (PARTITION BY four ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10;
 
-SELECT first(ten) OVER (PARTITION BY four ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10;
+SELECT lead(ten * 2, 1, -1) OVER (PARTITION BY four ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10;
+
+SELECT first(ten) OVER (PARTITION BY four ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10;
 
 -- last returns the last row of the frame, which is CURRENT ROW in ORDER BY window.
-SELECT last(four) OVER (ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10;
+SELECT last(four) OVER (ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10;
 
 SELECT last(ten) OVER (PARTITION BY four), ten, four FROM
-(SELECT * FROM tenk1 WHERE unique2 < 10 ORDER BY four, ten)s
+(SELECT * FROM global_temp.tenk1 WHERE unique2 < 10 ORDER BY four, ten)s
 ORDER BY four, ten;
 
 -- [SPARK-27951] ANSI SQL: NTH_VALUE function
 -- SELECT nth_value(ten, four + 1) OVER (PARTITION BY four), ten, four
--- FROM (SELECT * FROM tenk1 WHERE unique2 < 10 ORDER BY four, ten)s;
+-- FROM (SELECT * FROM global_temp.tenk1 WHERE unique2 < 10 ORDER BY four, ten)s;
 
 SELECT ten, two, sum(hundred) AS gsum, sum(sum(hundred)) OVER (PARTITION BY two ORDER BY ten) AS wsum
-FROM tenk1 GROUP BY ten, two;
+FROM global_temp.tenk1 GROUP BY ten, two;
 
-SELECT count(*) OVER (PARTITION BY four), four FROM (SELECT * FROM tenk1 WHERE two = 1)s WHERE unique2 < 10;
+SELECT count(*) OVER (PARTITION BY four), four FROM (SELECT * FROM global_temp.tenk1 WHERE two = 1)s WHERE unique2 < 10;
 
 SELECT (count(*) OVER (PARTITION BY four ORDER BY ten) +
   sum(hundred) OVER (PARTITION BY four ORDER BY ten)) AS cntsum
-  FROM tenk1 WHERE unique2 < 10;
+  FROM global_temp.tenk1 WHERE unique2 < 10;
 
 -- opexpr with different windows evaluation.
 SELECT * FROM(
@@ -114,13 +114,13 @@ SELECT * FROM(
     sum(hundred) OVER (PARTITION BY two ORDER BY ten) AS total,
     count(*) OVER (PARTITION BY four ORDER BY ten) AS fourcount,
     sum(hundred) OVER (PARTITION BY two ORDER BY ten) AS twosum
-    FROM tenk1
+    FROM global_temp.tenk1
 )sub WHERE total <> fourcount + twosum;
 
-SELECT avg(four) OVER (PARTITION BY four ORDER BY thousand / 100) FROM tenk1 WHERE unique2 < 10;
+SELECT avg(four) OVER (PARTITION BY four ORDER BY thousand / 100) FROM global_temp.tenk1 WHERE unique2 < 10;
 
 SELECT ten, two, sum(hundred) AS gsum, sum(sum(hundred)) OVER win AS wsum
-FROM tenk1 GROUP BY ten, two WINDOW win AS (PARTITION BY two ORDER BY ten);
+FROM global_temp.tenk1 GROUP BY ten, two WINDOW win AS (PARTITION BY two ORDER BY ten);
 
 -- [SPARK-29540] Thrift in some cases can't parse string to date
 -- more than one window with GROUP BY
@@ -136,11 +136,11 @@ FROM tenk1 GROUP BY ten, two WINDOW win AS (PARTITION BY two ORDER BY ten);
 
 -- subplan
 -- [SPARK-28379] Correlated scalar subqueries must be aggregated
--- SELECT lead(ten, (SELECT two FROM tenk1 WHERE s.unique2 = unique2)) OVER (PARTITION BY four ORDER BY ten)
--- FROM tenk1 s WHERE unique2 < 10;
+-- SELECT lead(ten, (SELECT two FROM global_temp.tenk1 WHERE s.unique2 = unique2)) OVER (PARTITION BY four ORDER BY ten)
+-- FROM global_temp.tenk1 s WHERE unique2 < 10;
 
 -- empty table
-SELECT count(*) OVER (PARTITION BY four) FROM (SELECT * FROM tenk1 WHERE FALSE)s;
+SELECT count(*) OVER (PARTITION BY four) FROM (SELECT * FROM global_temp.tenk1 WHERE FALSE)s;
 
 -- [SPARK-29540] Thrift in some cases can't parse string to date
 -- mixture of agg/wfunc in the same window
@@ -170,150 +170,150 @@ SELECT SUM(COUNT(f1)) OVER () FROM int4_tbl WHERE f1=42;
 select ten,
   sum(unique1) + sum(unique2) as res,
   rank() over (order by sum(unique1) + sum(unique2)) as rank
-from tenk1
+from global_temp.tenk1
 group by ten order by ten;
 
 -- window and aggregate with GROUP BY expression (9.2 bug)
 -- explain
 -- select first(max(x)) over (), y
---   from (select unique1 as x, ten+four as y from tenk1) ss
+--   from (select unique1 as x, ten+four as y from global_temp.tenk1) ss
 --   group by y;
 
 -- test non-default frame specifications
 SELECT four, ten,
 sum(ten) over (partition by four order by ten),
 last(ten) over (partition by four order by ten)
-FROM (select distinct ten, four from tenk1) ss;
+FROM (select distinct ten, four from global_temp.tenk1) ss;
 
 SELECT four, ten,
 sum(ten) over (partition by four order by ten range between unbounded preceding and current row),
 last(ten) over (partition by four order by ten range between unbounded preceding and current row)
-FROM (select distinct ten, four from tenk1) ss;
+FROM (select distinct ten, four from global_temp.tenk1) ss;
 
 SELECT four, ten,
 sum(ten) over (partition by four order by ten range between unbounded preceding and unbounded following),
 last(ten) over (partition by four order by ten range between unbounded preceding and unbounded following)
-FROM (select distinct ten, four from tenk1) ss;
+FROM (select distinct ten, four from global_temp.tenk1) ss;
 
 -- [SPARK-29451] Some queries with divisions in SQL windows are failling in Thrift
 -- SELECT four, ten/4 as two,
 -- sum(ten/4) over (partition by four order by ten/4 range between unbounded preceding and current row),
 -- last(ten/4) over (partition by four order by ten/4 range between unbounded preceding and current row)
--- FROM (select distinct ten, four from tenk1) ss;
+-- FROM (select distinct ten, four from global_temp.tenk1) ss;
 
 -- [SPARK-29451] Some queries with divisions in SQL windows are failling in Thrift
 -- SELECT four, ten/4 as two,
 -- sum(ten/4) over (partition by four order by ten/4 rows between unbounded preceding and current row),
 -- last(ten/4) over (partition by four order by ten/4 rows between unbounded preceding and current row)
--- FROM (select distinct ten, four from tenk1) ss;
+-- FROM (select distinct ten, four from global_temp.tenk1) ss;
 
 SELECT sum(unique1) over (order by four range between current row and unbounded following),
 unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM global_temp.tenk1 WHERE unique1 < 10;
 
 SELECT sum(unique1) over (rows between current row and unbounded following),
 unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM global_temp.tenk1 WHERE unique1 < 10;
 
 SELECT sum(unique1) over (rows between 2 preceding and 2 following),
 unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT sum(unique1) over (rows between 2 preceding and 2 following exclude no others),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT sum(unique1) over (rows between 2 preceding and 2 following exclude current row),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT sum(unique1) over (rows between 2 preceding and 2 following exclude group),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT sum(unique1) over (rows between 2 preceding and 2 following exclude ties),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT first(unique1) over (ORDER BY four rows between current row and 2 following exclude current row),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT first(unique1) over (ORDER BY four rows between current row and 2 following exclude group),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT first(unique1) over (ORDER BY four rows between current row and 2 following exclude ties),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT last(unique1) over (ORDER BY four rows between current row and 2 following exclude current row),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT last(unique1) over (ORDER BY four rows between current row and 2 following exclude group),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT last(unique1) over (ORDER BY four rows between current row and 2 following exclude ties),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 SELECT sum(unique1) over (rows between 2 preceding and 1 preceding),
 unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM global_temp.tenk1 WHERE unique1 < 10;
 
 SELECT sum(unique1) over (rows between 1 following and 3 following),
 unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM global_temp.tenk1 WHERE unique1 < 10;
 
 SELECT sum(unique1) over (rows between unbounded preceding and 1 following),
 unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM global_temp.tenk1 WHERE unique1 < 10;
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT sum(unique1) over (w range between current row and unbounded following),
 -- 	unique1, four
--- FROM tenk1 WHERE unique1 < 10 WINDOW w AS (order by four);
+-- FROM global_temp.tenk1 WHERE unique1 < 10 WINDOW w AS (order by four);
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT sum(unique1) over (w range between unbounded preceding and current row exclude current row),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10 WINDOW w AS (order by four);
+-- FROM global_temp.tenk1 WHERE unique1 < 10 WINDOW w AS (order by four);
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT sum(unique1) over (w range between unbounded preceding and current row exclude group),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10 WINDOW w AS (order by four);
+-- FROM global_temp.tenk1 WHERE unique1 < 10 WINDOW w AS (order by four);
 
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- SELECT sum(unique1) over (w range between unbounded preceding and current row exclude ties),
 -- unique1, four
--- FROM tenk1 WHERE unique1 < 10 WINDOW w AS (order by four);
+-- FROM global_temp.tenk1 WHERE unique1 < 10 WINDOW w AS (order by four);
 
 -- [SPARK-27951] ANSI SQL: NTH_VALUE function
 -- SELECT first_value(unique1) over w,
 -- nth_value(unique1, 2) over w AS nth_2,
 -- last_value(unique1) over w, unique1, four
--- FROM tenk1 WHERE unique1 < 10
+-- FROM global_temp.tenk1 WHERE unique1 < 10
 -- WINDOW w AS (order by four range between current row and unbounded following);
 
 -- [SPARK-28501] Frame bound value must be a literal.
 -- SELECT sum(unique1) over
 -- (order by unique1
---   rows (SELECT unique1 FROM tenk1 ORDER BY unique1 LIMIT 1) + 1 PRECEDING),
+--   rows (SELECT unique1 FROM global_temp.tenk1 ORDER BY unique1 LIMIT 1) + 1 PRECEDING),
 -- unique1
--- FROM tenk1 WHERE unique1 < 10;
+-- FROM global_temp.tenk1 WHERE unique1 < 10;
 
 CREATE TEMP VIEW v_window AS
 SELECT i.id, sum(i.id) over (order by i.id rows between 1 preceding and 1 following) as sum_rows

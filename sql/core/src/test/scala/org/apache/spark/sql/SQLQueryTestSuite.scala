@@ -363,7 +363,6 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
     // Create a local SparkSession to have stronger isolation between different test cases.
     // This does not isolate catalog changes.
     val localSparkSession = spark.newSession()
-    loadTestData(localSparkSession)
 
     testCase match {
       case udfTestCase: UDFTest =>
@@ -571,15 +570,16 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
     filteredFiles ++ dirs.flatMap(listFilesRecursively)
   }
 
-  /** Load built-in test tables into the SparkSession. */
-  private def loadTestData(session: SparkSession): Unit = {
+  /** Load built-in test tables as global temp views in the given SparkSession. */
+  private def loadTestDataAsGlobalTempViews(session: SparkSession): Unit = {
     import session.implicits._
 
-    (1 to 100).map(i => (i, i.toString)).toDF("key", "value").createOrReplaceTempView("testdata")
+    (1 to 100).map(i => (i, i.toString)).toDF("key", "value").
+      createOrReplaceGlobalTempView("testdata")
 
     ((Seq(1, 2, 3), Seq(Seq(1, 2, 3))) :: (Seq(2, 3, 4), Seq(Seq(2, 3, 4))) :: Nil)
       .toDF("arraycol", "nestedarraycol")
-      .createOrReplaceTempView("arraydata")
+      .createOrReplaceGlobalTempView("arraydata")
 
     (Tuple1(Map(1 -> "a1", 2 -> "b1", 3 -> "c1", 4 -> "d1", 5 -> "e1")) ::
       Tuple1(Map(1 -> "a2", 2 -> "b2", 3 -> "c2", 4 -> "d2")) ::
@@ -587,7 +587,7 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
       Tuple1(Map(1 -> "a4", 2 -> "b4")) ::
       Tuple1(Map(1 -> "a5")) :: Nil)
       .toDF("mapcol")
-      .createOrReplaceTempView("mapdata")
+      .createOrReplaceGlobalTempView("mapdata")
 
     session
       .read
@@ -595,7 +595,7 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
       .options(Map("delimiter" -> "\t", "header" -> "false"))
       .schema("a int, b float")
       .load(testFile("test-data/postgresql/agg.data"))
-      .createOrReplaceTempView("aggtest")
+      .createOrReplaceGlobalTempView("aggtest")
 
     session
       .read
@@ -621,7 +621,7 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
           |string4 string
         """.stripMargin)
       .load(testFile("test-data/postgresql/onek.data"))
-      .createOrReplaceTempView("onek")
+      .createOrReplaceGlobalTempView("onek")
 
     session
       .read
@@ -647,7 +647,7 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
           |string4 string
         """.stripMargin)
       .load(testFile("test-data/postgresql/tenk.data"))
-      .createOrReplaceTempView("tenk1")
+      .createOrReplaceGlobalTempView("tenk1")
   }
 
   private val originalTimeZone = TimeZone.getDefault
@@ -662,6 +662,8 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
     RuleExecutor.resetMetrics()
     CodeGenerator.resetCompileTime
     WholeStageCodegenExec.resetCodeGenTime
+    // Load global test data
+    loadTestDataAsGlobalTempViews(spark)
   }
 
   override def afterAll(): Unit = {

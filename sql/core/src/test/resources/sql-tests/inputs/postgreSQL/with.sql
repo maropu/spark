@@ -222,7 +222,7 @@ INSERT INTO department VALUES (7, 5, 'G');
 -- use same CTE twice at different subquery levels
 -- [SPARK-24497] Support recursive SQL query
 --WITH q1(x,y) AS (
---    SELECT hundred, sum(ten) FROM tenk1 GROUP BY hundred
+--    SELECT hundred, sum(ten) FROM global_temp.tenk1 GROUP BY hundred
 --  )
 --SELECT count(*) FROM q1 WHERE y > (SELECT sum(y)/100 FROM q1 qsub);
 

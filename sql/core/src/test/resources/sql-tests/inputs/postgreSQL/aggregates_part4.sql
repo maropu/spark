@@ -33,10 +33,10 @@
 --      (values (0::float8),(0.1),(0.25),(0.4),(0.5),(0.6),(0.75),(0.9),(1)) v(p)
 -- group by p order by p;
 
--- select percentile_cont(0.5) within group (order by b) from aggtest;
--- select percentile_cont(0.5) within group (order by b), sum(b) from aggtest;
--- select percentile_cont(0.5) within group (order by thousand) from tenk1;
--- select percentile_disc(0.5) within group (order by thousand) from tenk1;
+-- select percentile_cont(0.5) within group (order by b) from global_temp.aggtest;
+-- select percentile_cont(0.5) within group (order by b), sum(b) from global_temp.aggtest;
+-- select percentile_cont(0.5) within group (order by thousand) from global_temp.tenk1;
+-- select percentile_disc(0.5) within group (order by thousand) from global_temp.tenk1;
 -- [SPARK-28661] Hypothetical-Set Aggregate Functions
 -- select rank(3) within group (order by x)
 -- from (values (1),(1),(2),(2),(3),(3),(4)) v(x);
@@ -49,17 +49,17 @@
 
 -- [SPARK-27980] Ordered-Set Aggregate Functions
 -- select percentile_disc(array[0,0.1,0.25,0.5,0.75,0.9,1]) within group (order by thousand)
--- from tenk1;
+-- from global_temp.tenk1;
 -- select percentile_cont(array[0,0.25,0.5,0.75,1]) within group (order by thousand)
--- from tenk1;
+-- from global_temp.tenk1;
 -- select percentile_disc(array[[null,1,0.5],[0.75,0.25,null]]) within group (order by thousand)
--- from tenk1;
+-- from global_temp.tenk1;
 -- select percentile_cont(array[0,1,0.25,0.75,0.5,1,0.3,0.32,0.35,0.38,0.4]) within group (order by x)
 -- from generate_series(1,6) x;
 
 -- [SPARK-27980] Ordered-Set Aggregate Functions
 -- [SPARK-28382] Array Functions: unnest
--- select ten, mode() within group (order by string4) from tenk1 group by ten;
+-- select ten, mode() within group (order by string4) from global_temp.tenk1 group by ten;
 
 -- select percentile_disc(array[0.25,0.5,0.75]) within group (order by x)
 -- from unnest('{fred,jim,fred,jack,jill,fred,jill,jim,jim,sheila,jim,sheila}'::text[]) u(x);
@@ -73,7 +73,7 @@
 -- ordered-set aggs created with CREATE AGGREGATE
 -- select test_rank(3) within group (order by x)
 -- from (values (1),(1),(2),(2),(3),(3),(4)) v(x);
--- select test_percentile_disc(0.5) within group (order by thousand) from tenk1;
+-- select test_percentile_disc(0.5) within group (order by thousand) from global_temp.tenk1;
 
 -- [SPARK-28661] Hypothetical-Set Aggregate Functions
 -- ordered-set aggs can't use ungrouped vars in direct args:
@@ -92,7 +92,7 @@
 -- [SPARK-28661] Hypothetical-Set Aggregate Functions
 -- hypothetical-set type unification and argument-count failures:
 -- select rank(3) within group (order by x) from (values ('fred'),('jim')) v(x);
--- select rank(3) within group (order by stringu1,stringu2) from tenk1;
+-- select rank(3) within group (order by stringu1,stringu2) from global_temp.tenk1;
 -- select rank('fred') within group (order by x) from generate_series(1,5) x;
 -- select rank('adam'::text collate "C") within group (order by x collate "POSIX")
 --   from (values ('fred'),('jim')) v(x);
@@ -111,7 +111,7 @@
 --        percentile_disc(0.5) within group (order by thousand) as p50,
 --        percentile_disc(0.5) within group (order by thousand) filter (where hundred=1) as px,
 --        rank(5,'AZZZZ',50) within group (order by hundred, string4 desc, hundred)
---   from tenk1
+--   from global_temp.tenk1
 --  group by ten order by ten;
 
 -- select pg_get_viewdef('aggordview1');
@@ -336,7 +336,7 @@
 --     INITCOND = '0'
 -- );
 
--- SELECT balk(hundred) FROM tenk1;
+-- SELECT balk(hundred) FROM global_temp.tenk1;
 
 -- ROLLBACK;
 
@@ -366,12 +366,12 @@
 -- );
 
 -- force use of parallelism
--- ALTER TABLE tenk1 set (parallel_workers = 4);
+-- ALTER TABLE global_temp.tenk1 set (parallel_workers = 4);
 -- SET LOCAL parallel_setup_cost=0;
 -- SET LOCAL max_parallel_workers_per_gather=4;
 
--- EXPLAIN (COSTS OFF) SELECT balk(hundred) FROM tenk1;
--- SELECT balk(hundred) FROM tenk1;
+-- EXPLAIN (COSTS OFF) SELECT balk(hundred) FROM global_temp.tenk1;
+-- SELECT balk(hundred) FROM global_temp.tenk1;
 
 -- ROLLBACK;
 
@@ -389,9 +389,9 @@
 -- sum(int8) covers int8_avg_combine
 -- regr_count(float8, float8) covers int8inc_float8_float8 and aggregates with > 1 arg
 -- EXPLAIN (COSTS OFF, VERBOSE)
---   SELECT variance(unique1::int4), sum(unique1::int8), regr_count(unique1::float8, unique1::float8) FROM tenk1;
+--   SELECT variance(unique1::int4), sum(unique1::int8), regr_count(unique1::float8, unique1::float8) FROM global_temp.tenk1;
 
--- SELECT variance(unique1::int4), sum(unique1::int8), regr_count(unique1::float8, unique1::float8) FROM tenk1;
+-- SELECT variance(unique1::int4), sum(unique1::int8), regr_count(unique1::float8, unique1::float8) FROM global_temp.tenk1;
 
 -- ROLLBACK;
 
@@ -420,5 +420,5 @@
 -- does not lead to array overflow due to unexpected duplicate hash keys
 -- see CAFeeJoKKu0u+A_A9R9316djW-YW3-+Gtgvy3ju655qRHR3jtdA@mail.gmail.com
 -- explain (costs off)
---   select 1 from tenk1
---    where (hundred, thousand) in (select twothousand, twothousand from onek);
+--   select 1 from global_temp.tenk1
+--    where (hundred, thousand) in (select twothousand, twothousand from global_temp.onek);

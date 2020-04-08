@@ -267,7 +267,7 @@ NULL	NULL	1	1	172	2
 
 -- !query
 select four, x
-  from (select four, ten, 'foo' as x from tenk1) as t
+  from (select four, ten, 'foo' as x from global_temp.tenk1) as t
   group by grouping sets (four, x)
   having x = 'foo'
 -- !query schema
@@ -278,7 +278,7 @@ NULL	foo
 
 -- !query
 select four, x || 'x'
-  from (select four, ten, 'foo' as x from tenk1) as t
+  from (select four, ten, 'foo' as x from global_temp.tenk1) as t
   group by grouping sets (four, x)
   order by four
 -- !query schema
@@ -339,9 +339,9 @@ struct<>
 
 
 -- !query
-select ten, sum(distinct four) from onek a
+select ten, sum(distinct four) from global_temp.onek a
 group by grouping sets((ten,four),(ten))
-having exists (select 1 from onek b where sum(distinct a.four) = b.four)
+having exists (select 1 from global_temp.onek b where sum(distinct a.four) = b.four)
 -- !query schema
 struct<ten:int,sum(DISTINCT four):bigint>
 -- !query output
@@ -392,7 +392,7 @@ NULL	9
 
 
 -- !query
-select ten, grouping(ten) from onek
+select ten, grouping(ten) from global_temp.onek
 group by grouping sets(ten) having grouping(ten) >= 0
 order by 2,1
 -- !query schema
@@ -411,7 +411,7 @@ struct<ten:int,grouping(ten):tinyint>
 
 
 -- !query
-select ten, grouping(ten) from onek
+select ten, grouping(ten) from global_temp.onek
 group by grouping sets(ten, four) having grouping(ten) > 0
 order by 2,1
 -- !query schema
@@ -424,7 +424,7 @@ NULL	1
 
 
 -- !query
-select ten, grouping(ten) from onek
+select ten, grouping(ten) from global_temp.onek
 group by rollup(ten) having grouping(ten) > 0
 order by 2,1
 -- !query schema
@@ -434,7 +434,7 @@ NULL	1
 
 
 -- !query
-select ten, grouping(ten) from onek
+select ten, grouping(ten) from global_temp.onek
 group by cube(ten) having grouping(ten) > 0
 order by 2,1
 -- !query schema

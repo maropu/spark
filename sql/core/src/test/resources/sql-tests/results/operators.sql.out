@@ -35,7 +35,7 @@ struct<(+ 6.8):double>
 
 
 -- !query
-select -key, +key from testdata where key = 2
+select -key, +key from global_temp.testdata where key = 2
 -- !query schema
 struct<(- key):int,(+ key):int>
 -- !query output
@@ -43,7 +43,7 @@ struct<(- key):int,(+ key):int>
 
 
 -- !query
-select -(key + 1), - key + 1, +(key + 5) from testdata where key = 1
+select -(key + 1), - key + 1, +(key + 5) from global_temp.testdata where key = 1
 -- !query schema
 struct<(- (key + 1)):int,((- key) + 1):int,(+ (key + 5)):int>
 -- !query output
@@ -51,7 +51,7 @@ struct<(- (key + 1)):int,((- key) + 1):int,(+ (key + 5)):int>
 
 
 -- !query
-select -max(key), +max(key) from testdata
+select -max(key), +max(key) from global_temp.testdata
 -- !query schema
 struct<(- max(key)):int,(+ max(key)):int>
 -- !query output
@@ -67,7 +67,7 @@ struct<(- -10):int>
 
 
 -- !query
-select + (-key) from testdata where key = 32
+select + (-key) from global_temp.testdata where key = 32
 -- !query schema
 struct<(+ (- key)):int>
 -- !query output
@@ -75,7 +75,7 @@ struct<(+ (- key)):int>
 
 
 -- !query
-select - (+max(key)) from testdata
+select - (+max(key)) from global_temp.testdata
 -- !query schema
 struct<(- (+ max(key))):int>
 -- !query output
@@ -107,7 +107,7 @@ struct<(+ (+ 100)):int>
 
 
 -- !query
-select - - max(key) from testdata
+select - - max(key) from global_temp.testdata
 -- !query schema
 struct<(- (- max(key))):int>
 -- !query output
@@ -115,7 +115,7 @@ struct<(- (- max(key))):int>
 
 
 -- !query
-select + - key from testdata where key = 33
+select + - key from global_temp.testdata where key = 33
 -- !query schema
 struct<(+ (- key)):int>
 -- !query output

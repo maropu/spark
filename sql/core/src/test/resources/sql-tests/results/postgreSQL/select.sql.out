@@ -3,7 +3,7 @@
 
 
 -- !query
-create or replace temporary view onek2 as select * from onek
+create or replace temporary view onek2 as select * from global_temp.onek
 -- !query schema
 struct<>
 -- !query output
@@ -25,9 +25,9 @@ struct<>
 
 
 -- !query
-SELECT * FROM onek
-   WHERE onek.unique1 < 10
-   ORDER BY onek.unique1
+SELECT * FROM global_temp.onek
+   WHERE global_temp.onek.unique1 < 10
+   ORDER BY global_temp.onek.unique1
 -- !query schema
 struct<unique1:int,unique2:int,two:int,four:int,ten:int,twenty:int,hundred:int,thousand:int,twothousand:int,fivethous:int,tenthous:int,odd:int,even:int,stringu1:string,stringu2:string,string4:string>
 -- !query output
@@ -44,8 +44,8 @@ struct<unique1:int,unique2:int,two:int,four:int,ten:int,twenty:int,hundred:int,t
 
 
 -- !query
-SELECT onek.unique1, onek.stringu1 FROM onek
-   WHERE onek.unique1 < 20
+SELECT global_temp.onek.unique1, global_temp.onek.stringu1 FROM global_temp.onek
+   WHERE global_temp.onek.unique1 < 20
    ORDER BY unique1 DESC
 -- !query schema
 struct<unique1:int,stringu1:string>
@@ -73,8 +73,8 @@ struct<unique1:int,stringu1:string>
 
 
 -- !query
-SELECT onek.unique1, onek.stringu1 FROM onek
-   WHERE onek.unique1 > 980
+SELECT global_temp.onek.unique1, global_temp.onek.stringu1 FROM global_temp.onek
+   WHERE global_temp.onek.unique1 > 980
    ORDER BY stringu1 ASC
 -- !query schema
 struct<unique1:int,stringu1:string>
@@ -101,8 +101,8 @@ struct<unique1:int,stringu1:string>
 
 
 -- !query
-SELECT onek.unique1, onek.string4 FROM onek
-   WHERE onek.unique1 > 980
+SELECT global_temp.onek.unique1, global_temp.onek.string4 FROM global_temp.onek
+   WHERE global_temp.onek.unique1 > 980
    ORDER BY string4 ASC, unique1 DESC
 -- !query schema
 struct<unique1:int,string4:string>
@@ -129,8 +129,8 @@ struct<unique1:int,string4:string>
 
 
 -- !query
-SELECT onek.unique1, onek.string4 FROM onek
-   WHERE onek.unique1 > 980
+SELECT global_temp.onek.unique1, global_temp.onek.string4 FROM global_temp.onek
+   WHERE global_temp.onek.unique1 > 980
    ORDER BY string4 DESC, unique1 ASC
 -- !query schema
 struct<unique1:int,string4:string>
@@ -157,8 +157,8 @@ struct<unique1:int,string4:string>
 
 
 -- !query
-SELECT onek.unique1, onek.string4 FROM onek
-   WHERE onek.unique1 < 20
+SELECT global_temp.onek.unique1, global_temp.onek.string4 FROM global_temp.onek
+   WHERE global_temp.onek.unique1 < 20
    ORDER BY unique1 DESC, string4 ASC
 -- !query schema
 struct<unique1:int,string4:string>
@@ -186,8 +186,8 @@ struct<unique1:int,string4:string>
 
 
 -- !query
-SELECT onek.unique1, onek.string4 FROM onek
-   WHERE onek.unique1 < 20
+SELECT global_temp.onek.unique1, global_temp.onek.string4 FROM global_temp.onek
+   WHERE global_temp.onek.unique1 < 20
    ORDER BY unique1 ASC, string4 DESC
 -- !query schema
 struct<unique1:int,string4:string>
@@ -290,7 +290,7 @@ struct<unique1:int,stringu1:string>
 -- !query
 CREATE TABLE tmp USING parquet AS
 SELECT two, stringu1, ten, string4
-FROM onek
+FROM global_temp.onek
 -- !query schema
 struct<>
 -- !query output
@@ -322,8 +322,8 @@ xyzzy	1	NULL
 
 
 -- !query
-select * from onek, values(147, 'RFAAAA'), (931, 'VJAAAA') as v (i, j)
-    WHERE onek.unique1 = v.i and onek.stringu1 = v.j
+select * from global_temp.onek, values(147, 'RFAAAA'), (931, 'VJAAAA') as v (i, j)
+    WHERE global_temp.onek.unique1 = v.i and global_temp.onek.stringu1 = v.j
 -- !query schema
 struct<unique1:int,unique2:int,two:int,four:int,ten:int,twenty:int,hundred:int,thousand:int,twothousand:int,fivethous:int,tenthous:int,odd:int,even:int,stringu1:string,stringu2:string,string4:string,i:int,j:string>
 -- !query output

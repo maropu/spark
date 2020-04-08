@@ -144,17 +144,17 @@ FROM bool_test;
 
 -- Basic cases
 -- explain
---  select min(unique1) from tenk1;
-select min(udf(unique1)) from tenk1;
+--  select min(unique1) from global_temp.tenk1;
+select min(udf(unique1)) from global_temp.tenk1;
 -- explain
---  select max(unique1) from tenk1;
-select udf(max(unique1)) from tenk1;
+--  select max(unique1) from global_temp.tenk1;
+select udf(max(unique1)) from global_temp.tenk1;
 -- explain
---  select max(unique1) from tenk1 where unique1 < 42;
-select max(unique1) from tenk1 where udf(unique1) < 42;
+--  select max(unique1) from global_temp.tenk1 where unique1 < 42;
+select max(unique1) from global_temp.tenk1 where udf(unique1) < 42;
 -- explain
---  select max(unique1) from tenk1 where unique1 > 42;
-select max(unique1) from tenk1 where unique1 > udf(42);
+--  select max(unique1) from global_temp.tenk1 where unique1 > 42;
+select max(unique1) from global_temp.tenk1 where unique1 > udf(42);
 
 -- the planner may choose a generic aggregate here if parallel query is
 -- enabled, since that plan will be parallel safe and the "optimized"
@@ -163,44 +163,44 @@ select max(unique1) from tenk1 where unique1 > udf(42);
 -- begin;
 -- set local max_parallel_workers_per_gather = 0;
 -- explain
---  select max(unique1) from tenk1 where unique1 > 42000;
-select max(unique1) from tenk1 where udf(unique1) > 42000;
+--  select max(unique1) from global_temp.tenk1 where unique1 > 42000;
+select max(unique1) from global_temp.tenk1 where udf(unique1) > 42000;
 -- rollback;
 
--- multi-column index (uses tenk1_thous_tenthous)
+-- multi-column index (uses global_temp.tenk1_thous_tenthous)
 -- explain
---  select max(tenthous) from tenk1 where thousand = 33;
-select max(tenthous) from tenk1 where udf(thousand) = 33;
+--  select max(tenthous) from global_temp.tenk1 where thousand = 33;
+select max(tenthous) from global_temp.tenk1 where udf(thousand) = 33;
 -- explain
---  select min(tenthous) from tenk1 where thousand = 33;
-select min(tenthous) from tenk1 where udf(thousand) = 33;
+--  select min(tenthous) from global_temp.tenk1 where thousand = 33;
+select min(tenthous) from global_temp.tenk1 where udf(thousand) = 33;
 
 -- [SPARK-17348] Correlated column is not allowed in a non-equality predicate
 -- check parameter propagation into an indexscan subquery
 -- explain
---  select f1, (select min(unique1) from tenk1 where unique1 > f1) AS gt
+--  select f1, (select min(unique1) from global_temp.tenk1 where unique1 > f1) AS gt
 --    from int4_tbl;
--- select f1, (select min(unique1) from tenk1 where unique1 > f1) AS gt
+-- select f1, (select min(unique1) from global_temp.tenk1 where unique1 > f1) AS gt
 --  from int4_tbl;
 
 -- check some cases that were handled incorrectly in 8.3.0
 -- explain
---  select distinct max(unique2) from tenk1;
-select distinct max(udf(unique2)) from tenk1;
+--  select distinct max(unique2) from global_temp.tenk1;
+select distinct max(udf(unique2)) from global_temp.tenk1;
 -- explain
---  select max(unique2) from tenk1 order by 1;
-select max(unique2) from tenk1 order by udf(1);
+--  select max(unique2) from global_temp.tenk1 order by 1;
+select max(unique2) from global_temp.tenk1 order by udf(1);
 -- explain
---  select max(unique2) from tenk1 order by max(unique2);
-select max(unique2) from tenk1 order by max(udf(unique2));
+--  select max(unique2) from global_temp.tenk1 order by max(unique2);
+select max(unique2) from global_temp.tenk1 order by max(udf(unique2));
 -- explain
---  select max(unique2) from tenk1 order by max(unique2)+1;
-select udf(max(udf(unique2))) from tenk1 order by udf(max(unique2))+1;
+--  select max(unique2) from global_temp.tenk1 order by max(unique2)+1;
+select udf(max(udf(unique2))) from global_temp.tenk1 order by udf(max(unique2))+1;
 -- explain
---  select max(unique2), generate_series(1,3) as g from tenk1 order by g desc;
-select t1.max_unique2, udf(g) from (select max(udf(unique2)) as max_unique2 FROM tenk1) t1 LATERAL VIEW explode(array(1,2,3)) t2 AS g order by g desc;
+--  select max(unique2), generate_series(1,3) as g from global_temp.tenk1 order by g desc;
+select t1.max_unique2, udf(g) from (select max(udf(unique2)) as max_unique2 FROM global_temp.tenk1) t1 LATERAL VIEW explode(array(1,2,3)) t2 AS g order by g desc;
 
 -- interesting corner case: constant gets optimized into a seqscan
 -- explain
---  select max(100) from tenk1;
-select udf(max(100)) from tenk1;
+--  select max(100) from global_temp.tenk1;
+select udf(max(100)) from global_temp.tenk1;

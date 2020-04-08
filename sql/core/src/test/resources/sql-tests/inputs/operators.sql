@@ -4,17 +4,17 @@ select -100;
 select +230;
 select -5.2;
 select +6.8e0;
-select -key, +key from testdata where key = 2;
-select -(key + 1), - key + 1, +(key + 5) from testdata where key = 1;
-select -max(key), +max(key) from testdata;
+select -key, +key from global_temp.testdata where key = 2;
+select -(key + 1), - key + 1, +(key + 5) from global_temp.testdata where key = 1;
+select -max(key), +max(key) from global_temp.testdata;
 select - (-10);
-select + (-key) from testdata where key = 32;
-select - (+max(key)) from testdata;
+select + (-key) from global_temp.testdata where key = 32;
+select - (+max(key)) from global_temp.testdata;
 select - - 3;
 select - + 20;
 select + + 100;
-select - - max(key) from testdata;
-select + - key from testdata where key = 33;
+select - - max(key) from global_temp.testdata;
+select + - key from global_temp.testdata where key = 33;
 
 -- division
 select 5 / 2;

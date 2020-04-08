@@ -390,7 +390,7 @@ struct<1:int,2:int,3:int>
 
 -- !query
 select count(*) from
-  ( select unique1 from tenk1 intersect select fivethous from tenk1 ) ss
+  ( select unique1 from global_temp.tenk1 intersect select fivethous from global_temp.tenk1 ) ss
 -- !query schema
 struct<count(1):bigint>
 -- !query output
@@ -398,7 +398,7 @@ struct<count(1):bigint>
 
 
 -- !query
-select unique1 from tenk1 except select unique2 from tenk1 where unique2 != 10
+select unique1 from global_temp.tenk1 except select unique2 from global_temp.tenk1 where unique2 != 10
 -- !query schema
 struct<unique1:int>
 -- !query output
@@ -407,7 +407,7 @@ struct<unique1:int>
 
 -- !query
 select count(*) from
-  ( select unique1 from tenk1 intersect select fivethous from tenk1 ) ss
+  ( select unique1 from global_temp.tenk1 intersect select fivethous from global_temp.tenk1 ) ss
 -- !query schema
 struct<count(1):bigint>
 -- !query output
@@ -415,7 +415,7 @@ struct<count(1):bigint>
 
 
 -- !query
-select unique1 from tenk1 except select unique2 from tenk1 where unique2 != 10
+select unique1 from global_temp.tenk1 except select unique2 from global_temp.tenk1 where unique2 != 10
 -- !query schema
 struct<unique1:int>
 -- !query output

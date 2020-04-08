@@ -327,7 +327,7 @@ SELECT bigint(double('-9223372036854780000'));
 -- correctly; those are "use at your own risk". However we do test
 -- subnormal outputs, since those are under our control.
 
--- with testdata(bits) as (values
+-- with global_temp.testdata(bits) as (values
 --   -- small subnormals
 --   (x'0000000000000001'),
 --   (x'0000000000000002'), (x'0000000000000003'),
@@ -345,12 +345,12 @@ SELECT bigint(double('-9223372036854780000'));
 -- select float8send(flt) as ibits,
 --        flt
 --   from (select bits::bigint::xfloat8::float8 as flt
---           from testdata
+--           from global_temp.testdata
 -- 	offset 0) s;
 
 -- round-trip tests
 
--- with testdata(bits) as (values
+-- with global_temp.testdata(bits) as (values
 --   (x'0000000000000000'),
 --   -- smallest normal values
 --   (x'0010000000000000'), (x'0010000000000001'),
@@ -494,7 +494,7 @@ SELECT bigint(double('-9223372036854780000'));
 --        float8send(flt::text::float8) as obits,
 --        float8send(flt::text::float8) = float8send(flt) as correct
 --   from (select bits::bigint::xfloat8::float8 as flt
---           from testdata
+--           from global_temp.testdata
 -- 	offset 0) s;
 
 -- clean up, lest opr_sanity complain

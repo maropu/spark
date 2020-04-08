@@ -3,7 +3,7 @@
 
 
 -- !query
-CREATE TEMPORARY VIEW tenk2 AS SELECT * FROM tenk1
+CREATE TEMPORARY VIEW tenk2 AS SELECT * FROM global_temp.tenk1
 -- !query schema
 struct<>
 -- !query output
@@ -11,7 +11,7 @@ struct<>
 
 
 -- !query
-SELECT four, ten, SUM(SUM(four)) OVER (PARTITION BY four), AVG(ten) FROM tenk1
+SELECT four, ten, SUM(SUM(four)) OVER (PARTITION BY four), AVG(ten) FROM global_temp.tenk1
 GROUP BY four, ten ORDER BY four, ten
 -- !query schema
 struct<four:int,ten:int,sum(sum(CAST(four AS BIGINT))) OVER (PARTITION BY four ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING):bigint,avg(ten):double>
@@ -39,7 +39,7 @@ struct<four:int,ten:int,sum(sum(CAST(four AS BIGINT))) OVER (PARTITION BY four R
 
 
 -- !query
-SELECT COUNT(*) OVER () FROM tenk1 WHERE unique2 < 10
+SELECT COUNT(*) OVER () FROM global_temp.tenk1 WHERE unique2 < 10
 -- !query schema
 struct<count(1) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING):bigint>
 -- !query output
@@ -56,7 +56,7 @@ struct<count(1) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING):
 
 
 -- !query
-SELECT COUNT(*) OVER w FROM tenk1 WHERE unique2 < 10 WINDOW w AS ()
+SELECT COUNT(*) OVER w FROM global_temp.tenk1 WHERE unique2 < 10 WINDOW w AS ()
 -- !query schema
 struct<count(1) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING):bigint>
 -- !query output
@@ -73,7 +73,7 @@ struct<count(1) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING):
 
 
 -- !query
-SELECT four FROM tenk1 WHERE FALSE WINDOW w AS (PARTITION BY ten)
+SELECT four FROM global_temp.tenk1 WHERE FALSE WINDOW w AS (PARTITION BY ten)
 -- !query schema
 struct<four:int>
 -- !query output
@@ -81,7 +81,7 @@ struct<four:int>
 
 
 -- !query
-SELECT sum(four) OVER (PARTITION BY ten ORDER BY unique2) AS sum_1, ten, four FROM tenk1 WHERE unique2 < 10
+SELECT sum(four) OVER (PARTITION BY ten ORDER BY unique2) AS sum_1, ten, four FROM global_temp.tenk1 WHERE unique2 < 10
 -- !query schema
 struct<sum_1:bigint,ten:int,four:int>
 -- !query output
@@ -98,7 +98,7 @@ struct<sum_1:bigint,ten:int,four:int>
 
 
 -- !query
-SELECT row_number() OVER (ORDER BY unique2) FROM tenk1 WHERE unique2 < 10
+SELECT row_number() OVER (ORDER BY unique2) FROM global_temp.tenk1 WHERE unique2 < 10
 -- !query schema
 struct<row_number() OVER (ORDER BY unique2 ASC NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):int>
 -- !query output
@@ -115,7 +115,7 @@ struct<row_number() OVER (ORDER BY unique2 ASC NULLS FIRST ROWS BETWEEN UNBOUNDE
 
 
 -- !query
-SELECT rank() OVER (PARTITION BY four ORDER BY ten) AS rank_1, ten, four FROM tenk1 WHERE unique2 < 10
+SELECT rank() OVER (PARTITION BY four ORDER BY ten) AS rank_1, ten, four FROM global_temp.tenk1 WHERE unique2 < 10
 -- !query schema
 struct<rank_1:int,ten:int,four:int>
 -- !query output
@@ -132,7 +132,7 @@ struct<rank_1:int,ten:int,four:int>
 
 
 -- !query
-SELECT dense_rank() OVER (PARTITION BY four ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10
+SELECT dense_rank() OVER (PARTITION BY four ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10
 -- !query schema
 struct<DENSE_RANK() OVER (PARTITION BY four ORDER BY ten ASC NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):int,ten:int,four:int>
 -- !query output
@@ -149,7 +149,7 @@ struct<DENSE_RANK() OVER (PARTITION BY four ORDER BY ten ASC NULLS FIRST ROWS BE
 
 
 -- !query
-SELECT percent_rank() OVER (PARTITION BY four ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10
+SELECT percent_rank() OVER (PARTITION BY four ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10
 -- !query schema
 struct<PERCENT_RANK() OVER (PARTITION BY four ORDER BY ten ASC NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):double,ten:int,four:int>
 -- !query output
@@ -166,7 +166,7 @@ struct<PERCENT_RANK() OVER (PARTITION BY four ORDER BY ten ASC NULLS FIRST ROWS 
 
 
 -- !query
-SELECT cume_dist() OVER (PARTITION BY four ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10
+SELECT cume_dist() OVER (PARTITION BY four ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10
 -- !query schema
 struct<cume_dist() OVER (PARTITION BY four ORDER BY ten ASC NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):double,ten:int,four:int>
 -- !query output
@@ -183,7 +183,7 @@ struct<cume_dist() OVER (PARTITION BY four ORDER BY ten ASC NULLS FIRST RANGE BE
 
 
 -- !query
-SELECT ntile(3) OVER (ORDER BY ten, four), ten, four FROM tenk1 WHERE unique2 < 10
+SELECT ntile(3) OVER (ORDER BY ten, four), ten, four FROM global_temp.tenk1 WHERE unique2 < 10
 -- !query schema
 struct<ntile(3) OVER (ORDER BY ten ASC NULLS FIRST, four ASC NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):int,ten:int,four:int>
 -- !query output
@@ -200,7 +200,7 @@ struct<ntile(3) OVER (ORDER BY ten ASC NULLS FIRST, four ASC NULLS FIRST ROWS BE
 
 
 -- !query
-SELECT lag(ten) OVER (PARTITION BY four ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10
+SELECT lag(ten) OVER (PARTITION BY four ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10
 -- !query schema
 struct<lag(ten, 1, NULL) OVER (PARTITION BY four ORDER BY ten ASC NULLS FIRST ROWS BETWEEN -1 FOLLOWING AND -1 FOLLOWING):int,ten:int,four:int>
 -- !query output
@@ -217,7 +217,7 @@ NULL	1	3
 
 
 -- !query
-SELECT lead(ten) OVER (PARTITION BY four ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10
+SELECT lead(ten) OVER (PARTITION BY four ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10
 -- !query schema
 struct<lead(ten, 1, NULL) OVER (PARTITION BY four ORDER BY ten ASC NULLS FIRST ROWS BETWEEN 1 FOLLOWING AND 1 FOLLOWING):int,ten:int,four:int>
 -- !query output
@@ -234,7 +234,7 @@ NULL	9	1
 
 
 -- !query
-SELECT lead(ten * 2, 1) OVER (PARTITION BY four ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10
+SELECT lead(ten * 2, 1) OVER (PARTITION BY four ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10
 -- !query schema
 struct<lead((ten * 2), 1, NULL) OVER (PARTITION BY four ORDER BY ten ASC NULLS FIRST ROWS BETWEEN 1 FOLLOWING AND 1 FOLLOWING):int,ten:int,four:int>
 -- !query output
@@ -251,7 +251,7 @@ NULL	9	1
 
 
 -- !query
-SELECT lead(ten * 2, 1, -1) OVER (PARTITION BY four ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10
+SELECT lead(ten * 2, 1, -1) OVER (PARTITION BY four ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10
 -- !query schema
 struct<lead((ten * 2), 1, -1) OVER (PARTITION BY four ORDER BY ten ASC NULLS FIRST ROWS BETWEEN 1 FOLLOWING AND 1 FOLLOWING):int,ten:int,four:int>
 -- !query output
@@ -268,7 +268,7 @@ struct<lead((ten * 2), 1, -1) OVER (PARTITION BY four ORDER BY ten ASC NULLS FIR
 
 
 -- !query
-SELECT first(ten) OVER (PARTITION BY four ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10
+SELECT first(ten) OVER (PARTITION BY four ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10
 -- !query schema
 struct<first(ten, false) OVER (PARTITION BY four ORDER BY ten ASC NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):int,ten:int,four:int>
 -- !query output
@@ -285,7 +285,7 @@ struct<first(ten, false) OVER (PARTITION BY four ORDER BY ten ASC NULLS FIRST RA
 
 
 -- !query
-SELECT last(four) OVER (ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10
+SELECT last(four) OVER (ORDER BY ten), ten, four FROM global_temp.tenk1 WHERE unique2 < 10
 -- !query schema
 struct<last(four, false) OVER (ORDER BY ten ASC NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):int,ten:int,four:int>
 -- !query output
@@ -303,7 +303,7 @@ struct<last(four, false) OVER (ORDER BY ten ASC NULLS FIRST RANGE BETWEEN UNBOUN
 
 -- !query
 SELECT last(ten) OVER (PARTITION BY four), ten, four FROM
-(SELECT * FROM tenk1 WHERE unique2 < 10 ORDER BY four, ten)s
+(SELECT * FROM global_temp.tenk1 WHERE unique2 < 10 ORDER BY four, ten)s
 ORDER BY four, ten
 -- !query schema
 struct<last(ten, false) OVER (PARTITION BY four ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING):int,ten:int,four:int>
@@ -322,7 +322,7 @@ struct<last(ten, false) OVER (PARTITION BY four ROWS BETWEEN UNBOUNDED PRECEDING
 
 -- !query
 SELECT ten, two, sum(hundred) AS gsum, sum(sum(hundred)) OVER (PARTITION BY two ORDER BY ten) AS wsum
-FROM tenk1 GROUP BY ten, two
+FROM global_temp.tenk1 GROUP BY ten, two
 -- !query schema
 struct<ten:int,two:int,gsum:bigint,wsum:bigint>
 -- !query output
@@ -339,7 +339,7 @@ struct<ten:int,two:int,gsum:bigint,wsum:bigint>
 
 
 -- !query
-SELECT count(*) OVER (PARTITION BY four), four FROM (SELECT * FROM tenk1 WHERE two = 1)s WHERE unique2 < 10
+SELECT count(*) OVER (PARTITION BY four), four FROM (SELECT * FROM global_temp.tenk1 WHERE two = 1)s WHERE unique2 < 10
 -- !query schema
 struct<count(1) OVER (PARTITION BY four ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING):bigint,four:int>
 -- !query output
@@ -354,7 +354,7 @@ struct<count(1) OVER (PARTITION BY four ROWS BETWEEN UNBOUNDED PRECEDING AND UNB
 -- !query
 SELECT (count(*) OVER (PARTITION BY four ORDER BY ten) +
   sum(hundred) OVER (PARTITION BY four ORDER BY ten)) AS cntsum
-  FROM tenk1 WHERE unique2 < 10
+  FROM global_temp.tenk1 WHERE unique2 < 10
 -- !query schema
 struct<cntsum:bigint>
 -- !query output
@@ -376,7 +376,7 @@ SELECT * FROM(
     sum(hundred) OVER (PARTITION BY two ORDER BY ten) AS total,
     count(*) OVER (PARTITION BY four ORDER BY ten) AS fourcount,
     sum(hundred) OVER (PARTITION BY two ORDER BY ten) AS twosum
-    FROM tenk1
+    FROM global_temp.tenk1
 )sub WHERE total <> fourcount + twosum
 -- !query schema
 struct<total:bigint,fourcount:bigint,twosum:bigint>
@@ -385,7 +385,7 @@ struct<total:bigint,fourcount:bigint,twosum:bigint>
 
 
 -- !query
-SELECT avg(four) OVER (PARTITION BY four ORDER BY thousand / 100) FROM tenk1 WHERE unique2 < 10
+SELECT avg(four) OVER (PARTITION BY four ORDER BY thousand / 100) FROM global_temp.tenk1 WHERE unique2 < 10
 -- !query schema
 struct<avg(CAST(four AS BIGINT)) OVER (PARTITION BY four ORDER BY (CAST(thousand AS DOUBLE) / CAST(100 AS DOUBLE)) ASC NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):double>
 -- !query output
@@ -403,7 +403,7 @@ struct<avg(CAST(four AS BIGINT)) OVER (PARTITION BY four ORDER BY (CAST(thousand
 
 -- !query
 SELECT ten, two, sum(hundred) AS gsum, sum(sum(hundred)) OVER win AS wsum
-FROM tenk1 GROUP BY ten, two WINDOW win AS (PARTITION BY two ORDER BY ten)
+FROM global_temp.tenk1 GROUP BY ten, two WINDOW win AS (PARTITION BY two ORDER BY ten)
 -- !query schema
 struct<ten:int,two:int,gsum:bigint,wsum:bigint>
 -- !query output
@@ -420,7 +420,7 @@ struct<ten:int,two:int,gsum:bigint,wsum:bigint>
 
 
 -- !query
-SELECT count(*) OVER (PARTITION BY four) FROM (SELECT * FROM tenk1 WHERE FALSE)s
+SELECT count(*) OVER (PARTITION BY four) FROM (SELECT * FROM global_temp.tenk1 WHERE FALSE)s
 -- !query schema
 struct<count(1) OVER (PARTITION BY four ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING):bigint>
 -- !query output
@@ -453,7 +453,7 @@ struct<sum(count(f1)) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLO
 select ten,
   sum(unique1) + sum(unique2) as res,
   rank() over (order by sum(unique1) + sum(unique2)) as rank
-from tenk1
+from global_temp.tenk1
 group by ten order by ten
 -- !query schema
 struct<ten:int,res:bigint,rank:int>
@@ -474,7 +474,7 @@ struct<ten:int,res:bigint,rank:int>
 SELECT four, ten,
 sum(ten) over (partition by four order by ten),
 last(ten) over (partition by four order by ten)
-FROM (select distinct ten, four from tenk1) ss
+FROM (select distinct ten, four from global_temp.tenk1) ss
 -- !query schema
 struct<four:int,ten:int,sum(CAST(ten AS BIGINT)) OVER (PARTITION BY four ORDER BY ten ASC NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):bigint,last(ten, false) OVER (PARTITION BY four ORDER BY ten ASC NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):int>
 -- !query output
@@ -504,7 +504,7 @@ struct<four:int,ten:int,sum(CAST(ten AS BIGINT)) OVER (PARTITION BY four ORDER B
 SELECT four, ten,
 sum(ten) over (partition by four order by ten range between unbounded preceding and current row),
 last(ten) over (partition by four order by ten range between unbounded preceding and current row)
-FROM (select distinct ten, four from tenk1) ss
+FROM (select distinct ten, four from global_temp.tenk1) ss
 -- !query schema
 struct<four:int,ten:int,sum(ten) OVER (PARTITION BY four ORDER BY ten ASC NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):bigint,last(ten, false) OVER (PARTITION BY four ORDER BY ten ASC NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW):int>
 -- !query output
@@ -534,7 +534,7 @@ struct<four:int,ten:int,sum(ten) OVER (PARTITION BY four ORDER BY ten ASC NULLS 
 SELECT four, ten,
 sum(ten) over (partition by four order by ten range between unbounded preceding and unbounded following),
 last(ten) over (partition by four order by ten range between unbounded preceding and unbounded following)
-FROM (select distinct ten, four from tenk1) ss
+FROM (select distinct ten, four from global_temp.tenk1) ss
 -- !query schema
 struct<four:int,ten:int,sum(ten) OVER (PARTITION BY four ORDER BY ten ASC NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING):bigint,last(ten, false) OVER (PARTITION BY four ORDER BY ten ASC NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING):int>
 -- !query output
@@ -563,7 +563,7 @@ struct<four:int,ten:int,sum(ten) OVER (PARTITION BY four ORDER BY ten ASC NULLS 
 -- !query
 SELECT sum(unique1) over (order by four range between current row and unbounded following),
 unique1, four
-FROM tenk1 WHERE unique1 < 10
+FROM global_temp.tenk1 WHERE unique1 < 10
 -- !query schema
 struct<sum(unique1) OVER (ORDER BY four ASC NULLS FIRST RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING):bigint,unique1:int,four:int>
 -- !query output
@@ -582,7 +582,7 @@ struct<sum(unique1) OVER (ORDER BY four ASC NULLS FIRST RANGE BETWEEN CURRENT RO
 -- !query
 SELECT sum(unique1) over (rows between current row and unbounded following),
 unique1, four
-FROM tenk1 WHERE unique1 < 10
+FROM global_temp.tenk1 WHERE unique1 < 10
 -- !query schema
 struct<sum(unique1) OVER (ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING):bigint,unique1:int,four:int>
 -- !query output
@@ -601,7 +601,7 @@ struct<sum(unique1) OVER (ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING):bigi
 -- !query
 SELECT sum(unique1) over (rows between 2 preceding and 2 following),
 unique1, four
-FROM tenk1 WHERE unique1 < 10
+FROM global_temp.tenk1 WHERE unique1 < 10
 -- !query schema
 struct<sum(unique1) OVER (ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING):bigint,unique1:int,four:int>
 -- !query output
@@ -620,7 +620,7 @@ struct<sum(unique1) OVER (ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING):bigint,uniqu
 -- !query
 SELECT sum(unique1) over (rows between 2 preceding and 1 preceding),
 unique1, four
-FROM tenk1 WHERE unique1 < 10
+FROM global_temp.tenk1 WHERE unique1 < 10
 -- !query schema
 struct<sum(unique1) OVER (ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING):bigint,unique1:int,four:int>
 -- !query output
@@ -639,7 +639,7 @@ NULL	4	0
 -- !query
 SELECT sum(unique1) over (rows between 1 following and 3 following),
 unique1, four
-FROM tenk1 WHERE unique1 < 10
+FROM global_temp.tenk1 WHERE unique1 < 10
 -- !query schema
 struct<sum(unique1) OVER (ROWS BETWEEN 1 FOLLOWING AND 3 FOLLOWING):bigint,unique1:int,four:int>
 -- !query output
@@ -658,7 +658,7 @@ NULL	0	0
 -- !query
 SELECT sum(unique1) over (rows between unbounded preceding and 1 following),
 unique1, four
-FROM tenk1 WHERE unique1 < 10
+FROM global_temp.tenk1 WHERE unique1 < 10
 -- !query schema
 struct<sum(unique1) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND 1 FOLLOWING):bigint,unique1:int,four:int>
 -- !query output

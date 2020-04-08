@@ -75,6 +75,10 @@ trait SharedSparkSessionBase
     conf.set(
       StaticSQLConf.WAREHOUSE_PATH,
       conf.get(StaticSQLConf.WAREHOUSE_PATH) + "/" + getClass.getCanonicalName)
+    conf.set(
+      StaticSQLConf.GLOBAL_TEMP_DATABASE,
+      "global_temp"
+    )
   }
 
   /**

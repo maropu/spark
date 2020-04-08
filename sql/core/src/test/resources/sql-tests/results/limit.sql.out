@@ -3,7 +3,7 @@
 
 
 -- !query
-SELECT * FROM testdata LIMIT 2
+SELECT * FROM global_temp.testdata LIMIT 2
 -- !query schema
 struct<key:int,value:string>
 -- !query output
@@ -12,7 +12,7 @@ struct<key:int,value:string>
 
 
 -- !query
-SELECT * FROM arraydata LIMIT 2
+SELECT * FROM global_temp.arraydata LIMIT 2
 -- !query schema
 struct<arraycol:array<int>,nestedarraycol:array<array<int>>>
 -- !query output
@@ -21,7 +21,7 @@ struct<arraycol:array<int>,nestedarraycol:array<array<int>>>
 
 
 -- !query
-SELECT * FROM mapdata LIMIT 2
+SELECT * FROM global_temp.mapdata LIMIT 2
 -- !query schema
 struct<mapcol:map<int,string>>
 -- !query output
@@ -30,7 +30,7 @@ struct<mapcol:map<int,string>>
 
 
 -- !query
-SELECT * FROM testdata LIMIT 2 + 1
+SELECT * FROM global_temp.testdata LIMIT 2 + 1
 -- !query schema
 struct<key:int,value:string>
 -- !query output
@@ -40,7 +40,7 @@ struct<key:int,value:string>
 
 
 -- !query
-SELECT * FROM testdata LIMIT CAST(1 AS int)
+SELECT * FROM global_temp.testdata LIMIT CAST(1 AS int)
 -- !query schema
 struct<key:int,value:string>
 -- !query output
@@ -48,7 +48,7 @@ struct<key:int,value:string>
 
 
 -- !query
-SELECT * FROM testdata LIMIT -1
+SELECT * FROM global_temp.testdata LIMIT -1
 -- !query schema
 struct<>
 -- !query output
@@ -57,7 +57,7 @@ The limit expression must be equal to or greater than 0, but got -1;
 
 
 -- !query
-SELECT * FROM testData TABLESAMPLE (-1 ROWS)
+SELECT * FROM global_temp.testdata TABLESAMPLE (-1 ROWS)
 -- !query schema
 struct<>
 -- !query output
@@ -66,7 +66,7 @@ The limit expression must be equal to or greater than 0, but got -1;
 
 
 -- !query
-SELECT * FROM testdata LIMIT CAST(1 AS INT)
+SELECT * FROM global_temp.testdata LIMIT CAST(1 AS INT)
 -- !query schema
 struct<key:int,value:string>
 -- !query output
@@ -74,7 +74,7 @@ struct<key:int,value:string>
 
 
 -- !query
-SELECT * FROM testdata LIMIT CAST(NULL AS INT)
+SELECT * FROM global_temp.testdata LIMIT CAST(NULL AS INT)
 -- !query schema
 struct<>
 -- !query output
@@ -83,16 +83,16 @@ The evaluated limit expression must not be null, but got CAST(NULL AS INT);
 
 
 -- !query
-SELECT * FROM testdata LIMIT key > 3
+SELECT * FROM global_temp.testdata LIMIT key > 3
 -- !query schema
 struct<>
 -- !query output
 org.apache.spark.sql.AnalysisException
-The limit expression must evaluate to a constant value, but got (testdata.`key` > 3);
+The limit expression must evaluate to a constant value, but got (global_temp.testdata.`key` > 3);
 
 
 -- !query
-SELECT * FROM testdata LIMIT true
+SELECT * FROM global_temp.testdata LIMIT true
 -- !query schema
 struct<>
 -- !query output
@@ -101,7 +101,7 @@ The limit expression must be integer type, but got boolean;
 
 
 -- !query
-SELECT * FROM testdata LIMIT 'a'
+SELECT * FROM global_temp.testdata LIMIT 'a'
 -- !query schema
 struct<>
 -- !query output
@@ -118,7 +118,7 @@ struct<id:bigint>
 
 
 -- !query
-SELECT * FROM testdata WHERE key < 3 LIMIT ALL
+SELECT * FROM global_temp.testdata WHERE key < 3 LIMIT ALL
 -- !query schema
 struct<key:int,value:string>
 -- !query output

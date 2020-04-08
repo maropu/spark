@@ -3,7 +3,7 @@
 
 
 -- !query
-select max(min(unique1)) from tenk1
+select max(min(unique1)) from global_temp.tenk1
 -- !query schema
 struct<>
 -- !query output
@@ -12,7 +12,7 @@ It is not allowed to use an aggregate function in the argument of another aggreg
 
 
 -- !query
-select min(unique1) filter (where unique1 > 100) from tenk1
+select min(unique1) filter (where unique1 > 100) from global_temp.tenk1
 -- !query schema
 struct<min(unique1) FILTER (WHERE (unique1 > 100)):int>
 -- !query output
@@ -20,7 +20,7 @@ struct<min(unique1) FILTER (WHERE (unique1 > 100)):int>
 
 
 -- !query
-select sum(1/ten) filter (where ten > 0) from tenk1
+select sum(1/ten) filter (where ten > 0) from global_temp.tenk1
 -- !query schema
 struct<sum((CAST(1 AS DOUBLE) / CAST(ten AS DOUBLE))) FILTER (WHERE (ten > 0)):double>
 -- !query output
