@@ -143,10 +143,20 @@ trait Block extends TreeNode[Block] with JavaCode {
     case _ => code.trim
   }
 
-  def length: Int = {
-    // Returns a code length without comments
-    CodeFormatter.stripExtraNewLinesAndComments(toString).length
+  // A light-weight logic to approximately count the number of characters in this code block.
+  // This counting logic ignores simple forms of comments below;
+  //
+  //  // This comment is ignored
+  //  public void someMethod() {
+  //    some code; // This comment is ignored
+  //  }
+  private def countApproximateCodeLength(code: String): Int = {
+    code.split("\n").map(_.trim).filter(_.length > 0).map { c =>
+      c.split("//").head.trim.length
+    }.sum
   }
+
+  def length: Int = countApproximateCodeLength(toString)
 
   def isEmpty: Boolean = toString.isEmpty
 
