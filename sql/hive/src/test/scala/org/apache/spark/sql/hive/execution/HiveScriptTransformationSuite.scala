@@ -185,6 +185,8 @@ class HiveScriptTransformationSuite extends BaseScriptTransformationSuite with T
     }
   }
 
+  testBasicInputDataTypesWith(serdeIOSchema, "hive serde")
+
   test("SPARK-32106: TRANSFORM supports complex data types type (hive serde)") {
     assume(TestUtils.testCommandAvailable("/bin/bash"))
     withTempView("v") {
