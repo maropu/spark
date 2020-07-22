@@ -689,50 +689,33 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
         recordReader,
         schemaLess)
     } else {
+      def format(fmt: RowFormatContext, configKey: String, defaultConfigValue: String)
+        : RowFormat = {
+        getRowFormat(fmt).getOrElse {
+          fmt match {
+            case c: RowFormatSerdeContext =>
+              // Use a serde format.
+              val CatalogStorageFormat(None, None, None, Some(name), _, props) =
+                visitRowFormatSerde(c)
 
-      // Decode and input/output format.
-      type Format = (Seq[(String, String)], Option[String], Seq[(String, String)], Option[String])
+              // SPARK-10310: Special cases LazySimpleSerDe
+              val recordHandler =
+                  if (name == "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe") {
+                Option(conf.getConfString(configKey, defaultConfigValue))
+              } else {
+                None
+              }
+              (Seq.empty, Option(name), props.toSeq, recordHandler)
 
-      def format(
-          fmt: RowFormatContext,
-          configKey: String,
-          defaultConfigValue: String): Format = fmt match {
-        case c: RowFormatDelimitedContext =>
-          // TODO we should use visitRowFormatDelimited function here. However HiveScriptIOSchema
-          // expects a seq of pairs in which the old parsers' token names are used as keys.
-          // Transforming the result of visitRowFormatDelimited would be quite a bit messier than
-          // retrieving the key value pairs ourselves.
-          def entry(key: String, value: Token): Seq[(String, String)] = {
-            Option(value).map(t => key -> t.getText).toSeq
+            case null =>
+              // Use default (serde) format.
+              val name = conf.getConfString("hive.script.serde",
+                "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe")
+              val props = Seq("field.delim" -> "\t")
+              val recordHandler = Option(conf.getConfString(configKey, defaultConfigValue))
+              (Nil, Option(name), props, recordHandler)
           }
-
-          val entries = entry("TOK_TABLEROWFORMATFIELD", c.fieldsTerminatedBy) ++
-            entry("TOK_TABLEROWFORMATCOLLITEMS", c.collectionItemsTerminatedBy) ++
-            entry("TOK_TABLEROWFORMATMAPKEYS", c.keysTerminatedBy) ++
-            entry("TOK_TABLEROWFORMATLINES", c.linesSeparatedBy) ++
-            entry("TOK_TABLEROWFORMATNULL", c.nullDefinedAs)
-
-          (entries, None, Seq.empty, None)
-
-        case c: RowFormatSerdeContext =>
-          // Use a serde format.
-          val CatalogStorageFormat(None, None, None, Some(name), _, props) = visitRowFormatSerde(c)
-
-          // SPARK-10310: Special cases LazySimpleSerDe
-          val recordHandler = if (name == "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe") {
-            Option(conf.getConfString(configKey, defaultConfigValue))
-          } else {
-            None
-          }
-          (Seq.empty, Option(name), props.toSeq, recordHandler)
-
-        case null =>
-          // Use default (serde) format.
-          val name = conf.getConfString("hive.script.serde",
-            "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe")
-          val props = Seq("field.delim" -> "\t")
-          val recordHandler = Option(conf.getConfString(configKey, defaultConfigValue))
-          (Nil, Option(name), props, recordHandler)
+        }
       }
 
       val (inFormat, inSerdeClass, inSerdeProps, reader) =
