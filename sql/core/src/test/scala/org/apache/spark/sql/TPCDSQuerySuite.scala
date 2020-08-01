@@ -50,7 +50,7 @@ class TPCDSQuerySuite extends BenchmarkQueryTest with TPCDSSchema {
     val queryString = resourceToString(s"tpcds/$name.sql",
       classLoader = Thread.currentThread().getContextClassLoader)
     test(name) {
-      withSQLConf(SQLConf.CROSS_JOINS_ENABLED.key -> "true") {
+      withSQLConf(SQLConf.PLAN_STATS_ENABLED.key -> "true") {
         // check the plans can be properly generated
         val plan = sql(queryString).queryExecution.executedPlan
         checkGeneratedCode(plan)

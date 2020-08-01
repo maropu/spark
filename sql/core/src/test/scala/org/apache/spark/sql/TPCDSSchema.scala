@@ -17,6 +17,9 @@
 
 package org.apache.spark.sql
 
+import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.spark.sql.catalyst.catalog.CatalogStatistics
+
 trait TPCDSSchema {
 
   private val tableColumns = Map(
@@ -242,6 +245,13 @@ trait TPCDSSchema {
       """.stripMargin
   )
 
+  // These data statistics are extracted from generated TPCDS data with SF=1
+  private val tableStats = Map(
+    "store_sales" -> CatalogStatistics(10000, Some(10000000) /*, TODO: Column stats filled here... */),
+    "store_returns" -> CatalogStatistics(10, Some(300))
+    // TODO: More entries here...
+  )
+
   val tableNames: Iterable[String] = tableColumns.keys
 
   def createTable(
@@ -255,5 +265,10 @@ trait TPCDSSchema {
          |USING $format
          |${options.mkString("\n")}
        """.stripMargin)
+
+    // To simulate plan generation on actual TPCDS data, injests data stats here
+    tableStats.get(tableName).foreach { stat =>
+      spark.sessionState.catalog.alterTableStats(TableIdentifier(tableName), Some(stat))
+    }
   }
 }
