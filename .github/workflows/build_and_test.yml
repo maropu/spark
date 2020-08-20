@@ -3,10 +3,7 @@ name: Build and test
 on:
   push:
     branches:
-    - master
-  pull_request:
-    branches:
-    - master
+    - SPARK-32638-githubactions
 
 jobs:
   # Build: build Spark and run the tests for specified modules.
