@@ -654,23 +654,23 @@ def main():
     if should_only_test_modules:
         # If we're running the tests in Github Actions, attempt to detect and test
         # only the affected modules.
-        if test_env == "github_actions":
-            if os.environ["GITHUB_BASE_REF"] != "":
-                # Pull requests
-                changed_files = identify_changed_files_from_git_commits(
-                    os.environ["GITHUB_SHA"], target_branch=os.environ["GITHUB_BASE_REF"])
-            else:
-                # Build for each commit.
-                changed_files = identify_changed_files_from_git_commits(
-                    os.environ["GITHUB_SHA"], target_ref=os.environ["GITHUB_PREV_SHA"])
+        # if test_env == "github_actions":
+            # if os.environ["GITHUB_BASE_REF"] != "":
+            #     # Pull requests
+            #     changed_files = identify_changed_files_from_git_commits(
+            #         os.environ["GITHUB_SHA"], target_branch=os.environ["GITHUB_BASE_REF"])
+            # else:
+            #     # Build for each commit.
+            #     changed_files = identify_changed_files_from_git_commits(
+            #         os.environ["GITHUB_SHA"], target_ref=os.environ["GITHUB_PREV_SHA"])
 
-            modules_to_test = determine_modules_to_test(
-                determine_modules_for_files(changed_files), deduplicated=False)
+            # modules_to_test = determine_modules_to_test(
+            #     determine_modules_for_files(changed_files), deduplicated=False)
 
-            if modules.root not in modules_to_test:
-                # If root module is not found, only test the intersected modules.
-                # If root module is found, just run the modules as specified initially.
-                test_modules = list(set(modules_to_test).intersection(test_modules))
+            # if modules.root not in modules_to_test:
+            #     # If root module is not found, only test the intersected modules.
+            #     # If root module is found, just run the modules as specified initially.
+            #     test_modules = list(set(modules_to_test).intersection(test_modules))
 
         changed_modules = test_modules
         if len(changed_modules) == 0:
