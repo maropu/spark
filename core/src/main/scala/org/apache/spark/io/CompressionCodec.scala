@@ -42,6 +42,7 @@ import org.apache.spark.util.Utils
 @DeveloperApi
 trait CompressionCodec {
 
+
   def compressedOutputStream(s: OutputStream): OutputStream
 
   private[spark] def compressedContinuousOutputStream(s: OutputStream): OutputStream = {
