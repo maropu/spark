@@ -668,6 +668,8 @@ def main():
                 print("[xxxx] %s" % os.environ["GITHUB_BASE_REF"])
                 changed_files = identify_changed_files_from_git_commits(
                     "HEAD", target_branch=os.environ["GITHUB_SHA"])
+                for f in changed_files:
+                    print("[yyyy]:%s" % f)
             elif os.environ["GITHUB_BASE_REF"] != "":
                 # Pull requests
                 changed_files = identify_changed_files_from_git_commits(
