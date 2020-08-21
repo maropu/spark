@@ -65,7 +65,8 @@ def determine_modules_for_files(filenames):
     return changed_modules
 
 
-def identify_changed_files_from_git_commits(patch_sha, target_branch=None, target_ref=None):
+def identify_changed_files_from_git_commits(patch_sha, target_branch=None, target_ref=None,
+                                            checkout_target_branch=False):
     """
     Given a git commit and target ref, use the set of files changed in the diff in order to
     determine which modules' tests should be run.
@@ -84,6 +85,8 @@ def identify_changed_files_from_git_commits(patch_sha, target_branch=None, targe
     if target_branch is not None:
         diff_target = target_branch
         run_cmd(['git', 'fetch', 'origin', str(target_branch+':'+target_branch)])
+        if checkout_target_branch:
+            run_cmd(['git', 'checkout', target_branch])
     else:
         diff_target = target_ref
     raw_output = subprocess.check_output(['git', 'diff', '--name-only', patch_sha, diff_target],
@@ -655,7 +658,17 @@ def main():
         # If we're running the tests in Github Actions, attempt to detect and test
         # only the affected modules.
         if test_env == "github_actions":
-            if os.environ["GITHUB_BASE_REF"] != "":
+            if os.environ["GITHUB_INPUT_BRANCH"] != "":
+                # Dispatched request
+                # Note that it assumes Github Actions has already merged
+                # the given `GITHUB_INPUT_BRANCH` branch.
+                print("[xxxx] %s" % os.environ["GITHUB_SHA"])
+                print("[xxxx] %s" % os.environ["GITHUB_REF"])
+                print("[xxxx] %s" % os.environ["GITHUB_HEAD_REF"])
+                print("[xxxx] %s" % os.environ["GITHUB_BASE_REF"])
+                changed_files = identify_changed_files_from_git_commits(
+                    "HEAD", target_branch=os.environ["GITHUB_SHA"])
+            elif os.environ["GITHUB_BASE_REF"] != "":
                 # Pull requests
                 changed_files = identify_changed_files_from_git_commits(
                     os.environ["GITHUB_SHA"], target_branch=os.environ["GITHUB_BASE_REF"])
