@@ -186,7 +186,6 @@ object SQLConf {
       "specified by their rule names and separated by comma. It is not guaranteed that all the " +
       "rules in this configuration will eventually be excluded, as some rules are necessary " +
       "for correctness. The optimizer will log the rules that have indeed been excluded.")
-    .version("2.4.0")
     .stringConf
     .createOptional
 
