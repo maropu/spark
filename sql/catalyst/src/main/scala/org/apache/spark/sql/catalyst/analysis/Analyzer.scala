@@ -137,56 +137,59 @@ object Analyzer {
    */
   def rewritePlan(plan: LogicalPlan, rewritePlanMap: Map[LogicalPlan, LogicalPlan])
     : (LogicalPlan, Seq[(Attribute, Attribute)]) = {
-    if (plan.resolved) {
-      val attrMapping = new mutable.ArrayBuffer[(Attribute, Attribute)]()
-      val newChildren = plan.children.map { child =>
-        // If not, we'd rewrite child plan recursively until we find the
-        // conflict node or reach the leaf node.
-        val (newChild, childAttrMapping) = rewritePlan(child, rewritePlanMap)
-        attrMapping ++= childAttrMapping.filter { case (oldAttr, _) =>
-          // `attrMapping` is not only used to replace the attributes of the current `plan`,
-          // but also to be propagated to the parent plans of the current `plan`. Therefore,
-          // the `oldAttr` must be part of either `plan.references` (so that it can be used to
-          // replace attributes of the current `plan`) or `plan.outputSet` (so that it can be
-          // used by those parent plans).
+    val attrMapping = new mutable.ArrayBuffer[(Attribute, Attribute)]()
+    val newChildren = plan.children.map { child =>
+      // If not, we'd rewrite child plan recursively until we find the
+      // conflict node or reach the leaf node.
+      val (newChild, childAttrMapping) = rewritePlan(child, rewritePlanMap)
+      attrMapping ++= childAttrMapping.filter { case (oldAttr, _) =>
+        // `attrMapping` is not only used to replace the attributes of the current `plan`,
+        // but also to be propagated to the parent plans of the current `plan`. Therefore,
+        // the `oldAttr` must be part of either `plan.references` (so that it can be used to
+        // replace attributes of the current `plan`) or `plan.outputSet` (so that it can be
+        // used by those parent plans).
+        if (plan.resolved) {
           (plan.outputSet ++ plan.references).contains(oldAttr)
+        } else {
+          plan.references.filter(_.resolved).contains(oldAttr)
         }
-        newChild
       }
+      newChild
+    }
 
-      val newPlan = if (rewritePlanMap.contains(plan)) {
-        rewritePlanMap(plan).withNewChildren(newChildren)
-      } else {
-        plan.withNewChildren(newChildren)
-      }
+    val newPlan = if (rewritePlanMap.contains(plan)) {
+      rewritePlanMap(plan).withNewChildren(newChildren)
+    } else {
+      plan.withNewChildren(newChildren)
+    }
 
-      assert(!attrMapping.groupBy(_._1.exprId)
-        .exists(_._2.map(_._2.exprId).distinct.length > 1),
-        "Found duplicate rewrite attributes")
+    assert(!attrMapping.groupBy(_._1.exprId)
+      .exists(_._2.map(_._2.exprId).distinct.length > 1),
+      "Found duplicate rewrite attributes")
 
-      val attributeRewrites = AttributeMap(attrMapping)
-      // Using attrMapping from the children plans to rewrite their parent node.
-      // Note that we shouldn't rewrite a node using attrMapping from its sibling nodes.
-      val p = newPlan.transformExpressions {
-        case a: Attribute =>
-          updateAttr(a, attributeRewrites)
-        case s: SubqueryExpression =>
-          s.withNewPlan(updateOuterReferencesInSubquery(s.plan, attributeRewrites))
-      }
+    val attributeRewrites = AttributeMap(attrMapping)
+    // Using attrMapping from the children plans to rewrite their parent node.
+    // Note that we shouldn't rewrite a node using attrMapping from its sibling nodes.
+    val p = newPlan.transformExpressions {
+      case a: Attribute =>
+        updateAttr(a, attributeRewrites)
+      case s: SubqueryExpression =>
+        s.withNewPlan(updateOuterReferencesInSubquery(s.plan, attributeRewrites))
+    }
+    if (plan.resolved) {
       attrMapping ++= plan.output.zip(p.output)
         .filter { case (a1, a2) => a1.exprId != a2.exprId }
-      p -> attrMapping
-    } else {
-      // Just passes through unresolved nodes
-      plan.mapChildren {
-        rewritePlan(_, rewritePlanMap)._1
-      } -> Nil
     }
+    p -> attrMapping
   }
 
   private def updateAttr(attr: Attribute, attrMap: AttributeMap[Attribute]): Attribute = {
-    val exprId = attrMap.getOrElse(attr, attr).exprId
-    attr.withExprId(exprId)
+    if (attr.resolved) {
+      val exprId = attrMap.getOrElse(attr, attr).exprId
+      attr.withExprId(exprId)
+    } else {
+      attr
+    }
   }
 
   /**
@@ -2770,7 +2773,7 @@ class Analyzer(
      */
     private def addWindow(
         expressionsWithWindowFunctions: Seq[NamedExpression],
-        child: LogicalPlan): LogicalPlan = {
+        child: LogicalPlan): (LogicalPlan, Seq[(LogicalPlan, LogicalPlan)]) = {
       // First, we need to extract all WindowExpressions from expressionsWithWindowFunctions
       // and put those extracted WindowExpressions to extractedWindowExprBuffer.
       // This step is needed because it is possible that an expression contains multiple
@@ -2828,74 +2831,93 @@ class Analyzer(
 
       // Third, we aggregate them by adding each Window operator for each Window Spec and then
       // setting this to the child of the next Window operator.
-      val windowOps =
-        groupedWindowExpressions.foldLeft(child) {
-          case (last, ((partitionSpec, orderSpec, _), windowExpressions)) =>
-            Window(windowExpressions.toSeq, partitionSpec, orderSpec, last)
+      val (windowOps, rewritePlanMap) =
+        groupedWindowExpressions.foldLeft((child, Seq.empty[(LogicalPlan, LogicalPlan)])) {
+          case ((lastPlan, lastMap), ((partitionSpec, orderSpec, _), windowExpressions)) =>
+            val windowPlan = Window(windowExpressions, partitionSpec, orderSpec, lastPlan)
+            val windowPlanWithNewExprIds = windowPlan.mapExpressions { e =>
+              e.transform { case a: Alias => a.newInstance() }
+            }
+            val rewriteMap = windowPlan -> windowPlanWithNewExprIds
+            (windowPlan, lastMap :+ rewriteMap)
         }
 
       // Finally, we create a Project to output windowOps's output
       // newExpressionsWithWindowFunctions.
-      Project(windowOps.output ++ newExpressionsWithWindowFunctions, windowOps)
+      val newPlan = Project(windowOps.output ++ newExpressionsWithWindowFunctions, windowOps)
+      (newPlan, rewritePlanMap)
     } // end of addWindow
 
     // We have to use transformDown at here to make sure the rule of
     // "Aggregate with Having clause" will be triggered.
-    def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperatorsDown {
+    def apply(plan: LogicalPlan): LogicalPlan = {
+      val rewritePlanMap = mutable.ArrayBuffer[(LogicalPlan, LogicalPlan)]()
+      val newPlan = plan resolveOperatorsDown {
 
-      case Filter(condition, _) if hasWindowFunction(condition) =>
-        failAnalysis("It is not allowed to use window functions inside WHERE clause")
+        case Filter(condition, _) if hasWindowFunction(condition) =>
+          failAnalysis("It is not allowed to use window functions inside WHERE clause")
 
-      case UnresolvedHaving(condition, _) if hasWindowFunction(condition) =>
-        failAnalysis("It is not allowed to use window functions inside HAVING clause")
+        case UnresolvedHaving(condition, _) if hasWindowFunction(condition) =>
+          failAnalysis("It is not allowed to use window functions inside HAVING clause")
 
-      // Aggregate with Having clause. This rule works with an unresolved Aggregate because
-      // a resolved Aggregate will not have Window Functions.
-      case f @ UnresolvedHaving(condition, a @ Aggregate(groupingExprs, aggregateExprs, child))
-        if child.resolved &&
-           hasWindowFunction(aggregateExprs) &&
-           a.expressions.forall(_.resolved) =>
-        val (windowExpressions, aggregateExpressions) = extract(aggregateExprs)
-        // Create an Aggregate operator to evaluate aggregation functions.
-        val withAggregate = Aggregate(groupingExprs, aggregateExpressions, child)
-        // Add a Filter operator for conditions in the Having clause.
-        val withFilter = Filter(condition, withAggregate)
-        val withWindow = addWindow(windowExpressions, withFilter)
+        // Aggregate with Having clause. This rule works with an unresolved Aggregate because
+        // a resolved Aggregate will not have Window Functions.
+        case f @ UnresolvedHaving(condition, a @ Aggregate(groupingExprs, aggregateExprs, child))
+          if child.resolved &&
+            hasWindowFunction(aggregateExprs) &&
+            a.expressions.forall(_.resolved) =>
+          val (windowExpressions, aggregateExpressions) = extract(aggregateExprs)
+          // Create an Aggregate operator to evaluate aggregation functions.
+          val withAggregate = Aggregate(groupingExprs, aggregateExpressions, child)
+          // Add a Filter operator for conditions in the Having clause.
+          val withFilter = Filter(condition, withAggregate)
+          val (withWindow, rewriteMap) = addWindow(windowExpressions, withFilter)
+          rewritePlanMap ++= rewriteMap
 
-        // Finally, generate output columns according to the original projectList.
-        val finalProjectList = aggregateExprs.map(_.toAttribute)
-        Project(finalProjectList, withWindow)
+          // Finally, generate output columns according to the original projectList.
+          val finalProjectList = aggregateExprs.map(_.toAttribute)
+          Project(finalProjectList, withWindow)
 
-      case p: LogicalPlan if !p.childrenResolved => p
+        case p: LogicalPlan if !p.childrenResolved => p
 
-      // Aggregate without Having clause.
-      case a @ Aggregate(groupingExprs, aggregateExprs, child)
-        if hasWindowFunction(aggregateExprs) &&
-           a.expressions.forall(_.resolved) =>
-        val (windowExpressions, aggregateExpressions) = extract(aggregateExprs)
-        // Create an Aggregate operator to evaluate aggregation functions.
-        val withAggregate = Aggregate(groupingExprs, aggregateExpressions, child)
-        // Add Window operators.
-        val withWindow = addWindow(windowExpressions, withAggregate)
+        // Aggregate without Having clause.
+        case a @ Aggregate(groupingExprs, aggregateExprs, child)
+          if hasWindowFunction(aggregateExprs) &&
+            a.expressions.forall(_.resolved) =>
+          val (windowExpressions, aggregateExpressions) = extract(aggregateExprs)
+          // Create an Aggregate operator to evaluate aggregation functions.
+          val withAggregate = Aggregate(groupingExprs, aggregateExpressions, child)
+          // Add Window operators.
+          val (withWindow, rewriteMap) = addWindow(windowExpressions, withAggregate)
+          rewritePlanMap ++= rewriteMap
 
-        // Finally, generate output columns according to the original projectList.
-        val finalProjectList = aggregateExprs.map(_.toAttribute)
-        Project(finalProjectList, withWindow)
+          // Finally, generate output columns according to the original projectList.
+          val finalProjectList = aggregateExprs.map(_.toAttribute)
+          Project(finalProjectList, withWindow)
 
-      // We only extract Window Expressions after all expressions of the Project
-      // have been resolved.
-      case p @ Project(projectList, child)
-        if hasWindowFunction(projectList) && !p.expressions.exists(!_.resolved) =>
-        val (windowExpressions, regularExpressions) = extract(projectList)
-        // We add a project to get all needed expressions for window expressions from the child
-        // of the original Project operator.
-        val withProject = Project(regularExpressions, child)
-        // Add Window operators.
-        val withWindow = addWindow(windowExpressions, withProject)
+        // We only extract Window Expressions after all expressions of the Project
+        // have been resolved.
+        case p @ Project(projectList, child)
+          if hasWindowFunction(projectList) && !p.expressions.exists(!_.resolved) =>
+          val (windowExpressions, regularExpressions) = extract(projectList)
+          // We add a project to get all needed expressions for window expressions from the child
+          // of the original Project operator.
+          val withProject = Project(regularExpressions, child)
+          // Add Window operators.
+          val (withWindow, rewriteMap) = addWindow(windowExpressions, withProject)
+          rewritePlanMap ++= rewriteMap
 
-        // Finally, generate output columns according to the original projectList.
-        val finalProjectList = projectList.map(_.toAttribute)
-        Project(finalProjectList, withWindow)
+          // Finally, generate output columns according to the original projectList.
+          val finalProjectList = projectList.map(_.toAttribute)
+          Project(finalProjectList, withWindow)
+      }
+
+      if (rewritePlanMap.nonEmpty) {
+        assert(!plan.fastEquals(newPlan))
+        Analyzer.rewritePlan(newPlan, rewritePlanMap.toMap)._1
+      } else {
+        newPlan
+      }
     }
   }
 
