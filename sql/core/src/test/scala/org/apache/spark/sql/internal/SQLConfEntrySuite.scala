@@ -17,12 +17,24 @@
 
 package org.apache.spark.sql.internal
 
+import scala.collection.JavaConverters._
+
 import org.apache.spark.SparkFunSuite
+import org.apache.spark.internal.config.ConfigEntry
 import org.apache.spark.sql.internal.SQLConf._
 
 class SQLConfEntrySuite extends SparkFunSuite {
 
   val conf = new SQLConf
+
+  test("Check if versions are set correctly in configs") {
+    // Force to build static SQL configurations
+    StaticSQLConf
+    val configs = ConfigEntry.knownConfigs.values.asScala
+    configs.filter(_.key.startsWith("spark.sql.")).foreach { config =>
+      assert(config.version.nonEmpty, s"A version of config `${config.key}` is not set.")
+    }
+  }
 
   test("intConf") {
     val key = "spark.sql.SQLConfEntrySuite.int"
