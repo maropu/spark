@@ -631,17 +631,16 @@ object FoldablePropagation extends Rule[LogicalPlan] {
       case _ => Nil
     })
     val replaceFoldable: PartialFunction[Expression, Expression] = {
-      case a: AttributeReference if foldableMap.contains(a) => foldableMap(a).newInstance()
+      case a: AttributeReference if foldableMap.contains(a) => foldableMap(a)
     }
 
     if (foldableMap.isEmpty) {
       plan
     } else {
-      val rewritePlanMap = ArrayBuffer[(LogicalPlan, LogicalPlan)]()
-      plan.foreachUp {
+      CleanupAliases(plan.transformUp {
         // We can only propagate foldables for a subset of unary nodes.
         case u: UnaryNode if foldableMap.nonEmpty && canPropagateFoldables(u) =>
-          rewritePlanMap += u -> u.transformExpressions(replaceFoldable)
+          u.transformExpressions(replaceFoldable)
 
         // Join derives the output attributes from its child while they are actually not the
         // same attributes. For example, the output of outer join is not always picked from its
@@ -660,15 +659,14 @@ object FoldablePropagation extends Rule[LogicalPlan] {
           foldableMap = AttributeMap(foldableMap.baseMap.values.filterNot {
             case (attr, _) => missDerivedAttrsSet.contains(attr)
           }.toSeq)
-          rewritePlanMap += j -> newJoin
+          newJoin
 
         // We can not replace the attributes in `Expand.output`. If there are other non-leaf
         // operators that have the `output` field, we should put them here too.
         case expand: Expand if foldableMap.nonEmpty =>
-          val newExpand = expand.copy(projections = expand.projections.map { projection =>
+          expand.copy(projections = expand.projections.map { projection =>
             projection.map(_.transform(replaceFoldable))
           })
-          rewritePlanMap += expand -> newExpand
 
         // For other plans, they are not safe to apply foldable propagation, and they should not
         // propagate foldable expressions from children.
@@ -677,11 +675,8 @@ object FoldablePropagation extends Rule[LogicalPlan] {
           foldableMap = AttributeMap(foldableMap.baseMap.values.filterNot {
             case (attr, _) => childrenOutputSet.contains(attr)
           }.toSeq)
-        case _ =>
-      }
-
-      val (newPlan, _) = Analyzer.rewritePlan(plan, rewritePlanMap.toMap)
-      CleanupAliases(newPlan)
+          other
+      })
     }
   }
 
