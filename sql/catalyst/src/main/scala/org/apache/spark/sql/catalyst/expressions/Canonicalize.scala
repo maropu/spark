@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.catalyst.expressions
 
+import org.apache.spark.sql.types._
+
 /**
  * Rewrites an expression using rules that are guaranteed preserve the result while attempting
  * to remove cosmetic variations. Deterministic expressions that are `equal` after canonicalization
@@ -42,7 +44,20 @@ object Canonicalize {
   /** Remove names and nullability from types, and names from `GetStructField`. */
   private[expressions] def ignoreNamesTypes(e: Expression): Expression = e match {
     case a: AttributeReference =>
-      AttributeReference("none", a.dataType.asNullable)(exprId = a.exprId)
+      def ignoreNamesRecursively(dt: DataType): DataType = dt match {
+        case st: StructType =>
+          StructType(st.map { f =>
+            f.copy(name = "none", dataType = ignoreNamesRecursively(f.dataType))
+          })
+        case ar: ArrayType =>
+          ar.copy(elementType = ignoreNamesRecursively(ar.elementType))
+        case m: MapType =>
+          m.copy(keyType = ignoreNamesRecursively(m.keyType),
+            valueType = ignoreNamesRecursively(m.valueType))
+        case other =>
+          other
+      }
+      AttributeReference("none", ignoreNamesRecursively(a.dataType).asNullable)(exprId = a.exprId)
     case GetStructField(child, ordinal, Some(_)) => GetStructField(child, ordinal, None)
     case _ => e
   }

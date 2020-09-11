@@ -21,7 +21,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.analysis._
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.plans.QueryPlan
+import org.apache.spark.sql.catalyst.plans.{QueryPlan, QueryPlanIntegrity}
 import org.apache.spark.sql.catalyst.plans.logical.statsEstimation.LogicalPlanStats
 import org.apache.spark.sql.types.StructType
 
@@ -206,58 +206,7 @@ abstract class OrderPreservingUnaryNode extends UnaryNode {
 
 object LogicalPlanIntegrity {
 
-  private def canGetOutputAttrs(p: LogicalPlan): Boolean = {
-    p.resolved && !p.expressions.exists { e =>
-      e.collectFirst {
-        // We cannot call `output` in plans with a `ScalarSubquery` expr having no column,
-        // so, we filter out them in advance.
-        case s: ScalarSubquery if s.plan.schema.fields.isEmpty => true
-      }.isDefined
-    }
-  }
-
-  /**
-   * Since some logical plans (e.g., `Union`) can build `AttributeReference`s in their `output`,
-   * this method checks if the same `ExprId` refers to a semantically-equal attribute
-   * in a plan output.
-   */
-  def hasUniqueExprIdsForOutput(plan: LogicalPlan): Boolean = {
-    val allOutputAttrs = plan.collect { case p if canGetOutputAttrs(p) =>
-      // NOTE: we still need to filter resolved expressions here because the output of
-      // some resolved logical plans can have unresolved references,
-      // e.g., outer references in `ExistenceJoin`.
-      p.output.filter(_.resolved).map(_.canonicalized.asInstanceOf[Attribute])
-    }
-    val groupedAttrsByExprId = allOutputAttrs
-      .flatten.groupBy(_.exprId).values.map(_.distinct)
-    groupedAttrsByExprId.forall(_.length == 1)
-  }
-
-  /**
-   * This method checks if reference `ExprId`s are not reused when assigning a new `ExprId`.
-   * For example, it returns false if plan transformers create an alias having the same `ExprId`
-   * with one of reference attributes, e.g., `a#1 + 1 AS a#1`.
-   */
-  def checkIfSameExprIdNotReused(plan: LogicalPlan): Boolean = {
-    plan.collect { case p if p.resolved =>
-      p.expressions.forall {
-        case a: Alias =>
-          // Even if a plan is resolved, `a.references` can return unresolved references,
-          // e.g., `Grouping`/`GroupingID`, so we collect all leaf expressions first
-          // and check the expression IDs of them.
-          !a.collectLeaves().flatMap(_.references.map(_.exprId)).contains(a.exprId)
-        case _ =>
-          true
-      }
-    }.forall(identity)
-  }
-
-  /**
-   * This method checks if the same `ExprId` refers to an unique attribute in a plan tree.
-   * Some plan transformers (e.g., `RemoveNoopOperators`) rewrite logical
-   * plans based on this assumption.
-   */
   def checkIfExprIdsAreGloballyUnique(plan: LogicalPlan): Boolean = {
-    checkIfSameExprIdNotReused(plan) && hasUniqueExprIdsForOutput(plan)
+    QueryPlanIntegrity.checkIfExprIdsAreGloballyUnique[LogicalPlan](plan, resolved = _.resolved)
   }
 }

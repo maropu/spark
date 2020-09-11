@@ -469,3 +469,67 @@ object QueryPlan extends PredicateHelper {
     }
   }
 }
+
+object QueryPlanIntegrity {
+
+  private def canGetOutputAttrs[PlanType <: QueryPlan[PlanType]](
+      p: PlanType,
+      resolved: PlanType => Boolean): Boolean = {
+    resolved(p) && !p.expressions.exists { e =>
+      e.collectFirst {
+        // We cannot call `output` in plans with a `ScalarSubquery` expr having no column,
+        // so, we filter out them in advance.
+        case s: ScalarSubquery if s.plan.schema.fields.isEmpty => true
+      }.isDefined
+    }
+  }
+
+  /**
+   * Since some logical plans (e.g., `Union`) can build `AttributeReference`s in their `output`,
+   * this method checks if the same `ExprId` refers to a semantically-equal attribute
+   * in a plan output.
+   */
+  def hasUniqueExprIdsForOutput[PlanType <: QueryPlan[PlanType]](
+      plan: PlanType,
+      resolved: PlanType => Boolean = (_: PlanType) => true): Boolean = {
+    val allOutputAttrs = plan.collect { case p if canGetOutputAttrs[PlanType](p, resolved) =>
+      // NOTE: we still need to filter resolved expressions here because the output of
+      // some resolved logical plans can have unresolved references,
+      // e.g., outer references in `ExistenceJoin`.
+      p.output.filter(_.resolved).map(_.canonicalized.asInstanceOf[Attribute])
+    }
+    val groupedAttrsByExprId = allOutputAttrs
+      .flatten.groupBy(_.exprId).values.map(_.distinct)
+    groupedAttrsByExprId.forall(_.length == 1)
+  }
+
+  /**
+   * This method checks if reference `ExprId`s are not reused when assigning a new `ExprId`.
+   * For example, it returns false if plan transformers create an alias having the same `ExprId`
+   * with one of reference attributes, e.g., `a#1 + 1 AS a#1`.
+   */
+  def checkIfSameExprIdNotReused[PlanType <: QueryPlan[PlanType]](
+      plan: PlanType,
+      resolved: PlanType => Boolean = (_: PlanType) => true): Boolean = {
+    plan.collect { case p if resolved(p) =>
+      p.expressions.forall {
+        case a: Alias =>
+          !a.references.filter(_.resolved).map(_.exprId).exists(_ == a.exprId)
+        case _ =>
+          true
+      }
+    }.forall(identity)
+  }
+
+  /**
+   * This method checks if the same `ExprId` refers to an unique attribute in a plan tree.
+   * Some plan transformers (e.g., `RemoveNoopOperators`) rewrite logical
+   * plans based on this assumption.
+   */
+  def checkIfExprIdsAreGloballyUnique[PlanType <: QueryPlan[PlanType]](
+      plan: PlanType,
+      resolved: PlanType => Boolean = (_: PlanType) => true): Boolean = {
+    checkIfSameExprIdNotReused[PlanType](plan, resolved) &&
+      hasUniqueExprIdsForOutput[PlanType](plan, resolved)
+  }
+}
