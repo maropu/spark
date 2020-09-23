@@ -2717,7 +2717,7 @@ class Analyzer(
       val windowOps =
         groupedWindowExpressions.foldLeft(child) {
           case (last, ((partitionSpec, orderSpec, _), windowExpressions)) =>
-            Window(windowExpressions, partitionSpec, orderSpec, last)
+            Window(windowExpressions.toSeq, partitionSpec, orderSpec, last)
         }
 
       // Finally, we create a Project to output windowOps's output
