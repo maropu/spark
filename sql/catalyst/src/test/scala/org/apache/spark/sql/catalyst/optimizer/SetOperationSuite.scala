@@ -24,6 +24,7 @@ import org.apache.spark.sql.catalyst.expressions.{And, GreaterThan, GreaterThanO
 import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules._
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.BooleanType
 
 class SetOperationSuite extends PlanTest {
@@ -93,7 +94,7 @@ class SetOperationSuite extends PlanTest {
     val unionQuery1 = Distinct(Union(Distinct(Union(query1, query2)), query3)).analyze
     val optimized1 = Optimize.execute(unionQuery1)
     val distinctUnionCorrectAnswer1 =
-      Distinct(Union(query1 :: query2 :: query3 :: Nil))
+      Distinct(Union(query1 :: query2 :: query3 :: Nil)).analyze
     comparePlans(distinctUnionCorrectAnswer1, optimized1)
 
     //         query1
@@ -103,12 +104,14 @@ class SetOperationSuite extends PlanTest {
     //     D - U - query2
     //         |
     //         query3
-    val unionQuery2 = Distinct(Union(Union(query1, query2),
-      Distinct(Union(query2, query3)))).analyze
-    val optimized2 = Optimize.execute(unionQuery2)
-    val distinctUnionCorrectAnswer2 =
-      Distinct(Union(query1 :: query2 :: query2 :: query3 :: Nil))
-    comparePlans(distinctUnionCorrectAnswer2, optimized2)
+    withSQLConf(SQLConf.PLAN_CHANGE_LOG_LEVEL.key -> "ERROR") {
+      val unionQuery2 = Distinct(Union(Union(query1, query2),
+        Distinct(Union(query2, query3)))).analyze
+      val optimized2 = Optimize.execute(unionQuery2)
+      val distinctUnionCorrectAnswer2 =
+        Distinct(Union(query1 :: query2 :: query2 :: query3 :: Nil)).analyze
+      comparePlans(distinctUnionCorrectAnswer2, optimized2)
+    }
   }
 
   test("Keep necessary distincts in multiple unions") {
