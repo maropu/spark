@@ -23,7 +23,7 @@ import org.apache.spark.sql.catalyst.dsl.expressions._
 import org.apache.spark.sql.catalyst.dsl.plans._
 import org.apache.spark.sql.catalyst.expressions.Literal
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.catalyst.plans.logical.{LocalRelation, LogicalPlan, Project}
+import org.apache.spark.sql.catalyst.plans.logical.{LocalRelation, LogicalPlan, Project, Union}
 import org.apache.spark.sql.catalyst.rules.RuleExecutor
 import org.apache.spark.sql.types.{IntegerType, MetadataBuilder, StructType}
 
@@ -83,16 +83,16 @@ class PropagateEmptyRelationSuite extends PlanTest {
 
     val query3 = testRelation1.union(testRelation2.where(false)).union(testRelation3)
     val optimized3 = Optimize.execute(query3.analyze)
-    val correctAnswer3 = testRelation1.union(testRelation3)
+    val correctAnswer3 = testRelation1.union(testRelation3).analyze
     comparePlans(optimized3, correctAnswer3)
 
     val query4 = testRelation1.where(false).union(testRelation2).union(testRelation3)
     val optimized4 = Optimize.execute(query4.analyze)
-    val correctAnswer4 = testRelation2.union(testRelation3).select('b.as('a)).analyze
+    val correctAnswer4 = Union(testRelation2, testRelation3, testRelation1.output.head :: Nil)
     comparePlans(optimized4, correctAnswer4)
 
     // Nullability can change from nullable to non-nullable
-    val query5 = testRelation1.where(false).union(testRelation3)
+    val query5 = testRelation1.where(false).union(testRelation3).analyze
     val optimized5 = Optimize.execute(query5.analyze)
     assert(query5.output.head.nullable, "Original output should be nullable")
     assert(!optimized5.output.head.nullable, "New output should be non-nullable")
