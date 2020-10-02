@@ -29,9 +29,9 @@ import org.apache.spark.sql.{AnalysisException, Row, SparkSession}
 import org.apache.spark.sql.catalyst.{InternalRow, QueryPlanningTracker}
 import org.apache.spark.sql.catalyst.analysis.UnsupportedOperationChecker
 import org.apache.spark.sql.catalyst.expressions.codegen.ByteCodeStats
-import org.apache.spark.sql.catalyst.plans.QueryPlan
+import org.apache.spark.sql.catalyst.plans.{QueryPlan, QueryPlanIntegrity}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, ReturnAnswer}
-import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
+import org.apache.spark.sql.catalyst.rules.{Rule, RuleExecutor}
 import org.apache.spark.sql.catalyst.util.StringUtils.PlanStringConcat
 import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution.adaptive.{AdaptiveExecutionContext, InsertAdaptiveSparkPlan}
@@ -109,7 +109,7 @@ class QueryExecution(
     executePhase(QueryPlanningTracker.PLANNING) {
       // clone the plan to avoid sharing the plan instance between different stages like analyzing,
       // optimizing and planning.
-      QueryExecution.prepareForExecution(preparations, sparkPlan.clone())
+      QueryExecution.prepareForExecution(preparations, sparkPlan.clone(), Some(tracker))
     }
   }
 
@@ -359,15 +359,19 @@ object QueryExecution {
    */
   private[execution] def prepareForExecution(
       preparations: Seq[Rule[SparkPlan]],
-      plan: SparkPlan): SparkPlan = {
-    val planChangeLogger = new PlanChangeLogger[SparkPlan]()
-    val preparedPlan = preparations.foldLeft(plan) { case (sp, rule) =>
-      val result = rule.apply(sp)
-      planChangeLogger.logRule(rule.ruleName, sp, result)
-      result
+      plan: SparkPlan,
+      tracker: Option[QueryPlanningTracker] = None): SparkPlan = {
+    val ruleExecutor = new RuleExecutor[SparkPlan] {
+      override protected def batches: Seq[Batch] =
+        Batch("Preparations", FixedPoint(1), preparations: _*) :: Nil
+      override protected def isPlanIntegral(plan: SparkPlan): Boolean =
+        !Utils.isTesting || QueryPlanIntegrity.hasUniqueExprIdsForOutput[SparkPlan](plan)
     }
-    planChangeLogger.logBatch("Preparations", plan, preparedPlan)
-    preparedPlan
+    if (tracker.isDefined) {
+      ruleExecutor.executeAndTrack(plan, tracker.get)
+    } else {
+      ruleExecutor.execute(plan)
+    }
   }
 
   /**

@@ -20,14 +20,21 @@ package org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.dsl.expressions._
 import org.apache.spark.sql.catalyst.dsl.plans._
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference}
-import org.apache.spark.sql.catalyst.plans.PlanTest
+import org.apache.spark.sql.catalyst.plans.{PlanTest, QueryPlanIntegrity}
 import org.apache.spark.sql.types.LongType
 
 class LogicalPlanIntegritySuite extends PlanTest {
-  import LogicalPlanIntegrity._
 
   case class OutputTestPlan(child: LogicalPlan, output: Seq[Attribute]) extends UnaryNode {
     override val analyzed = true
+  }
+
+  def hasUniqueExprIdsForOutput(plan: LogicalPlan): Boolean = {
+    QueryPlanIntegrity.hasUniqueExprIdsForOutput[LogicalPlan](plan, resolved = _.resolved)
+  }
+
+  def checkIfSameExprIdNotReused(plan: LogicalPlan): Boolean = {
+    QueryPlanIntegrity.checkIfSameExprIdNotReused[LogicalPlan](plan, resolved = _.resolved)
   }
 
   test("Checks if the same `ExprId` refers to a semantically-equal attribute in a plan output") {
