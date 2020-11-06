@@ -600,9 +600,7 @@ groupByClause
     ;
 
 groupingAnalytics
-    : ROLLUP  '(' expression (',' expression)* ')'
-    | CUBE '(' expression (',' expression)* ')'
-    | GROUPING SETS '(' groupingSet (',' groupingSet)* ')'
+    : (ROLLUP | CUBE | GROUPING SETS)  '(' groupingSet (',' groupingSet)* ')'
     ;
 
 groupingSet
