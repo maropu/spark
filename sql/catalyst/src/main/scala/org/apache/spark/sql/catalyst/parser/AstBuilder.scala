@@ -855,7 +855,7 @@ class AstBuilder extends SqlBaseBaseVisitor[AnyRef] with SQLConfHelper with Logg
   }
 
   /**
-   * Add an [[Aggregate]] or [[GroupingSets]] to a logical plan.
+   * Add an [[Aggregate]] to a logical plan.
    */
   private def withAggregationClause(
       ctx: AggregationClauseContext,
@@ -867,7 +867,8 @@ class AstBuilder extends SqlBaseBaseVisitor[AnyRef] with SQLConfHelper with Logg
         // GROUP BY .... GROUPING SETS (...)
         val selectedGroupByExprs =
           ctx.groupingSet.asScala.map(_.expression.asScala.map(e => expression(e)).toSeq)
-        GroupingSets(selectedGroupByExprs.toSeq, groupByExpressions, query, selectExpressions)
+        Aggregate(Seq(GroupingSetsV2(selectedGroupByExprs, groupByExpressions)),
+          selectExpressions, query)
       } else {
         // GROUP BY .... (WITH CUBE | WITH ROLLUP)?
         val mappedGroupByExpressions = if (ctx.CUBE != null) {

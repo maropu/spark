@@ -386,9 +386,6 @@ class Analyzer(override val catalogManager: CatalogManager)
       case Aggregate(groups, aggs, child) if child.resolved && hasUnresolvedAlias(aggs) =>
         Aggregate(groups, assignAliases(aggs), child)
 
-      case g: GroupingSets if g.child.resolved && hasUnresolvedAlias(g.aggregations) =>
-        g.copy(aggregations = assignAliases(g.aggregations))
-
       case Pivot(groupByOpt, pivotColumn, pivotValues, aggregates, child)
         if child.resolved && groupByOpt.isDefined && hasUnresolvedAlias(groupByOpt.get) =>
         Pivot(Some(assignAliases(groupByOpt.get)), pivotColumn, pivotValues, aggregates, child)
@@ -622,10 +619,6 @@ class Analyzer(override val catalogManager: CatalogManager)
         case a @ Aggregate(Seq(gs @ GroupingSetsV2(_, _)), _, _) =>
           a.copy(groupingExpressions =
             getFinalGroupByExpressions(gs.groupingSets, gs.groupByExprs))
-        case g: GroupingSets =>
-          Aggregate(
-            getFinalGroupByExpressions(g.selectedGroupByExprs, g.groupByExprs),
-            g.aggregations, g.child)
       }
       // Try resolving the condition of the filter as though it is in the aggregate clause
       val resolvedInfo =
@@ -646,9 +639,6 @@ class Analyzer(override val catalogManager: CatalogManager)
           case Aggregate(Seq(gs @ GroupingSetsV2(groupingSets, _)), aggregateExpressions, child) =>
             constructAggregate(
               groupingSets, gs.groupByExprs, aggregateExpressions ++ extraAggExprs, child)
-          case x: GroupingSets =>
-            constructAggregate(
-              x.selectedGroupByExprs, x.groupByExprs, x.aggregations ++ extraAggExprs, x.child)
         }
 
         // Since the exprId of extraAggExprs will be changed in the constructed aggregate, and the
@@ -678,11 +668,8 @@ class Analyzer(override val catalogManager: CatalogManager)
           if agg.childrenResolved && (r.groupByExprs ++ aggregateExpressions).forall(_.resolved) =>
         tryResolveHavingCondition(h)
       case h @ UnresolvedHaving(
-      _, agg @ Aggregate(Seq(gs @ GroupingSetsV2(_, _)), aggregateExpressions, _))
+        _, agg @ Aggregate(Seq(gs @ GroupingSetsV2(_, _)), aggregateExpressions, _))
         if agg.childrenResolved && (gs.groupByExprs ++ aggregateExpressions).forall(_.resolved) =>
-        tryResolveHavingCondition(h)
-      case h @ UnresolvedHaving(_, g: GroupingSets)
-          if g.childrenResolved && g.expressions.forall(_.resolved) =>
         tryResolveHavingCondition(h)
 
       case a if !a.childrenResolved => a // be sure all of the children are resolved.
@@ -697,9 +684,6 @@ class Analyzer(override val catalogManager: CatalogManager)
       case Aggregate(Seq(gs @ GroupingSetsV2(groupingSets, _)), aggregateExpressions, child)
         if (gs.groupByExprs ++ aggregateExpressions).forall(_.resolved) =>
         constructAggregate(groupingSets, gs.groupByExprs, aggregateExpressions, child)
-      // Ensure all the expressions have been resolved.
-      case x: GroupingSets if x.expressions.forall(_.resolved) =>
-        constructAggregate(x.selectedGroupByExprs, x.groupByExprs, x.aggregations, x.child)
 
       // We should make sure all expressions in condition have been resolved.
       case f @ Filter(cond, child) if hasGroupingFunction(cond) && cond.resolved =>
@@ -1584,30 +1568,10 @@ class Analyzer(override val catalogManager: CatalogManager)
 
         a.copy(resolvedGroupingExprs, resolvedAggExprs, a.child)
 
-      // SPARK-31670: Resolve Struct field in selectedGroupByExprs/groupByExprs and aggregations
-      // will be wrapped with alias like Alias(GetStructField, name) with different ExprId.
-      // This cause aggregateExpressions can't be replaced by expanded groupByExpressions in
-      // `ResolveGroupingAnalytics.constructAggregateExprs()`, we trim unnecessary alias
-      // of GetStructField here.
-      case g: GroupingSets =>
-        val resolvedSelectedExprs = g.selectedGroupByExprs
-          .map(_.map(resolveExpressionTopDown(_, g, trimAlias = true))
-            .map(trimTopLevelGetStructFieldAlias))
-
-        val resolvedGroupingExprs = g.groupByExprs
-          .map(resolveExpressionTopDown(_, g, trimAlias = true))
-          .map(trimTopLevelGetStructFieldAlias)
-
-        val resolvedAggExprs = g.aggregations
-          .map(resolveExpressionTopDown(_, g, trimAlias = true))
-            .map(_.asInstanceOf[NamedExpression])
-
-        g.copy(resolvedSelectedExprs, resolvedGroupingExprs, g.child, resolvedAggExprs)
-
-      case o: OverwriteByExpression if o.table.resolved =>
-        // The delete condition of `OverwriteByExpression` will be passed to the table
-        // implementation and should be resolved based on the table schema.
-        o.copy(deleteExpr = resolveExpressionBottomUp(o.deleteExpr, o.table))
+      case o: OverwriteByExpression if !o.outputResolved =>
+        // do not resolve expression attributes until the query attributes are resolved against the
+        // table by ResolveOutputRelation. that rule will alias the attributes to the table's names.
+        o
 
       case m @ MergeIntoTable(targetTable, sourceTable, _, _, _)
         if !m.resolved && targetTable.resolved && sourceTable.resolved =>
@@ -1928,13 +1892,6 @@ class Analyzer(override val catalogManager: CatalogManager)
           case e => e
         }
         agg.copy(groupingExpressions = mayResolveAttrByAggregateExprs(resolvedGroups, aggs, child))
-
-      case gs @ GroupingSets(selectedGroups, groups, child, aggs)
-          if conf.groupByAliases && child.resolved && aggs.forall(_.resolved) &&
-            groups.exists(_.isInstanceOf[UnresolvedAttribute]) =>
-        gs.copy(
-          selectedGroupByExprs = selectedGroups.map(mayResolveAttrByAggregateExprs(_, aggs, child)),
-          groupByExprs = mayResolveAttrByAggregateExprs(groups, aggs, child))
     }
   }
 
@@ -2093,7 +2050,7 @@ class Analyzer(override val catalogManager: CatalogManager)
         withPosition(u) {
           Alias(GroupingID(Nil), VirtualColumn.hiveGroupingIdName)()
         }
-      case u@UnresolvedGenerator(name, children) =>
+      case u @ UnresolvedGenerator(name, children) =>
         withPosition(u) {
           v1SessionCatalog.lookupFunction(name, children) match {
             case generator: Generator => generator
@@ -2102,7 +2059,7 @@ class Analyzer(override val catalogManager: CatalogManager)
                 s"its class is ${other.getClass.getCanonicalName}, which is not a generator.")
           }
         }
-      case u@UnresolvedFunction(funcId, arguments, isDistinct, filter) =>
+      case u @ UnresolvedFunction(funcId, arguments, isDistinct, filter) =>
         withPosition(u) {
           v1SessionCatalog.lookupFunction(funcId, arguments) match {
             // AggregateWindowFunctions are AggregateFunctions that can only be evaluated within
@@ -2128,7 +2085,7 @@ class Analyzer(override val catalogManager: CatalogManager)
                 s"but ${other.prettyName} is not an aggregate function")
             case e: String2TrimExpression if arguments.size == 2 =>
               if (trimWarningEnabled.get) {
-                log.warn("Two-parameter TRIM/LTRIM/RTRIM function signatures are deprecated." +
+                logWarning("Two-parameter TRIM/LTRIM/RTRIM function signatures are deprecated." +
                   " Use SQL syntax `TRIM((BOTH | LEADING | TRAILING)? trimStr FROM str)`" +
                   " instead.")
                 trimWarningEnabled.set(false)
