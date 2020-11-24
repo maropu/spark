@@ -861,13 +861,13 @@ class AstBuilder extends SqlBaseBaseVisitor[AnyRef] with SQLConfHelper with Logg
       ctx: AggregationClauseContext,
       selectExpressions: Seq[NamedExpression],
       query: LogicalPlan): LogicalPlan = withOrigin(ctx) {
-    if (ctx.groupingExpressionWithGroupingAnalytics.isEmpty) {
+    if (ctx.groupingExpressionsWithGroupingAnalytics.isEmpty) {
       val groupByExpressions = expressionList(ctx.groupingExpressions)
       if (ctx.GROUPING != null) {
         // GROUP BY .... GROUPING SETS (...)
         val selectedGroupByExprs =
           ctx.groupingSet.asScala.map(_.expression.asScala.map(e => expression(e)).toSeq)
-        Aggregate(Seq(GroupingSetsV2(selectedGroupByExprs, groupByExpressions)),
+        Aggregate(Seq(GroupingSets(selectedGroupByExprs, groupByExpressions)),
           selectExpressions, query)
       } else {
         // GROUP BY .... (WITH CUBE | WITH ROLLUP)?
@@ -881,30 +881,44 @@ class AstBuilder extends SqlBaseBaseVisitor[AnyRef] with SQLConfHelper with Logg
         Aggregate(mappedGroupByExpressions, selectExpressions, query)
       }
     } else {
-      val groupByExpressions = ctx.groupingExpressionWithGroupingAnalytics.asScala
-      val others = groupByExpressions.filter(_.expression() != null)
-        .map(e => expression(e.expression()))
-      val groupingAnalyticsExpressions =
-        groupByExpressions.filter(_.groupingAnalytics() != null)
-          .map(_.groupingAnalytics()).map(groupingAnalytic => {
-          if (groupingAnalytic.GROUPING() != null) {
-            val selectedGroupByExprs = groupingAnalytic.groupingSet().asScala
-              .map(_.expression.asScala.map(e => expression(e)).toSeq)
-            GroupingSetsV2(selectedGroupByExprs)
-          } else if (groupingAnalytic.CUBE != null) {
-            val selectedGroupByExprs = groupingAnalytic.groupingSet().asScala
-              .map(_.expression.asScala.map(e => expression(e)).toSeq)
-            Cube(selectedGroupByExprs)
-          } else if (groupingAnalytic.ROLLUP != null) {
-            val selectedGroupByExprs = groupingAnalytic.groupingSet().asScala
-              .map(_.expression.asScala.map(e => expression(e)).toSeq)
-            Rollup(selectedGroupByExprs)
-          } else {
-            null
-          }
-        }).filter(_ != null)
+      val groupByExpressions =
+        ctx.groupingExpressionsWithGroupingAnalytics.asScala
+          .map(groupByExpr => {
+            val expr = groupByExpr.expression()
+            val groupingAnalytics = groupByExpr.groupingAnalytics()
+            (expr, groupingAnalytics) match {
+              case (_: ExpressionContext, null) =>
+                expression(expr)
+              case (null, _: GroupingAnalyticsContext) =>
+                val selectedGroupByExprs = groupingAnalytics.groupingSet().asScala
+                .map(_.expression.asScala.map(e => expression(e)).toSeq)
+                if (groupingAnalytics.GROUPING() != null) {
+                  GroupingSets(selectedGroupByExprs, selectedGroupByExprs.flatten.distinct)
+                } else if (groupingAnalytics.CUBE != null) {
+                  // CUBE(A, B, (A, B), ()) is not supported.
+                  if (selectedGroupByExprs.exists(_.isEmpty)) {
+                    throw new ParseException("Empty set in CUBE grouping sets is not supported.",
+                      groupingAnalytics)
+                  }
+                  Cube(selectedGroupByExprs)
+                } else if (groupingAnalytics.ROLLUP != null) {
+                  // ROLLUP(A, B, (A, B), ()) is not supported.
+                  if (selectedGroupByExprs.exists(_.isEmpty)) {
+                    throw new ParseException("Empty set in ROLLUP grouping sets is not supported.",
+                      groupingAnalytics)
+                  }
+                  Rollup(selectedGroupByExprs)
+                } else {
+                  throw new IllegalArgumentException(
+                    "Grouping Analytics only support CUBE/ROLLUP/GROUPING SETS.")
+                }
+              case (_, _) =>
+                throw new IllegalArgumentException("Each GROUP BY expression should be" +
+                  " a normal expression or a grouping analytics expression.")
+            }
+          })
 
-      Aggregate(others ++ groupingAnalyticsExpressions, selectExpressions, query)
+      Aggregate(groupByExpressions, selectExpressions, query)
     }
   }
 

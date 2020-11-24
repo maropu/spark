@@ -396,41 +396,6 @@ class Analyzer(override val catalogManager: CatalogManager)
   }
 
   object ResolveGroupingAnalytics extends Rule[LogicalPlan] {
-    /*
-     *  GROUP BY a, b, c WITH ROLLUP
-     *  is equivalent to
-     *  GROUP BY a, b, c GROUPING SETS ( (a, b, c), (a, b), (a), ( ) ).
-     *  Group Count: N + 1 (N is the number of group expressions)
-     *
-     *  We need to get all of its subsets for the rule described above, the subset is
-     *  represented as sequence of expressions.
-     */
-    def rollupExprs(exprs: Seq[Seq[Expression]]): Seq[Seq[Expression]] =
-      exprs.inits.map(_.flatten).toIndexedSeq
-
-    /*
-     *  GROUP BY a, b, c WITH CUBE
-     *  is equivalent to
-     *  GROUP BY a, b, c GROUPING SETS ( (a, b, c), (a, b), (b, c), (a, c), (a), (b), (c), ( ) ).
-     *  Group Count: 2 ^ N (N is the number of group expressions)
-     *
-     *  We need to get all of its subsets for a given GROUPBY expression, the subsets are
-     *  represented as sequence of expressions.
-     */
-    def cubeExprs(exprs: Seq[Seq[Expression]]): Seq[Seq[Expression]] = {
-      // `cubeExprs0` is recursive and returns a lazy Stream. Here we call `toIndexedSeq` to
-      // materialize it and avoid serialization problems later on.
-      cubeExprs0(exprs).toIndexedSeq
-    }
-
-    def cubeExprs0(exprs: Seq[Seq[Expression]]): Seq[Seq[Expression]] = exprs.toList match {
-      case x :: xs =>
-        val initial = cubeExprs0(xs)
-        initial.map(x ++ _) ++ initial
-      case Nil =>
-        Seq(Seq.empty)
-    }
-
     private[analysis] def hasGroupingFunction(e: Expression): Boolean = {
       e.collectFirst {
         case g: Grouping => g
@@ -610,13 +575,7 @@ class Analyzer(override val catalogManager: CatalogManager)
       val aggForResolving = h.child match {
         // For CUBE/ROLLUP expressions, to avoid resolving repeatedly, here we delete them from
         // groupingExpressions for condition resolving.
-        case a @ Aggregate(Seq(c @ Cube(_)), _, _) =>
-          a.copy(groupingExpressions =
-            getFinalGroupByExpressions(c.groupingSets, c.groupByExprs))
-        case a @ Aggregate(Seq(r @ Rollup(_)), _, _) =>
-          a.copy(groupingExpressions =
-            getFinalGroupByExpressions(r.groupingSets, r.groupByExprs))
-        case a @ Aggregate(Seq(gs @ GroupingSetsV2(_, _)), _, _) =>
+        case a @ Aggregate(Seq(gs: GroupingSet), _, _) =>
           a.copy(groupingExpressions =
             getFinalGroupByExpressions(gs.groupingSets, gs.groupByExprs))
       }
@@ -628,17 +587,10 @@ class Analyzer(override val catalogManager: CatalogManager)
       if (resolvedInfo.nonEmpty) {
         val (extraAggExprs, resolvedHavingCond) = resolvedInfo.get
         val newChild = h.child match {
-          case Aggregate(Seq(c @ Cube(groupingSets)), aggregateExpressions, child) =>
+          case Aggregate(Seq(gs: GroupingSet), aggregateExpressions, child) =>
             constructAggregate(
-              cubeExprs(groupingSets),
-              c.groupByExprs, aggregateExpressions ++ extraAggExprs, child)
-          case Aggregate(Seq(r @ Rollup(groupingSets)), aggregateExpressions, child) =>
-            constructAggregate(
-              rollupExprs(groupingSets),
-              r.groupByExprs, aggregateExpressions ++ extraAggExprs, child)
-          case Aggregate(Seq(gs @ GroupingSetsV2(groupingSets, _)), aggregateExpressions, child) =>
-            constructAggregate(
-              groupingSets, gs.groupByExprs, aggregateExpressions ++ extraAggExprs, child)
+              gs.selectedGroupByExprs, gs.groupByExprs,
+              aggregateExpressions ++ extraAggExprs, child)
         }
 
         // Since the exprId of extraAggExprs will be changed in the constructed aggregate, and the
@@ -661,29 +613,16 @@ class Analyzer(override val catalogManager: CatalogManager)
     // CUBE/ROLLUP/GROUPING SETS. This also replace grouping()/grouping_id() in resolved
     // Filter/Sort.
     def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperatorsDown {
-      case h @ UnresolvedHaving(_, agg @ Aggregate(Seq(c @ Cube(_)), aggregateExpressions, _))
-          if agg.childrenResolved && (c.groupByExprs ++ aggregateExpressions).forall(_.resolved) =>
-        tryResolveHavingCondition(h)
-      case h @ UnresolvedHaving(_, agg @ Aggregate(Seq(r @ Rollup(_)), aggregateExpressions, _))
-          if agg.childrenResolved && (r.groupByExprs ++ aggregateExpressions).forall(_.resolved) =>
-        tryResolveHavingCondition(h)
-      case h @ UnresolvedHaving(
-        _, agg @ Aggregate(Seq(gs @ GroupingSetsV2(_, _)), aggregateExpressions, _))
+      case h @ UnresolvedHaving(_, agg @ Aggregate(Seq(gs: GroupingSet), aggregateExpressions, _))
         if agg.childrenResolved && (gs.groupByExprs ++ aggregateExpressions).forall(_.resolved) =>
         tryResolveHavingCondition(h)
 
       case a if !a.childrenResolved => a // be sure all of the children are resolved.
 
       // Ensure group by expressions and aggregate expressions have been resolved.
-      case Aggregate(Seq(c @ Cube(groupingSets)), aggregateExpressions, child)
-        if (c.groupByExprs ++ aggregateExpressions).forall(_.resolved) =>
-        constructAggregate(cubeExprs(groupingSets), c.groupByExprs, aggregateExpressions, child)
-      case Aggregate(Seq(r @ Rollup(groupingSets)), aggregateExpressions, child)
-        if (r.groupByExprs ++ aggregateExpressions).forall(_.resolved) =>
-        constructAggregate(rollupExprs(groupingSets), r.groupByExprs, aggregateExpressions, child)
-      case Aggregate(Seq(gs @ GroupingSetsV2(groupingSets, _)), aggregateExpressions, child)
+      case Aggregate(Seq(gs: GroupingSet), aggregateExpressions, child)
         if (gs.groupByExprs ++ aggregateExpressions).forall(_.resolved) =>
-        constructAggregate(groupingSets, gs.groupByExprs, aggregateExpressions, child)
+        constructAggregate(gs.selectedGroupByExprs, gs.groupByExprs, aggregateExpressions, child)
 
       // We should make sure all expressions in condition have been resolved.
       case f @ Filter(cond, child) if hasGroupingFunction(cond) && cond.resolved =>
@@ -1432,13 +1371,8 @@ class Analyzer(override val catalogManager: CatalogManager)
             result
           case UnresolvedExtractValue(child, fieldExpr) if child.resolved =>
             ExtractValue(child, fieldExpr, resolver)
-          case c @ Cube(groupingSets) =>
-            c.copy(groupingSets = groupingSets.map(_.map(innerResolve(_, isTopLevel = false))))
-          case r @ Rollup(groupingSets) =>
-            r.copy(groupingSets = groupingSets.map(_.map(innerResolve(_, isTopLevel = false))))
-          case gs @ GroupingSetsV2(groupingSets, groupByExpressions) =>
-            gs.copy(groupingSets = groupingSets.map(_.map(innerResolve(_, isTopLevel = false))),
-              groupByExpressions = groupByExpressions.map(innerResolve(_, isTopLevel = false)))
+          case gs: GroupingSet =>
+            gs.withNewChildren(gs.children.map(innerResolve(_, isTopLevel = false)))
           case _ => e.mapChildren(innerResolve(_, isTopLevel = false))
         }
       }
@@ -1542,21 +1476,9 @@ class Analyzer(override val catalogManager: CatalogManager)
 
         val resolvedGroupingExprs = a.groupingExpressions
           .map {
-            case c @ Cube(groupingSets) =>
-              c.copy(groupingSets =
-                groupingSets.map(_.map(resolveExpressionTopDown(_, a, trimAlias = true))
-                  .map(trimTopLevelGetStructFieldAlias)))
-            case r @ Rollup(groupingSets) =>
-              r.copy(groupingSets =
-                groupingSets.map(_.map(resolveExpressionTopDown(_, a, trimAlias = true))
-                  .map(trimTopLevelGetStructFieldAlias)))
-            case gs @ GroupingSetsV2(groupingSets, groupByExpressions) =>
-              gs.copy(groupingSets =
-                groupingSets.map(_.map(resolveExpressionTopDown(_, a, trimAlias = true))
-                  .map(trimTopLevelGetStructFieldAlias)),
-                groupByExpressions =
-                  groupByExpressions.map(resolveExpressionTopDown(_, a, trimAlias = true))
-                    .map(trimTopLevelGetStructFieldAlias))
+            case gs: GroupingSet =>
+              gs.withNewChildren(gs.children.map(e =>
+                trimTopLevelGetStructFieldAlias(resolveExpressionTopDown(e, a, trimAlias = true))))
             case e =>
               trimTopLevelGetStructFieldAlias(resolveExpressionTopDown(e, a, trimAlias = true))
           }
@@ -1879,16 +1801,8 @@ class Analyzer(override val catalogManager: CatalogManager)
           if conf.groupByAliases && child.resolved && aggs.forall(_.resolved) &&
             groups.exists(!_.resolved) =>
         val resolvedGroups = groups.map {
-          case c @ Cube(groupingSets) =>
-            c.copy(groupingSets =
-              groupingSets.map(mayResolveAttrByAggregateExprs(_, aggs, child)))
-          case r @ Rollup(groupingSets) =>
-            r.copy(groupingSets =
-              groupingSets.map(mayResolveAttrByAggregateExprs(_, aggs, child)))
-          case gs @ GroupingSetsV2(groupingSets, groupByExpressions) =>
-            gs.copy(
-              groupingSets = groupingSets.map(mayResolveAttrByAggregateExprs(_, aggs, child)),
-              groupByExpressions = mayResolveAttrByAggregateExprs(groupByExpressions, aggs, child))
+          case gs: GroupingSet =>
+            gs.withNewChildren(mayResolveAttrByAggregateExprs(gs.children, aggs, child))
           case e => e
         }
         agg.copy(groupingExpressions = mayResolveAttrByAggregateExprs(resolvedGroups, aggs, child))
@@ -2102,22 +2016,6 @@ class Analyzer(override val catalogManager: CatalogManager)
       case UnresolvedFunc(multipartIdent) =>
         val funcIdent = parseSessionCatalogFunctionIdentifier(multipartIdent)
         ResolvedFunc(Identifier.of(funcIdent.database.toArray, funcIdent.funcName))
-
-      case a: Aggregate =>
-        val newGroups = a.groupingExpressions.map {
-          case c @ Cube(groupingSets) =>
-            c.copy(groupingSets =
-              groupingSets.map(_.map(_.transformDown(resolveFunction))))
-          case r @ Rollup(groupingSets) =>
-            r.copy(groupingSets =
-              groupingSets.map(_.map(_.transformDown(resolveFunction))))
-          case gs @ GroupingSetsV2(groupingSets, groupByExpressions) =>
-            gs.copy(
-              groupingSets = groupingSets.map(_.map(_.transformDown(resolveFunction))),
-              groupByExpressions = groupByExpressions.map(_.transformDown(resolveFunction)))
-          case e => e
-        }
-        a.copy(groupingExpressions = newGroups) transformExpressions resolveFunction
 
       case q: LogicalPlan =>
         q transformExpressions resolveFunction
