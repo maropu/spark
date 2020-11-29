@@ -27,7 +27,7 @@ class UnionEstimationSuite extends StatsEstimationTestBase {
   test("test row size estimation") {
     val attrInt = AttributeReference("cint", IntegerType)()
 
-    val sz: Option[BigInt] = Some(1024)
+    val sz = Some(BigInt(1024))
     val child1 = StatsTestPlan(
       outputList = Seq(attrInt),
       rowCount = 2,
@@ -86,9 +86,9 @@ class UnionEstimationSuite extends StatsEstimationTestBase {
         attrDate -> ColumnStat(min = Some(1), max = Some(4)),
         attrTimestamp -> ColumnStat(min = Some(1L), max = Some(4L))))
 
-    val s3: Short = 2
+    val s3 = 2.toShort
     val s4: Short = 6
-    val b3: Byte = 2
+    val b3: Byte = 2.toByte
     val b4: Byte = 6
     val columnInfo1: AttributeMap[ColumnStat] = AttributeMap(
       Seq(

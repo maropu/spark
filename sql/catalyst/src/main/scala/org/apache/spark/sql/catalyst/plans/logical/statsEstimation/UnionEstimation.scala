@@ -17,11 +17,9 @@
 
 package org.apache.spark.sql.catalyst.plans.logical.statsEstimation
 
-import scala.collection.mutable.ArrayBuffer
-
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeMap}
+import org.apache.spark.sql.catalyst.expressions.AttributeMap
 import org.apache.spark.sql.catalyst.plans.logical.{ColumnStat, Statistics, Union}
-import org.apache.spark.sql.types.{ByteType, DataType, DateType, DecimalType, DoubleType, FloatType, IntegerType, LongType, ShortType, TimestampType}
+import org.apache.spark.sql.types._
 
 /**
  * Estimate the number of output rows by doing the sum of output rows for each child of union,
@@ -31,67 +29,73 @@ import org.apache.spark.sql.types.{ByteType, DataType, DateType, DecimalType, Do
 object UnionEstimation {
   import EstimationUtils._
 
-  def compare(a: Any, b: Any, dataType: DataType): Boolean = {
-    dataType match {
-      case dt: IntegerType => dt.ordering.asInstanceOf[Ordering[Any]].lt(a, b)
-      case dt: LongType => dt.ordering.asInstanceOf[Ordering[Any]].lt(a, b)
-      case dt: FloatType => dt.ordering.asInstanceOf[Ordering[Any]].lt(a, b)
-      case dt: DoubleType => dt.ordering.asInstanceOf[Ordering[Any]].lt(a, b)
-      case dt: ShortType => dt.ordering.asInstanceOf[Ordering[Any]].lt(a, b)
-      case dt: ByteType => dt.ordering.asInstanceOf[Ordering[Any]].lt(a, b)
-      case dt: DateType => dt.ordering.asInstanceOf[Ordering[Any]].lt(a, b)
-      case dt: TimestampType => dt.ordering.asInstanceOf[Ordering[Any]].lt(a, b)
-      case dt: DecimalType => dt.ordering.asInstanceOf[Ordering[Any]].lt(a, b)
-      case _ => false
-    }
+  private def supportedType(dt: DataType): Boolean = {
+    case NumericType => true
+    case DateType | TimestampType => true
+    case _ => false
+  }
+
+  private def createStatComparator(dt: DataType) = dt match {
+    case ByteType => (a: Any, b: Any) =>
+      ByteType.ordering.lt(a.asInstanceOf[Byte], b.asInstanceOf[Byte])
+    case ShortType => (a: Any, b: Any) =>
+      ShortType.ordering.lt(a.asInstanceOf[Short], b.asInstanceOf[Short])
+    // Lists up all the supported types...
+    case _ =>
+      throw new IllegalStateException(s"Unsupported data type: ${dt.catalogString}")
   }
 
   def estimate(union: Union): Option[Statistics] = {
     val sizeInBytes = union.children.map(_.stats.sizeInBytes).sum
-    val outputRows: Option[BigInt] = if (rowCountsExist(union.children: _*)) {
+    val outputRows = if (rowCountsExist(union.children: _*)) {
       Some(union.children.map(_.stats.rowCount.get).sum)
     } else {
       None
     }
 
-    val output = union.output
-    val outputAttrStats = new ArrayBuffer[(Attribute, ColumnStat)]()
-
-    union.children.map(_.output).transpose.zipWithIndex.foreach {
-      case (attrs, outputIndex) =>
-        val validStat = attrs.zipWithIndex.forall {
-          case (attr, childIndex) =>
-            val attrStats = union.children(childIndex).stats.attributeStats
-            attrStats.get(attr).isDefined && attrStats(attr).hasMinMaxStats
-        }
-        if (validStat) {
-          val dataType = output(outputIndex).dataType
-          val minStart: Option[Any] = None
-          val maxStart: Option[Any] = None
-          val result = attrs.zipWithIndex.foldLeft((minStart, maxStart)) {
-            case ((minVal, maxVal), (attr, childIndex)) =>
-              val colStat = union.children(childIndex).stats.attributeStats(attr)
-              val min = if (minVal.isEmpty || compare(colStat.min.get, minVal.get, dataType)) {
-                colStat.min
-              } else {
-                minVal
-              }
-              val max = if (maxVal.isEmpty || compare(maxVal.get, colStat.max.get, dataType)) {
-                colStat.max
-              } else {
-                maxVal
-              }
-              (min, max)
-          }
-          val newStat = ColumnStat(min = result._1, max = result._2)
-          outputAttrStats += output(outputIndex) -> newStat
+    val childrenToComputeMinMaxStats = union.children.map(_.output)
+        .transpose.zipWithIndex.filter { case (attrs, _) =>
+      supportedType(attrs.head.dataType) &&
+        // Checks if all the children have min/max stats
+        attrs.zipWithIndex.forall { case (attr, childIndex) =>
+          val attrStats = union.children(childIndex).stats.attributeStats
+          attrStats.get(attr).isDefined && attrStats(attr).hasMinMaxStats
         }
     }
 
-    Some(
-      Statistics(
-        sizeInBytes = sizeInBytes,
-        rowCount = outputRows,
-        attributeStats = AttributeMap(outputAttrStats.toSeq)))
+    val newAttrStats = if (childrenToComputeMinMaxStats.nonEmpty) {
+      val unionOutput = union.output
+      val statComparators = childrenToComputeMinMaxStats.map { c =>
+        createStatComparator(c._1.head.dataType)
+      }
+      val outputAttrStats = childrenToComputeMinMaxStats.zip(statComparators)
+          .map { case ((attrs, outputIndex), statComparator) =>
+        val minMaxValue = attrs.zipWithIndex.foldLeft[(Option[Any], Option[Any])]((None, None)) {
+          case ((minVal, maxVal), (attr, childIndex)) =>
+            val colStat = union.children(childIndex).stats.attributeStats(attr)
+            val min = if (statComparator(colStat.min.get, minVal.get)) {
+              colStat.min
+            } else {
+              minVal
+            }
+            val max = if (statComparator(maxVal.get, colStat.max.get)) {
+              colStat.max
+            } else {
+              maxVal
+            }
+            (min, max)
+        }
+        val newStat = ColumnStat(min = minMaxValue._1, max = minMaxValue._2)
+        unionOutput(outputIndex) -> newStat
+      }
+      AttributeMap(outputAttrStats.toSeq)
+    } else {
+      AttributeMap.empty[ColumnStat]
+    }
+
+    Some(Statistics(
+      sizeInBytes = sizeInBytes,
+      rowCount = outputRows,
+      attributeStats = newAttrStats))
   }
 }
