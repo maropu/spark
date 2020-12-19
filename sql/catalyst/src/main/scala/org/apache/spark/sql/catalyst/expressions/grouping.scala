@@ -30,7 +30,6 @@ trait GroupingSet extends Expression with CodegenFallback {
   def groupingSets: Seq[Seq[Expression]]
   def selectedGroupByExprs: Seq[Seq[Expression]]
   def groupByExprs: Seq[Expression]
-  def groupingSetsLengthIndex: Seq[Int] = groupingSets.map(_.length)
 
   // this should be replaced first
   override lazy val resolved: Boolean = false
@@ -39,15 +38,6 @@ trait GroupingSet extends Expression with CodegenFallback {
   override def foldable: Boolean = false
   override def nullable: Boolean = true
   override def eval(input: InternalRow): Any = throw new UnsupportedOperationException
-
-  protected def splitExprs(children: Seq[Expression], index: Seq[Int]): Seq[Seq[Expression]] = {
-    if (index.nonEmpty) {
-      val (left, right) = children.splitAt(index.head)
-      Seq(left) ++ splitExprs(right, index.tail)
-    } else {
-      Nil
-    }
-  }
 }
 
 object GroupingSet {
@@ -85,48 +75,54 @@ object GroupingSet {
     case Nil =>
       Seq(Seq.empty)
   }
+
+  def computeGroupingSetIndexes(groupingSets: Seq[Seq[Expression]]): Seq[Seq[Int]] = {
+    val startOffsets = groupingSets.map(_.length).scanLeft(0)(_ + _).init
+    groupingSets.zip(startOffsets).map {
+      case (gs, startOffset) => gs.indices.map(_ + startOffset)
+    }
+  }
 }
 
-case class Cube(groupingSets: Seq[Seq[Expression]]) extends GroupingSet {
-  override def groupByExprs: Seq[Expression] = groupingSets.flatMap(_.distinct).distinct
-
+case class Cube(groupingSetIndexes: Seq[Seq[Int]], children: Seq[Expression]) extends GroupingSet {
+  override def groupingSets: Seq[Seq[Expression]] = groupingSetIndexes.map(_.map(children))
+  override def groupByExprs: Seq[Expression] = children.distinct
   override def selectedGroupByExprs: Seq[Seq[Expression]] = GroupingSet.cubeExprs(groupingSets)
-
-  override def groupingSetsLengthIndex: Seq[Int] = groupingSets.map(_.length)
-
-  override def children: Seq[Expression] = groupingSets.flatten
-
-  override def withNewChildren(newChildren: Seq[Expression]): Expression =
-    Cube(splitExprs(newChildren, groupingSetsLengthIndex))
 }
 
-case class Rollup(groupingSets: Seq[Seq[Expression]]) extends GroupingSet {
-  override def groupByExprs: Seq[Expression] = groupingSets.flatMap(_.distinct).distinct
+object Cube {
+  def apply(groupingSets: Seq[Seq[Expression]]): Cube = {
+    Cube(GroupingSet.computeGroupingSetIndexes(groupingSets), groupingSets.flatten)
+  }
+}
 
+case class Rollup(
+    groupingSetIndexes: Seq[Seq[Int]],
+    children: Seq[Expression]) extends GroupingSet {
+  override def groupingSets: Seq[Seq[Expression]] = groupingSetIndexes.map(_.map(children))
+  override def groupByExprs: Seq[Expression] = children.distinct
   override def selectedGroupByExprs: Seq[Seq[Expression]] = GroupingSet.rollupExprs(groupingSets)
+}
 
-  override def groupingSetsLengthIndex: Seq[Int] = groupingSets.map(_.length)
-
-  override def children: Seq[Expression] = groupingSets.flatten
-
-  override def withNewChildren(newChildren: Seq[Expression]): Expression =
-    Rollup(splitExprs(newChildren, groupingSetsLengthIndex))
+object Rollup {
+  def apply(groupingSets: Seq[Seq[Expression]]): Rollup = {
+    Rollup(GroupingSet.computeGroupingSetIndexes(groupingSets), groupingSets.flatten)
+  }
 }
 
 case class GroupingSets(
-    groupingSets: Seq[Seq[Expression]],
-    groupByExpressions: Seq[Expression]) extends GroupingSet {
-  override def groupByExprs: Seq[Expression] = groupByExpressions
-
+    groupingSetIndexes: Seq[Seq[Int]],
+    flatGroupingSets: Seq[Expression],
+    groupByExprs: Seq[Expression]) extends GroupingSet {
+  override def groupingSets: Seq[Seq[Expression]] = groupingSetIndexes.map(_.map(flatGroupingSets))
   override def selectedGroupByExprs: Seq[Seq[Expression]] = groupingSets
+  override def children: Seq[Expression] = groupingSets.flatten ++ groupByExprs
+}
 
-  override def groupingSetsLengthIndex: Seq[Int] = groupingSets.map(_.length)
-
-  override def children: Seq[Expression] = groupingSets.flatten ++ groupByExpressions
-
-  override def withNewChildren(newChildren: Seq[Expression]): Expression = {
-    val (newGroupingSets, newGroupByExpressions) = newChildren.splitAt(groupingSetsLengthIndex.sum)
-    GroupingSets(splitExprs(newGroupingSets, groupingSetsLengthIndex), newGroupByExpressions)
+object GroupingSets {
+  def apply(groupingSets: Seq[Seq[Expression]], groupByExprs: Seq[Expression]): GroupingSets = {
+    val groupingSetIndexes = GroupingSet.computeGroupingSetIndexes(groupingSets)
+    GroupingSets(groupingSetIndexes, groupingSets.flatten, groupByExprs)
   }
 }
 
