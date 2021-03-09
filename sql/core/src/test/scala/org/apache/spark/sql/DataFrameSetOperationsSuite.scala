@@ -347,23 +347,24 @@ class DataFrameSetOperationsSuite extends QueryTest with SharedSparkSession {
     dates.intersect(widenTypedRows).collect()
   }
 
-  test("SPARK-19893: cannot run set operations with map type") {
-    val df = spark.range(1).select(map(lit("key"), $"id").as("m"))
-    val e = intercept[AnalysisException](df.intersect(df))
-    assert(e.message.contains(
-      "Cannot have map type columns in DataFrame which calls set operations"))
-    val e2 = intercept[AnalysisException](df.except(df))
-    assert(e2.message.contains(
-      "Cannot have map type columns in DataFrame which calls set operations"))
-    val e3 = intercept[AnalysisException](df.distinct())
-    assert(e3.message.contains(
-      "Cannot have map type columns in DataFrame which calls set operations"))
-    withTempView("v") {
-      df.createOrReplaceTempView("v")
-      val e4 = intercept[AnalysisException](sql("SELECT DISTINCT m FROM v"))
-      assert(e4.message.contains(
-        "Cannot have map type columns in DataFrame which calls set operations"))
-    }
+  test("SPARK-34819: set operations with map type") {
+    val df = Seq(Map("a" -> 1, "b" -> 2), Map("c" -> 3)).toDF("m")
+    val df2 = Seq(Map("b" -> 2, "a" -> 1), Map("c" -> 4)).toDF("m")
+    checkAnswer(
+      df.intersect(df2),
+      Row(Map("a" -> 1, "b" -> 2)) :: Nil
+    )
+
+    checkAnswer(
+      df.except(df2),
+      Row(Map("c" -> 3)) :: Nil
+    )
+
+    checkAnswer(
+      df.distinct(),
+      Row(Map("a" -> 1, "b" -> 2)) ::
+        Row(Map("c" -> 3)) :: Nil
+    )
   }
 
   test("union all") {
