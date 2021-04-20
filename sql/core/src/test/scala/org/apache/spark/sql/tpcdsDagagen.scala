@@ -110,7 +110,7 @@ class Dsdgen(dsdgenDir: String) extends Serializable {
         val commands = Seq(
           "bash", "-c",
           s"cd $localToolsDir && ./dsdgen -table $tableName -filter Y -scale $scaleFactor " +
-          s"-RNGSEED 100 $parallel")
+          s"-RNGSEED 19620718 $parallel")
         BlockingLineStream(commands)
       }
     }
