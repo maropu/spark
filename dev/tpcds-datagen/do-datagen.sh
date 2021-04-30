@@ -27,30 +27,25 @@ else
   . "$SELF/../create-release/release-util.sh"
 fi
 
-export LC_ALL=C.UTF-8
-export LANG=C.UTF-8
-
 # Checks out tpcds-kit and builds dsdgen
 rm -rf tpcds-kit
 git clone https://github.com/databricks/tpcds-kit
 cd tpcds-kit/tools
 run_silent "Building dsdgen in tpcds-kit..." "$SELF/dsdgen-build.log" make OS=LINUX
+DSDGEN=`pwd`
 cd ../..
 
 # Builds Spark to generate TPC-DS data
+OUTPUT_PATH=`pwd`/tpcds-data
 if [ -z "$SCALE_FACTOR" ]; then
   SCALE_FACTOR=1
 fi
 
 rm -rf spark
-# git clone https://github.com/apache/spark
-SBT_OPTS="-Xmx2g -XX:ReservedCodeCacheSize=1g -XX:+UseG1GC"
-git clone https://github.com/maropu/spark
+git clone https://github.com/apache/spark
 cd spark
-git checkout tpcdsDatagen
-./build/sbt "sql/test:runMain org.apache.spark.sql.GenTPCDSData --dsdgenDir $SELF/tpcds-kit/tools --location $SELF/tpcds-data --scaleFactor $SCALE_FACTOR"
-# run_silent "Building Spark to generate TPC-DS data in $SELF/tpcds-data..." "$SELF/spark-build.log" \
-#   ./build/sbt "sql/test:runMain org.apache.spark.sql.GenTPCDSData --dsdgenDir $SELF/tpcds-kit/tools --location $SELF/tpcds-data --scaleFactor $SCALE_FACTOR"
+run_silent "Building Spark to generate TPC-DS data in $OUTPUT_PATH..." "$SELF/spark-build.log" \
+  ./build/sbt "sql/test:runMain org.apache.spark.sql.GenTPCDSData --dsdgenDir $DSDGEN --location $OUTPUT_PATH --scaleFactor $SCALE_FACTOR --numPartitions 1 --overwrite"
 cd ..
 
 rm -rf spark tpcds-kit

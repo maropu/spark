@@ -34,25 +34,18 @@ ENV DEBCONF_NONINTERACTIVE_SEEN true
 # These arguments are just for reuse and not really meant to be customized.
 ARG APT_INSTALL="apt-get install --no-install-recommends -y"
 
-# This is all in a single "RUN" command so that if anything changes, "apt update" is run to fetch
+# This is all in a single "RUN" command so that if anything changes, "apt-get update" is run to fetch
 # the most current package versions (instead of potentially using old versions cached by docker).
-RUN apt-get clean && apt-get update && $APT_INSTALL gnupg ca-certificates && \
-  gpg --keyserver keyserver.ubuntu.com --recv-key E298A3A825C0D65DFD57CBB651716619E084DAB9 && \
-  gpg -a --export E084DAB9 | apt-key add - && \
-  apt-get clean && \
-  rm -rf /var/lib/apt/lists/* && \
-  apt-get clean && \
-  apt-get update && \
+RUN apt-get clean && apt-get update && \
   $APT_INSTALL software-properties-common && \
   apt-get update && \
-  # Install openjdk 8.
+  # Install openjdk 8
   $APT_INSTALL openjdk-8-jdk && \
   update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java && \
-  # Install build / source control tools
-  $APT_INSTALL curl wget git maven subversion make gcc bison flex lsof libffi-dev \
-    libssl-dev libcurl4-openssl-dev libxml2-dev && \
-  curl -sL https://deb.nodesource.com/setup_12.x | bash && \
-  $APT_INSTALL libcurl4-openssl-dev libgit2-dev libssl-dev libxml2-dev
+  # Install build-related tools
+  $APT_INSTALL curl wget git build-essential bison flex && \
+  apt-get clean && \
+  rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/spark-tpcds/output
 
