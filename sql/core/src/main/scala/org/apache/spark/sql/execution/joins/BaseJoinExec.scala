@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.joins
 
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.JoinType
-import org.apache.spark.sql.execution.{BinaryExecNode, ExplainUtils}
+import org.apache.spark.sql.execution.BinaryExecNode
 
 /**
  * Holds common logic for join operators
@@ -31,8 +31,8 @@ trait BaseJoinExec extends BinaryExecNode {
   def rightKeys: Seq[Expression]
 
   override def simpleStringWithNodeId(): String = {
-    val opId = ExplainUtils.getOpId(this)
-    s"$nodeName $joinType ($opId)".trim
+    val opId = getOpId()
+    s"$nodeName $joinType (${getOpId()})".trim
   }
 
   override def verboseStringWithOperatorId(): String = {
@@ -42,14 +42,14 @@ trait BaseJoinExec extends BinaryExecNode {
     if (leftKeys.nonEmpty || rightKeys.nonEmpty) {
       s"""
          |$formattedNodeName
-         |${ExplainUtils.generateFieldString("Left keys", leftKeys)}
-         |${ExplainUtils.generateFieldString("Right keys", rightKeys)}
-         |${ExplainUtils.generateFieldString("Join condition", joinCondStr)}
+         |${generateFieldString("Left keys", leftKeys)}
+         |${generateFieldString("Right keys", rightKeys)}
+         |${generateFieldString("Join condition", joinCondStr)}
          |""".stripMargin
     } else {
       s"""
          |$formattedNodeName
-         |${ExplainUtils.generateFieldString("Join condition", joinCondStr)}
+         |${generateFieldString("Join condition", joinCondStr)}
          |""".stripMargin
     }
   }

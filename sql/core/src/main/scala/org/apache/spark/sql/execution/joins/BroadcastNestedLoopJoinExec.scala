@@ -25,7 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCo
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
-import org.apache.spark.sql.execution.{CodegenSupport, ExplainUtils, SparkPlan}
+import org.apache.spark.sql.execution.{CodegenSupport, SparkPlan}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.util.collection.{BitSet, CompactBuffer}
 
@@ -49,8 +49,7 @@ case class BroadcastNestedLoopJoinExec(
   }
 
   override def simpleStringWithNodeId(): String = {
-    val opId = ExplainUtils.getOpId(this)
-    s"$nodeName $joinType $buildSide ($opId)".trim
+    s"$nodeName $joinType $buildSide (${getOpId()})".trim
   }
 
   override def requiredChildDistribution: Seq[Distribution] = buildSide match {

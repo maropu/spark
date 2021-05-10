@@ -33,6 +33,7 @@ import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.catalyst.trees.{BinaryLike, LeafLike, TreeNodeTag, UnaryLike}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, QueryStageExec}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -511,6 +512,130 @@ abstract class SparkPlan extends QueryPlan[SparkPlan] with Logging with Serializ
   protected[sql] def cleanupResources(): Unit = {
     children.foreach(_.cleanupResources())
   }
+
+  override private[sql] def processPlan(append: String => Unit): Unit = {
+    try {
+      val subqueries = ArrayBuffer.empty[(SparkPlan, Expression, SparkPlan)]
+      var currentOperatorID = 0
+      currentOperatorID = processPlanSkippingSubqueries(append, currentOperatorID)
+      getSubqueries(subqueries)
+      var i = 0
+
+      for (sub <- subqueries) {
+        if (i == 0) {
+          append("\n===== Subqueries =====\n\n")
+        }
+        i = i + 1
+        append(s"Subquery:$i Hosting operator id = " +
+          s"${sub._1.getOpId()} Hosting Expression = ${sub._2}\n")
+
+        // For each subquery expression in the parent plan, process its child plan to compute
+        // the explain output. In case of subquery reuse, we don't print subquery plan more
+        // than once. So we skip [[ReusedSubqueryExec]] here.
+        if (!sub._3.isInstanceOf[ReusedSubqueryExec]) {
+          currentOperatorID = sub._3.children.head.processPlanSkippingSubqueries(
+            append,
+            currentOperatorID)
+        }
+        append("\n")
+      }
+    } finally {
+      removeTags()
+    }
+  }
+
+  override protected def generateOperatorIDs(
+      startOperatorID: Int,
+      operatorIDs: ArrayBuffer[(Int, SparkPlan)]): Int = {
+    var currentOperationID = startOperatorID
+    // Skip the subqueries as they are not printed as part of main query block.
+    if (this.isInstanceOf[BaseSubqueryExec]) {
+      return currentOperationID
+    }
+    foreachUp {
+      case p: WholeStageCodegenExec =>
+      case p: InputAdapter =>
+      case other: QueryPlan[_] =>
+
+        def setOpId(): Unit = if (other.getTagValue(QueryPlan.OP_ID_TAG).isEmpty) {
+          currentOperationID += 1
+          other.setTagValue(QueryPlan.OP_ID_TAG, currentOperationID)
+          operatorIDs += ((currentOperationID, other))
+        }
+
+        other match {
+          case p: AdaptiveSparkPlanExec =>
+            currentOperationID =
+              p.executedPlan.generateOperatorIDs(currentOperationID, operatorIDs)
+            setOpId()
+          case p: QueryStageExec =>
+            currentOperationID = p.plan.generateOperatorIDs(currentOperationID, operatorIDs)
+            setOpId()
+          case _ =>
+            setOpId()
+            other.innerChildren.map(_.asInstanceOf[SparkPlan]).foldLeft(currentOperationID) {
+              (curId, plan) => plan.generateOperatorIDs(curId, operatorIDs)
+            }
+        }
+    }
+    currentOperationID
+  }
+
+  override private[sql] def generateWholeStageCodegenIds(): Unit = {
+    var currentCodegenId = -1
+
+    def setCodegenId(p: SparkPlan, children: Seq[QueryPlan[_]]): Unit = {
+      if (currentCodegenId != -1) {
+        p.setTagValue(QueryPlan.CODEGEN_ID_TAG, currentCodegenId)
+      }
+      children.foreach(_.generateWholeStageCodegenIds())
+    }
+
+    // Skip the subqueries as they are not printed as part of main query block.
+    if (this.isInstanceOf[BaseSubqueryExec]) {
+      return
+    }
+    foreach {
+      case p: WholeStageCodegenExec => currentCodegenId = p.codegenStageId
+      case _: InputAdapter => currentCodegenId = -1
+      case p: AdaptiveSparkPlanExec => setCodegenId(p, Seq(p.executedPlan))
+      case p: QueryStageExec => setCodegenId(p, Seq(p.plan))
+      case other => setCodegenId(other, other.innerChildren)
+    }
+  }
+
+  override protected def getSubqueries(
+      subqueries: ArrayBuffer[(SparkPlan, Expression, SparkPlan)]): Unit = {
+    foreach {
+      case a: AdaptiveSparkPlanExec =>
+        a.executedPlan.getSubqueries(subqueries)
+      case p: SparkPlan =>
+        p.expressions.foreach (_.collect {
+          case e: PlanExpression[_] =>
+            e.plan match {
+              case s: BaseSubqueryExec =>
+                subqueries += ((p, e, s))
+                s.getSubqueries(subqueries)
+              case _ =>
+            }
+        })
+      case _ =>
+    }
+  }
+
+  override private[sql] def removeTags(): Unit = {
+    def remove(p: SparkPlan, children: Seq[QueryPlan[_]]): Unit = {
+      p.unsetTagValue(QueryPlan.OP_ID_TAG)
+      p.unsetTagValue(QueryPlan.CODEGEN_ID_TAG)
+      children.foreach(_.removeTags())
+    }
+
+    this foreach {
+      case p: AdaptiveSparkPlanExec => remove(p, Seq(p.executedPlan))
+      case p: QueryStageExec => remove(p, Seq(p.plan))
+      case plan => remove(plan, plan.innerChildren)
+    }
+  }
 }
 
 trait LeafExecNode extends SparkPlan with LeafLike[SparkPlan] {
@@ -518,7 +643,7 @@ trait LeafExecNode extends SparkPlan with LeafLike[SparkPlan] {
   override def producedAttributes: AttributeSet = outputSet
   override def verboseStringWithOperatorId(): String = {
     val argumentString = argString(conf.maxToStringFields)
-    val outputStr = s"${ExplainUtils.generateFieldString("Output", output)}"
+    val outputStr = s"${generateFieldString("Output", output)}"
 
     if (argumentString.nonEmpty) {
       s"""
@@ -546,7 +671,7 @@ trait UnaryExecNode extends SparkPlan with UnaryLike[SparkPlan] {
 
   override def verboseStringWithOperatorId(): String = {
     val argumentString = argString(conf.maxToStringFields)
-    val inputStr = s"${ExplainUtils.generateFieldString("Input", child.output)}"
+    val inputStr = s"${generateFieldString("Input", child.output)}"
 
     if (argumentString.nonEmpty) {
       s"""
@@ -567,8 +692,8 @@ trait BinaryExecNode extends SparkPlan with BinaryLike[SparkPlan] {
 
   override def verboseStringWithOperatorId(): String = {
     val argumentString = argString(conf.maxToStringFields)
-    val leftOutputStr = s"${ExplainUtils.generateFieldString("Left output", left.output)}"
-    val rightOutputStr = s"${ExplainUtils.generateFieldString("Right output", right.output)}"
+    val leftOutputStr = s"${generateFieldString("Left output", left.output)}"
+    val rightOutputStr = s"${generateFieldString("Right output", right.output)}"
 
     if (argumentString.nonEmpty) {
       s"""

@@ -103,8 +103,8 @@ case class ProjectExec(projectList: Seq[NamedExpression], child: SparkPlan)
   override def verboseStringWithOperatorId(): String = {
     s"""
        |$formattedNodeName
-       |${ExplainUtils.generateFieldString("Output", projectList)}
-       |${ExplainUtils.generateFieldString("Input", child.output)}
+       |${generateFieldString("Output", projectList)}
+       |${generateFieldString("Input", child.output)}
        |""".stripMargin
   }
 
@@ -285,7 +285,7 @@ case class FilterExec(condition: Expression, child: SparkPlan)
   override def verboseStringWithOperatorId(): String = {
     s"""
        |$formattedNodeName
-       |${ExplainUtils.generateFieldString("Input", child.output)}
+       |${generateFieldString("Input", child.output)}
        |Condition : ${condition}
        |""".stripMargin
   }

@@ -34,6 +34,10 @@ case class LogicalRelation(
     override val isStreaming: Boolean)
   extends LeafNode with MultiInstanceRelation {
 
+  override val nodeName: String = {
+    s"Relation $relation ${catalogTable.map(_.identifier.unquotedString).getOrElse("")}"
+  }
+
   // Only care about relation when canonicalizing.
   override def doCanonicalize(): LogicalPlan = copy(
     output = output.map(QueryPlan.normalizeExpressions(_, output)),
@@ -64,8 +68,14 @@ case class LogicalRelation(
   }
 
   override def simpleString(maxFields: Int): String = {
-    s"Relation ${catalogTable.map(_.identifier.unquotedString).getOrElse("")}" +
-      s"[${truncatedString(output, ",", maxFields)}] $relation"
+    s"$nodeName${truncatedString(output, "[", ",", "]", maxFields)}"
+  }
+
+  override def verboseStringWithOperatorId(): String = {
+    s"""
+       |$formattedNodeName
+       |${generateFieldString("Output", output)}
+       |""".stripMargin
   }
 }
 

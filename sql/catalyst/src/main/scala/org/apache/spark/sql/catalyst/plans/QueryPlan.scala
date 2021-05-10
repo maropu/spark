@@ -41,7 +41,7 @@ import org.apache.spark.util.collection.BitSet
  * inherited from `TreeNode`, do not traverse into query plans inside subqueries.
  */
 abstract class QueryPlan[PlanType <: QueryPlan[PlanType]]
-  extends TreeNode[PlanType] with SQLConfHelper {
+  extends TreeNode[PlanType] with SQLConfHelper with ExplainPlanHelper[PlanType] {
   self: PlanType =>
 
   def output: Seq[Attribute]
