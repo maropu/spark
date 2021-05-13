@@ -166,6 +166,10 @@ abstract class Optimizer(catalogManager: CatalogManager)
       RemoveNoopUnion) ::
     Batch("OptimizeLimitZero", Once,
       OptimizeLimitZero) ::
+    // After applying ConvertToLocalRelation, we cannot normalize maps in Filter/Project.
+    // So, we need to apply NormalizeMaps just before ConvertToLocalRelation.
+    Batch("Normalize Maps Before Converting LocalRelation", Once,
+      NormalizeMaps) ::
     // Run this once earlier. This might simplify the plan and reduce cost of optimizer.
     // For example, a query such as Filter(LocalRelation) would go through all the heavy
     // optimizer rules that are triggered when there is a filter
@@ -235,9 +239,8 @@ abstract class Optimizer(catalogManager: CatalogManager)
       RemoveNoopOperators) :+
     // Following batches must be executed after the `RewriteSubquery` batch, which creates joins.
     Batch("NormalizeFloatingNumbers", Once, NormalizeFloatingNumbers) :+
-    Batch("NormalizeMapType", Once, NormalizeMapType) :+
+    Batch("NormalizeMaps", Once, NormalizeMaps) :+
     Batch("ReplaceUpdateFieldsExpression", Once, ReplaceUpdateFieldsExpression)
-
 
     // remove any batches with no rules. this may happen when subclasses do not add optional rules.
     batches.filter(_.rules.nonEmpty)
@@ -273,7 +276,7 @@ abstract class Optimizer(catalogManager: CatalogManager)
       NormalizeFloatingNumbers.ruleName ::
       ReplaceUpdateFieldsExpression.ruleName ::
       PullOutGroupingExpressions.ruleName ::
-      NormalizeMapType.ruleName :: Nil
+      NormalizeMaps.ruleName :: Nil
 
   /**
    * Optimize all the subqueries inside expression.

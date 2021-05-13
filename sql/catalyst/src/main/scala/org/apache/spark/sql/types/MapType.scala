@@ -23,7 +23,7 @@ import org.json4s.JsonAST.JValue
 import org.json4s.JsonDSL._
 
 import org.apache.spark.annotation.Stable
-import org.apache.spark.sql.catalyst.util.{ArrayData, MapData, TypeUtils}
+import org.apache.spark.sql.catalyst.util.MapData
 import org.apache.spark.sql.catalyst.util.StringUtils.StringConcat
 
 /**
@@ -84,65 +84,27 @@ case class MapType(
   }
 
   @transient
-  private[sql] lazy val keyOrdering: Ordering[Any] =
-    TypeUtils.getInterpretedOrdering(keyType)
-
-  @transient
-  private[sql] lazy val valueOrdering: Ordering[Any] =
-    TypeUtils.getInterpretedOrdering(valueType)
-
-  @transient
   private[sql] lazy val interpretedOrdering: Ordering[MapData] = new Ordering[MapData] {
-    def compare(left: MapData, right: MapData): Int = {
-      if (left.numElements() != right.numElements()) {
-        return left.numElements() - right.numElements()
-      }
 
-      val numElements = left.numElements()
+    private val keyArrayOrdering = ArrayType(keyType).interpretedOrdering
+    private val valueArrayOrdering = ArrayType(valueType).interpretedOrdering
+
+    def compare(left: MapData, right: MapData): Int = {
       val leftKeys = left.keyArray()
       val rightKeys = right.keyArray()
+      val keyComp = keyArrayOrdering.compare(leftKeys, rightKeys)
+      if (keyComp != 0) {
+        return keyComp
+      }
+
       val leftValues = left.valueArray()
       val rightValues = right.valueArray()
-
-      val keyIndexOrdering = (keys: ArrayData) => new Ordering[Int] {
-        override def compare(a: Int, b: Int): Int = {
-          keyOrdering.compare(keys.get(a, keyType), keys.get(b, keyType))
-        }
+      val valueComp = valueArrayOrdering.compare(leftValues, rightValues)
+      if (valueComp != 0) {
+        valueComp
+      } else {
+        0
       }
-      val leftSortedKeyIndex = (0 until numElements).toArray.sorted(keyIndexOrdering(leftKeys))
-      val rightSortedKeyIndex = (0 until numElements).toArray.sorted(keyIndexOrdering(rightKeys))
-      var i = 0
-      while (i < numElements) {
-        val leftIndex = leftSortedKeyIndex(i)
-        val rightIndex = rightSortedKeyIndex(i)
-
-        val leftKey = leftKeys.get(leftIndex, keyType)
-        val rightKey = rightKeys.get(rightIndex, keyType)
-        val keyComp = keyOrdering.compare(leftKey, rightKey)
-        if (keyComp != 0) {
-          return keyComp
-        } else {
-          val leftValueIsNull = leftValues.isNullAt(leftIndex)
-          val rightValueIsNull = rightValues.isNullAt(rightIndex)
-          if (leftValueIsNull && rightValueIsNull) {
-            // do nothing
-          } else if (leftValueIsNull) {
-            return -1
-          } else if (rightValueIsNull) {
-            return 1
-          } else {
-            val leftValue = leftValues.get(leftIndex, valueType)
-            val rightValue = rightValues.get(rightIndex, valueType)
-            val valueComp = valueOrdering.compare(leftValue, rightValue)
-            if (valueComp != 0) {
-              return valueComp
-            }
-          }
-        }
-        i += 1
-      }
-
-      0
     }
   }
 }

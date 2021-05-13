@@ -347,26 +347,6 @@ class DataFrameSetOperationsSuite extends QueryTest with SharedSparkSession {
     dates.intersect(widenTypedRows).collect()
   }
 
-  test("SPARK-34819: set operations with map type") {
-    val df = Seq(Map("a" -> 1, "b" -> 2), Map("c" -> 3)).toDF("m")
-    val df2 = Seq(Map("b" -> 2, "a" -> 1), Map("c" -> 4)).toDF("m")
-    checkAnswer(
-      df.intersect(df2),
-      Row(Map("a" -> 1, "b" -> 2)) :: Nil
-    )
-
-    checkAnswer(
-      df.except(df2),
-      Row(Map("c" -> 3)) :: Nil
-    )
-
-    checkAnswer(
-      df.distinct(),
-      Row(Map("a" -> 1, "b" -> 2)) ::
-        Row(Map("c" -> 3)) :: Nil
-    )
-  }
-
   test("union all") {
     val unionDF = testData.union(testData).union(testData)
       .union(testData).union(testData)

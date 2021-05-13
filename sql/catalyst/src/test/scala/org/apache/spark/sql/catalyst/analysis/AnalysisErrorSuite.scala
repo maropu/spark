@@ -615,6 +615,24 @@ class AnalysisErrorSuite extends AnalysisTest {
         "another aggregate function." :: Nil)
   }
 
+  test("Join can work on binary/map types") {
+    val left = LocalRelation(Symbol("a").binary, Symbol("b").map(StringType, StringType))
+    val right = LocalRelation(Symbol("c").binary, Symbol("d").map(StringType, StringType))
+
+    val plan1 = left.join(
+      right,
+      joinType = Cross,
+      condition = Some(Symbol("a") === Symbol("c")))
+
+    assertAnalysisSuccess(plan1)
+
+    val plan2 = left.join(
+      right,
+      joinType = Cross,
+      condition = Some(Symbol("b") === Symbol("d")))
+    assertAnalysisSuccess(plan2)
+  }
+
   test("PredicateSubQuery is used outside of a filter") {
     val a = AttributeReference("a", IntegerType)()
     val b = AttributeReference("b", IntegerType)()

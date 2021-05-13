@@ -61,14 +61,6 @@ trait CheckAnalysis extends PredicateHelper with LookupCatalog {
     dt.existsRecursively(_.isInstanceOf[MapType])
   }
 
-  protected def mapColumnInSetOperation(plan: LogicalPlan): Option[Attribute] = plan match {
-    case _: Intersect | _: Except | _: Distinct =>
-      plan.output.find(a => hasMapType(a.dataType))
-    case d: Deduplicate =>
-      d.keys.find(a => hasMapType(a.dataType))
-    case _ => None
-  }
-
   private def checkLimitLikeClause(name: String, limitExpr: Expression): Unit = {
     limitExpr match {
       case e if !e.foldable => failAnalysis(

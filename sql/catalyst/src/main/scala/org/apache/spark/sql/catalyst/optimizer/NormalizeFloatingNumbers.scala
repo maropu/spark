@@ -141,24 +141,23 @@ object NormalizeFloatingNumbers extends Rule[LogicalPlan] {
 
     case _ if expr.dataType.isInstanceOf[MapType] =>
       val MapType(kt, vt, containsNull) = expr.dataType
-      var normalized = if (needNormalize(kt)) {
-        val lv1 = NamedLambdaVariable("arg1", kt, false)
+      val maybeKeyNormalized = if (needNormalize(kt)) {
+        val lv1 = NamedLambdaVariable("arg1", kt, nullable = false)
         val lv2 = NamedLambdaVariable("arg2", vt, containsNull)
         val function = normalize(lv1)
         TransformKeys(expr, LambdaFunction(function, Seq(lv1, lv2)))
       } else {
         expr
       }
-
-      normalized = if (needNormalize(vt)) {
-        val lv1 = NamedLambdaVariable("arg1", kt, false)
+      val maybeKeyValueNormalized = if (needNormalize(vt)) {
+        val lv1 = NamedLambdaVariable("arg1", kt, nullable = false)
         val lv2 = NamedLambdaVariable("arg2", vt, containsNull)
         val function = normalize(lv2)
-        TransformValues(normalized, LambdaFunction(function, Seq(lv1, lv2)))
+        TransformValues(maybeKeyNormalized, LambdaFunction(function, Seq(lv1, lv2)))
       } else {
-        normalized
+        maybeKeyNormalized
       }
-      KnownFloatingPointNormalized(normalized)
+      KnownFloatingPointNormalized(maybeKeyValueNormalized)
 
     case _ => throw new IllegalStateException(s"fail to normalize $expr")
   }
