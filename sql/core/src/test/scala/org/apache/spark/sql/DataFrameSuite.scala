@@ -2865,7 +2865,6 @@ class DataFrameSuite extends QueryTest
   test("SPARK-34819: dropDuplicates supports MapType") {
     val df = Seq(Map("k1" -> 1, "k2" -> 2), Map("k2" -> 2, "k1" -> 1)).toDF("v")
     assert(df.dropDuplicates().count() === 1)
-
   }
 }
 

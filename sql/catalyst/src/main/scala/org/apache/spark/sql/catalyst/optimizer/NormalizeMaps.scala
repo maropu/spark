@@ -30,7 +30,7 @@ import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, ArrayData, Generic
 import org.apache.spark.sql.types._
 
 /**
- * When comparing two maps, we have to make sure two maps have the same key value pairs but
+ * When comparing two maps, we have to make sure two maps having the same key value pairs but
  * with different key ordering are equal (e.g., Map('a' -> 1, 'b' -> 2) should equal to
  * Map('b' -> 2, 'a' -> 1). To make sure the assumption holds,
  * this rule inserts a [[SortMapKeys]] expression to sort map entries by keys.

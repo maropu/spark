@@ -4,6 +4,8 @@
 --CONFIG_DIM1 spark.sql.codegen.wholeStage=false,spark.sql.codegen.factoryMode=CODEGEN_ONLY
 --CONFIG_DIM1 spark.sql.codegen.wholeStage=false,spark.sql.codegen.factoryMode=NO_CODEGEN
 
+--SET spark.sql.mapKeyDedupPolicy=LAST_WIN;
+
 CREATE TEMPORARY VIEW t1 AS SELECT * FROM VALUES
   (map(1, 'a', 2, 'b'), map(2, 'b', 1, 'a')),
   (map(2, 'b', 1, 'a'), map(2, 'b', 1, 'A')),
@@ -143,6 +145,16 @@ SELECT DISTINCT v1 FROM t5;
 SELECT DISTINCT v1 FROM t6;
 SELECT DISTINCT v1 FROM t7;
 SELECT DISTINCT v1 FROM t8;
+
+-- To check if `SortMapKeys` inserted correctly, the explain results
+-- of following complicated query cases are shown in `comparable-map-explain.sql`.
+
+-- Combination tests of Sort/Filter/Join/Aggregate/Window + binary comparisons
+SELECT * FROM t1 ORDER BY v1 = v2;
+SELECT * FROM t1 WHERE v1 = v2 AND v1 = map_concat(v2, map(1, 'a'));
+SELECT * FROM t1 l, t1 r WHERE l.v1 = r.v2 AND l.v1 = map_concat(r.v2, map(1, 'a'));
+SELECT v1 = v2, count(1) FROM t1 GROUP BY v1 = v2;
+SELECT v1 = v2, count(1) OVER(PARTITION BY v1 = v2) FROM t1 ORDER BY v1;
 
 -- Combination tests of floating-point/map value normalization
 CREATE TEMPORARY VIEW t9 AS SELECT * FROM VALUES
