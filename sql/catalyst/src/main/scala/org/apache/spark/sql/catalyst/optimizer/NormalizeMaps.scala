@@ -21,12 +21,11 @@ import scala.math.Ordering
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.expressions.codegen.CodeGenerator._
-import org.apache.spark.sql.catalyst.expressions.codegen.ExprCode
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Window}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, ArrayData, GenericArrayData, MapData, TypeUtils}
+import org.apache.spark.sql.catalyst.util.{ArrayBasedMapBuilder, ArrayBasedMapData, ArrayData, GenericArrayData, MapData, TypeUtils}
 import org.apache.spark.sql.types._
 
 /**
@@ -160,17 +159,145 @@ case class SortMapKeys(child: Expression) extends UnaryExpression with ExpectsIn
       identity
   }
 
-  @transient private[this] lazy val sortFunc = {
+  @transient private lazy val sortFunc = {
     createFuncToSortRecursively(dataType)
   }
 
   override def nullSafeEval(input: Any): Any = sortFunc(input)
 
+  private def codegenSortMapKeys(
+      ctx: CodegenContext,
+      dataType: DataType): (String, String) => String = dataType match {
+    case MapType(keyType, valueType, _) => (inVar: String, resultVar: String) => {
+      val compareFunc = {
+        val jt = javaType(keyType)
+        val x = ctx.freshName("x")
+        val y = ctx.freshName("y")
+        val v1 = ctx.freshName("v1")
+        val v2 = ctx.freshName("v2")
+        val comp = if (isPrimitiveType(keyType)) {
+          val bt = boxedType(keyType)
+          s"""
+             |$jt $v1 = (($bt) ((scala.Tuple2) $x)._1).${jt}Value();
+             |$jt $v2 = (($bt) ((scala.Tuple2) $y)._1).${jt}Value();
+             |return ${ctx.genComp(keyType, v1, v2)};
+           """.stripMargin
+        } else {
+          s"""
+             |$jt $v1 = ($jt) ((scala.Tuple2) $x)._1;
+             |$jt $v2 = ($jt) ((scala.Tuple2) $y)._1;
+             |return ${ctx.genComp(keyType, v1, v2)};
+           """.stripMargin
+        }
+
+        s"""
+           |@Override public int compare(Object $x, Object $y) {
+           |  $comp
+           |}
+         """.stripMargin
+      }
+
+      val numElements = ctx.freshName("numElements")
+      val keyArray = ctx.freshName("keyArray")
+      val valueArray = ctx.freshName("valueArray")
+      val buffer = ctx.freshName("buffer")
+      val mapBuilder = new ArrayBasedMapBuilder(keyType, valueType)
+      val builderTerm = ctx.addReferenceObj("mapBuilder", mapBuilder)
+      val i = ctx.freshName("i")
+
+      val mapKey = ctx.freshName("mapKey")
+      val mapValue = ctx.freshName("mapValue")
+      val newMapValue = ctx.freshName("newMapValue")
+      val codeToSortMapValue = codegenSortMapKeys(ctx, valueType)(mapValue, newMapValue)
+
+      s"""
+         |int $numElements = $inVar.numElements();
+         |ArrayData $keyArray = $inVar.keyArray();
+         |ArrayData $valueArray = $inVar.valueArray();
+         |
+         |scala.Tuple2[] $buffer = new scala.Tuple2[$numElements];
+         |for (int $i = 0; $i < $numElements; $i++) {
+         |  ${boxedType(keyType)} $mapKey = ${getValue(keyArray, keyType, i)};
+         |  ${boxedType(valueType)} $mapValue = ${getValue(valueArray, valueType, i)};
+         |  ${boxedType(valueType)} $newMapValue = null;
+         |  if ($mapValue != null) {
+         |    // Map keys cannot contain map types (See `TypeUtils.checkForMapKeyType`),
+         |    // so we recursively sort values only.
+         |    $codeToSortMapValue
+         |  }
+         |  $buffer[$i] = new scala.Tuple2($mapKey, $newMapValue);
+         |}
+         |
+         |java.util.Arrays.sort($buffer, new java.util.Comparator() {
+         |  $compareFunc
+         |});
+         |
+         |for (int $i = 0; $i < $numElements; $i++) {
+         |  $builderTerm.put($buffer[$i]._1, $buffer[$i]._2);
+         |}
+         |
+         |$resultVar = $builderTerm.build();
+       """.stripMargin
+    }
+
+    case ArrayType(dt, _) => (inVar: String, resultVar: String) => {
+      val arrayClass = classOf[GenericArrayData].getName
+      val numElements = ctx.freshName("numElements")
+      val buffer = ctx.freshName("buffer")
+      val i = ctx.freshName("i")
+
+      val element = ctx.freshName("element")
+      val newElement = ctx.freshName("newElement")
+      val codeToSortElement = codegenSortMapKeys(ctx, dt)(element, newElement)
+
+      s"""
+         |int $numElements = $inVar.numElements();
+         |
+         |Object[] $buffer = new Object[$numElements];
+         |for (int $i = 0; $i < $numElements; $i++) {
+         |  ${boxedType(dt)} $element = ${getValue(inVar, dt, i)};
+         |  ${boxedType(dt)} $newElement = null;
+         |  if ($element != null) {
+         |    $codeToSortElement
+         |  }
+         |  $buffer[$i] = $newElement;
+         |}
+         |
+         |$resultVar = new $arrayClass($buffer);
+       """.stripMargin
+    }
+
+    case StructType(fields) => (inVar: String, resultVar: String) => {
+      val rowClass = classOf[GenericInternalRow].getName
+      val numFields = ctx.freshName("numFields")
+      val buffer = ctx.freshName("buffer")
+
+      val codesToSortField = fields.map(_.dataType).zipWithIndex.map { case (ft, i) =>
+        val field = ctx.freshName(s"field$i")
+        val newField = ctx.freshName(s"newField$i")
+        s"""
+           |${boxedType(ft)} $field = ${getValue(inVar, ft, s"$i")};
+           |${boxedType(ft)} $newField = null;
+           |if ($field != null) {
+           |  ${codegenSortMapKeys(ctx, ft)(field, newField)}
+           |}
+           |$buffer[$i] = $newField;
+         """.stripMargin
+      }
+
+      s"""
+         |int $numFields = $inVar.numFields();
+         |Object[] $buffer = new Object[$numFields];
+         |${codesToSortField.mkString("\n")}
+         |$resultVar = new $rowClass($buffer);
+       """.stripMargin
+    }
+
+    case _ => (inVar: String, resultVar: String) =>
+      s"$resultVar = $inVar;"
+  }
+
   override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
-    // TODO: we should code generate this
-    val tf = ctx.addReferenceObj("sortFunc", sortFunc, classOf[Any => Any].getCanonicalName)
-    nullSafeCodeGen(ctx, ev, eval => {
-      s"${ev.value} = (${javaType(dataType)})$tf.apply($eval);"
-    })
+    nullSafeCodeGen(ctx, ev, codegenSortMapKeys(ctx, dataType)(_, ev.value))
   }
 }
