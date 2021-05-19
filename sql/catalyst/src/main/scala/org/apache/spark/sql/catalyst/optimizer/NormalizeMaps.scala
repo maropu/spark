@@ -108,7 +108,11 @@ case class SortMapKeys(child: Expression) extends UnaryExpression with ExpectsIn
           // Map keys cannot contain map types (See `TypeUtils.checkForMapKeyType`),
           // so we recursively sort values only.
           val k = keys.get(i, m.keyType)
-          val v = sf(values.get(i, m.valueType))
+          val v = if (!values.isNullAt(i)) {
+            sf(values.get(i, m.valueType))
+          } else {
+            null
+          }
           buffer(i) = k -> v
           i += 1
         }
@@ -128,6 +132,8 @@ case class SortMapKeys(child: Expression) extends UnaryExpression with ExpectsIn
         while (i < length) {
           if (!input.isNullAt(i)) {
             output(i) = sf(input.get(i, dt))
+          } else {
+            output(i) = null
           }
           i += 1
         }
@@ -149,6 +155,8 @@ case class SortMapKeys(child: Expression) extends UnaryExpression with ExpectsIn
         while (i < length) {
           if (!input.isNullAt(i)) {
             output(i) = fs(i)(input, i)
+          } else {
+            output(i) = null
           }
           i += 1
         }

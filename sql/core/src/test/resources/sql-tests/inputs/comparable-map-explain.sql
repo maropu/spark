@@ -9,6 +9,7 @@ CREATE TEMPORARY VIEW t1 AS SELECT * FROM VALUES
   (map(3, 'c', 1, 'a'), map(4, 'd', 3, 'c')),
   (map(3, 'c', 1, 'a'), map(3, 'c')),
   (map(3, 'c'), map(4, 'd', 3, 'c')),
+  (map(1, 'a', 2, null), map(2, null, 1, 'a')),
   (map(), map(1, 'a')),
   (map(1, 'a'), map())
 AS t(v1, v2);

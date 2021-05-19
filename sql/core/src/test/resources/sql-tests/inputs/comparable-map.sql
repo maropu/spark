@@ -12,6 +12,7 @@ CREATE TEMPORARY VIEW t1 AS SELECT * FROM VALUES
   (map(3, 'c', 1, 'a'), map(4, 'd', 3, 'c')),
   (map(3, 'c', 1, 'a'), map(3, 'c')),
   (map(3, 'c'), map(4, 'd', 3, 'c')),
+  (map(1, 'a', 2, null), map(2, null, 1, 'a')),
   (map(), map(1, 'a')),
   (map(1, 'a'), map())
 AS t(v1, v2);
@@ -19,43 +20,50 @@ AS t(v1, v2);
 CREATE TEMPORARY VIEW t2 AS SELECT * FROM VALUES
   (array(map(1, 'a', 2, 'b')), array(map(2, 'b', 1, 'a'))),
   (array(map(2, 'b', 1, 'a')), array(map(2, 'b', 1, 'A'))),
-  (array(map(3, 'c', 1, 'a')), array(map(4, 'd', 3, 'c')))
+  (array(map(3, 'c', 1, 'a')), array(map(4, 'd', 3, 'c'))),
+  (array(map(1, 'a', 2, null), null), array(map(2, null, 1, 'a'), null))
 AS t(v1, v2);
 
 CREATE TEMPORARY VIEW t3 AS SELECT * FROM VALUES
-  (struct(map(1, 'a', 2, 'b')), struct(map(2, 'b', 1, 'a'))),
-  (struct(map(2, 'b', 1, 'a')), struct(map(2, 'b', 1, 'A'))),
-  (struct(map(3, 'c', 1, 'a')), struct(map(4, 'd', 3, 'c')))
+  (struct(map(1, 'a', 2, 'b'), 'x'), struct(map(2, 'b', 1, 'a'), 'x')),
+  (struct(map(2, 'b', 1, 'a'), 'x'), struct(map(2, 'b', 1, 'A'), 'x')),
+  (struct(map(3, 'c', 1, 'a'), 'x'), struct(map(4, 'd', 3, 'c'), 'x')),
+  (struct(map(1, 'a', 2, null), null), struct(map(2, null, 1, 'a'), null))
 AS t(v1, v2);
 
 CREATE TEMPORARY VIEW t4 AS SELECT * FROM VALUES
   (map(1, map(1, 'a', 2, 'b'), 2, map(3, 'c', 4, 'd')), map(2, map(4, 'd', 3, 'c'), 1, map(2, 'b', 1, 'a'))),
   (map(2, map(4, 'd', 3, 'c'), 1, map(2, 'b', 1, 'a')), map(2, map(4, 'd', 3, 'c'), 1, map(2, 'b', 1, 'A'))),
-  (map(3, map(5, 'e', 6, 'f'), 1, map(1, 'a', 2, 'b')), map(4, map(7, 'g', 8, 'h'), 3, map(6, 'f', 5, 'e')))
+  (map(3, map(5, 'e', 6, 'f'), 1, map(1, 'a', 2, 'b')), map(4, map(7, 'g', 8, 'h'), 3, map(6, 'f', 5, 'e'))),
+  (map(1, map(1, 'a', 2, null), 2, map(3, null, 4, 'd')), map(2, map(4, 'd', 3, null), 1, map(2, null, 1, 'a')))
 AS t(v1, v2);
 
 CREATE TEMPORARY VIEW t5 AS SELECT * FROM VALUES
   (map(array(1, 2), 'a', array(3, 4), 'b'), map(array(3, 4), 'b', array(1, 2), 'a')),
   (map(array(3, 4), 'b', array(1, 2), 'a'), map(array(4, 3), 'b', array(1, 2), 'a')),
-  (map(array(5, 6), 'a', array(1, 2), 'a'), map(array(2, 1), 'a', array(5, 6), 'c'))
+  (map(array(5, 6), 'a', array(1, 2), 'a'), map(array(2, 1), 'a', array(5, 6), 'c')),
+  (map(array(1, null), 'a', array(3, null), 'b'), map(array(3, null), 'b', array(1, null), 'a'))
 AS t(v1, v2);
 
 CREATE TEMPORARY VIEW t6 AS SELECT * FROM VALUES
   (map(1, array(1, 2), 2, array(3, 4)), map(2, array(3, 4), 1, array(1, 2))),
   (map(2, array(3, 4), 1, array(1, 2)), map(2, array(4, 3), 1, array(1, 2))),
-  (map(3, array(5, 6), 1, array(1, 2)), map(1, array(2, 1), 3, array(5, 6)))
+  (map(3, array(5, 6), 1, array(1, 2)), map(1, array(2, 1), 3, array(5, 6))),
+  (map(1, array(1, 2), 2, null), map(2, null, 1, array(2, 1)))
 AS t(v1, v2);
 
 CREATE TEMPORARY VIEW t7 AS SELECT * FROM VALUES
   (map(struct(1), 'a', struct(2), 'b'), map(struct(2), 'b', struct(1), 'a')),
   (map(struct(2), 'b', struct(1), 'a'), map(struct(1), 'b', struct(2), 'a')),
-  (map(struct(3), 'c', struct(1), 'a'), map(struct(4), 'd', struct(3), 'c'))
+  (map(struct(3), 'c', struct(1), 'a'), map(struct(4), 'd', struct(3), 'c')),
+  (map(struct(1), 'a', struct(null), 'b'), map(struct(null), 'b', struct(1), 'a'))
 AS t(v1, v2);
 
 CREATE TEMPORARY VIEW t8 AS SELECT * FROM VALUES
   (map(1, struct('a'), 2, struct('b')), map(2, struct('b'), 1, struct('a'))),
   (map(2, struct('b'), 1, struct('a')), map(2, struct('a'), 1, struct('b'))),
-  (map(3, struct('c'), 1, struct('a')), map(4, struct('d'), 3, struct('c')))
+  (map(3, struct('c'), 1, struct('a')), map(4, struct('d'), 3, struct('c'))),
+  (map(1, struct('a'), 2, struct(null)), map(2, struct(null), 1, struct('a')))
 AS t(v1, v2);
 
 -- ORDER BY cases
