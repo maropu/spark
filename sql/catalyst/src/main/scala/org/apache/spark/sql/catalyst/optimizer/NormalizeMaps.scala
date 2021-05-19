@@ -173,34 +173,32 @@ case class SortMapKeys(child: Expression) extends UnaryExpression with ExpectsIn
 
   override def nullSafeEval(input: Any): Any = sortFunc(input)
 
-  private def codegenSortMapKeys(
+  private def createCodegenFuncToSortMapKeys(
       ctx: CodegenContext,
       dataType: DataType): (String, String) => String = dataType match {
-    case MapType(keyType, valueType, _) => (inVar: String, resultVar: String) => {
+    case MapType(keyType, valueType, _) => (inputVar: String, resultVar: String) => {
       val compareFunc = {
         val jt = javaType(keyType)
         val x = ctx.freshName("x")
         val y = ctx.freshName("y")
-        val v1 = ctx.freshName("v1")
-        val v2 = ctx.freshName("v2")
-        val comp = if (isPrimitiveType(keyType)) {
+        val compareCode = if (isPrimitiveType(keyType)) {
           val bt = boxedType(keyType)
           s"""
-             |$jt $v1 = (($bt) ((scala.Tuple2) $x)._1).${jt}Value();
-             |$jt $v2 = (($bt) ((scala.Tuple2) $y)._1).${jt}Value();
-             |return ${ctx.genComp(keyType, v1, v2)};
+             |$jt v1 = (($bt) ((scala.Tuple2) $x)._1).${jt}Value();
+             |$jt v2 = (($bt) ((scala.Tuple2) $y)._1).${jt}Value();
+             |return ${ctx.genComp(keyType, "v1", "v2")};
            """.stripMargin
         } else {
           s"""
-             |$jt $v1 = ($jt) ((scala.Tuple2) $x)._1;
-             |$jt $v2 = ($jt) ((scala.Tuple2) $y)._1;
-             |return ${ctx.genComp(keyType, v1, v2)};
+             |$jt v1 = ($jt) ((scala.Tuple2) $x)._1;
+             |$jt v2 = ($jt) ((scala.Tuple2) $y)._1;
+             |return ${ctx.genComp(keyType, "v1", "v2")};
            """.stripMargin
         }
 
         s"""
            |@Override public int compare(Object $x, Object $y) {
-           |  $comp
+           |  $compareCode
            |}
          """.stripMargin
       }
@@ -216,12 +214,12 @@ case class SortMapKeys(child: Expression) extends UnaryExpression with ExpectsIn
       val mapKey = ctx.freshName("mapKey")
       val mapValue = ctx.freshName("mapValue")
       val newMapValue = ctx.freshName("newMapValue")
-      val codeToSortMapValue = codegenSortMapKeys(ctx, valueType)(mapValue, newMapValue)
+      val codeToSortMapValue = createCodegenFuncToSortMapKeys(ctx, valueType)(mapValue, newMapValue)
 
       s"""
-         |int $numElements = $inVar.numElements();
-         |ArrayData $keyArray = $inVar.keyArray();
-         |ArrayData $valueArray = $inVar.valueArray();
+         |int $numElements = $inputVar.numElements();
+         |ArrayData $keyArray = $inputVar.keyArray();
+         |ArrayData $valueArray = $inputVar.valueArray();
          |
          |scala.Tuple2[] $buffer = new scala.Tuple2[$numElements];
          |for (int $i = 0; $i < $numElements; $i++) {
@@ -243,12 +241,11 @@ case class SortMapKeys(child: Expression) extends UnaryExpression with ExpectsIn
          |for (int $i = 0; $i < $numElements; $i++) {
          |  $builderTerm.put($buffer[$i]._1, $buffer[$i]._2);
          |}
-         |
          |$resultVar = $builderTerm.build();
        """.stripMargin
     }
 
-    case ArrayType(dt, _) => (inVar: String, resultVar: String) => {
+    case ArrayType(dt, _) => (inputVar: String, resultVar: String) => {
       val arrayClass = classOf[GenericArrayData].getName
       val numElements = ctx.freshName("numElements")
       val buffer = ctx.freshName("buffer")
@@ -256,26 +253,25 @@ case class SortMapKeys(child: Expression) extends UnaryExpression with ExpectsIn
 
       val element = ctx.freshName("element")
       val newElement = ctx.freshName("newElement")
-      val codeToSortElement = codegenSortMapKeys(ctx, dt)(element, newElement)
+      val codeToSortElement = createCodegenFuncToSortMapKeys(ctx, dt)(element, newElement)
 
       s"""
-         |int $numElements = $inVar.numElements();
+         |int $numElements = $inputVar.numElements();
          |
          |Object[] $buffer = new Object[$numElements];
          |for (int $i = 0; $i < $numElements; $i++) {
-         |  ${boxedType(dt)} $element = ${getValue(inVar, dt, i)};
+         |  ${boxedType(dt)} $element = ${getValue(inputVar, dt, i)};
          |  ${boxedType(dt)} $newElement = null;
          |  if ($element != null) {
          |    $codeToSortElement
          |  }
          |  $buffer[$i] = $newElement;
          |}
-         |
          |$resultVar = new $arrayClass($buffer);
        """.stripMargin
     }
 
-    case StructType(fields) => (inVar: String, resultVar: String) => {
+    case StructType(fields) => (inputVar: String, resultVar: String) => {
       val rowClass = classOf[GenericInternalRow].getName
       val numFields = ctx.freshName("numFields")
       val buffer = ctx.freshName("buffer")
@@ -284,28 +280,28 @@ case class SortMapKeys(child: Expression) extends UnaryExpression with ExpectsIn
         val field = ctx.freshName(s"field$i")
         val newField = ctx.freshName(s"newField$i")
         s"""
-           |${boxedType(ft)} $field = ${getValue(inVar, ft, s"$i")};
+           |${boxedType(ft)} $field = ${getValue(inputVar, ft, s"$i")};
            |${boxedType(ft)} $newField = null;
            |if ($field != null) {
-           |  ${codegenSortMapKeys(ctx, ft)(field, newField)}
+           |  ${createCodegenFuncToSortMapKeys(ctx, ft)(field, newField)}
            |}
            |$buffer[$i] = $newField;
          """.stripMargin
       }
 
       s"""
-         |int $numFields = $inVar.numFields();
+         |int $numFields = $inputVar.numFields();
          |Object[] $buffer = new Object[$numFields];
          |${codesToSortField.mkString("\n")}
          |$resultVar = new $rowClass($buffer);
        """.stripMargin
     }
 
-    case _ => (inVar: String, resultVar: String) =>
-      s"$resultVar = $inVar;"
+    case _ => (inputVar: String, resultVar: String) =>
+      s"$resultVar = $inputVar;"
   }
 
   override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
-    nullSafeCodeGen(ctx, ev, codegenSortMapKeys(ctx, dataType)(_, ev.value))
+    nullSafeCodeGen(ctx, ev, createCodegenFuncToSortMapKeys(ctx, dataType)(_, ev.value))
   }
 }
